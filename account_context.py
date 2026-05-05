@@ -23,8 +23,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from urllib.parse import quote
+
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 
 import requests
 from dotenv import load_dotenv
@@ -139,6 +142,56 @@ def fetch_account_context(
         return fetch_maven_customer_context(email=email, user_uuid=customer_id, timeout_sec=timeout_sec)
 
     return ""
+
+
+def extract_emails_from_text(text: str) -> list[str]:
+    """Return unique lowercase email addresses found in text, in order of first appearance."""
+    return list(dict.fromkeys(m.lower() for m in _EMAIL_RE.findall(text or "")))
+
+
+def fetch_account_contexts_for_ticket(
+    primary_email: str | None,
+    ticket_text: str | None = None,
+    *,
+    timeout_sec: float = 30.0,
+) -> dict:
+    """Look up every email in the ticket and return combined account context.
+
+    Checks the primary contact email plus any additional email addresses found in the
+    ticket body. If multiple subscribed accounts are found across these emails, sets
+    multiple_subscribed=True — this is an immediate escalation trigger.
+
+    Returns:
+        emails_checked:      list of all emails looked up
+        accounts:            list of {email, blob} for each lookup
+        subscribed_accounts: subset where the blob contains 'Subscribed: true'
+        multiple_subscribed: True if more than one subscribed account found
+        combined_blob:       formatted string for the AI prompt
+    """
+    seen: dict[str, str] = {}
+
+    candidates = ([primary_email] if primary_email else []) + extract_emails_from_text(ticket_text or "")
+    for raw in candidates:
+        email = (raw or "").strip().lower()
+        if not email or email in seen:
+            continue
+        seen[email] = fetch_account_context(email=email, timeout_sec=timeout_sec)
+
+    accounts = [{"email": e, "blob": b} for e, b in seen.items()]
+    subscribed = [a for a in accounts if "Subscribed: true" in a["blob"]]
+
+    parts = []
+    for a in accounts:
+        parts.append(f"--- Account lookup: {a['email']} ---\n{a['blob']}")
+    combined_blob = "\n\n".join(parts) if parts else ""
+
+    return {
+        "emails_checked": list(seen.keys()),
+        "accounts": accounts,
+        "subscribed_accounts": subscribed,
+        "multiple_subscribed": len(subscribed) > 1,
+        "combined_blob": combined_blob,
+    }
 
 
 def main() -> None:

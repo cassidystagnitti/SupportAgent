@@ -56,6 +56,10 @@ Help Scout webhook
 
 ---
 
+## Notion Sync
+
+Policy docs live in two places: the `policies/` directory in this repo (used by the AI pipeline) and the **Support Policy Docs** page in Notion (used by the human team). **Both must be kept in sync.** Whenever a policy doc is updated in either place, update the other immediately. The repo is the source of truth for structure and AI-facing content; Notion is the source of truth for human readability and team review.
+
 ## Working Principles
 
 - **Don't modify `triage_tickets.py`, `account_context.py`, or `maven_customer_context.py` unless there's a specific integration issue.** The orchestrator calls them — it doesn't rewrite them.
