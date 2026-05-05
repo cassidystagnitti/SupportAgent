@@ -18,6 +18,7 @@ load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
 BASE_URL = "https://api.helpscout.net/v2"
 TOKEN_URL = f"{BASE_URL}/oauth2/token"
+DEFAULT_TRIAGE_MODEL = os.getenv("CLAUDE_TRIAGE_MODEL", "claude-sonnet-4-6")
 
 APP_ID = os.getenv("HELPSCOUT_APP_ID")
 APP_SECRET = os.getenv("HELPSCOUT_APP_SECRET")
@@ -272,7 +273,7 @@ def triage_batch(client, tickets, tag_names, team_names, strict=False):
         prompt += TRIAGE_RETRY_SUFFIX
 
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=DEFAULT_TRIAGE_MODEL,
         max_tokens=8192,
         messages=[{"role": "user", "content": prompt}],
     )

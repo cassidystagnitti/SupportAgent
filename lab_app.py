@@ -143,25 +143,23 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
             cust = orch._customer_from_conversation(convo)
             sess["hs_customer_id"] = cust.get("id")
             sess["customer_name_hs"] = orch._customer_display_name(cust)
+            hs_email = (cust.get("email") or "").strip()
+            if not sess["email"] and hs_email:
+                sess["email"] = hs_email
+                tech.append(f"Email auto-populated from Help Scout customer: {hs_email}")
             live_subject = convo.get("subject") or ""
             live_body = orch.get_conversation_text(hs, int(cid)) or ""
             sess["live_subject"] = live_subject
             sess["live_body"] = live_body
-            if sess.get("use_live_thread"):
-                sess["effective_subject"] = live_subject or subject_in
-                sess["effective_body"] = live_body or body_in
-            else:
-                sess["effective_subject"] = subject_in
-                sess["effective_body"] = body_in
+            # always use live thread data — that's what prod does
+            sess["effective_subject"] = live_subject or subject_in
+            sess["effective_body"] = live_body or body_in
             preview = {
                 "hs_customer_id": sess["hs_customer_id"],
                 "customer_name_hs": sess["customer_name_hs"],
-                "customer_email_api": (cust.get("email") or "").strip(),
+                "customer_email": sess["email"],
                 "live_subject": live_subject[:500],
                 "live_body_preview": _trim(live_body, 4000),
-                "effective_subject": sess["effective_subject"][:500],
-                "effective_body_preview": _trim(sess["effective_body"], 4000),
-                "use_live_thread": sess.get("use_live_thread"),
             }
             return {
                 "ok": True,
@@ -555,6 +553,28 @@ def run_step(sid: str, step: str) -> dict[str, Any]:
     return {"step": step, **result}
 
 
+@app.post("/api/session/{sid}/run-all")
+def run_all(sid: str) -> dict[str, Any]:
+    sess = _session_get(sid)
+    for step in STEP_ORDER:
+        if step in sess["completed"]:
+            continue
+        result = _execute_step(sess, step)
+        sess["step_logs"][step] = result
+        sess["completed"].append(step)
+        if not result["ok"]:
+            return {
+                "failed_at": step,
+                "completed": list(sess["completed"]),
+                "step_logs": sess["step_logs"],
+            }
+    return {
+        "failed_at": None,
+        "completed": list(sess["completed"]),
+        "step_logs": sess["step_logs"],
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
     return PAGE_HTML
@@ -571,151 +591,157 @@ PAGE_HTML = """<!DOCTYPE html>
 <body class="bg-slate-100 text-slate-900 min-h-screen">
   <div class="max-w-4xl mx-auto px-4 py-10">
     <h1 class="text-2xl font-semibold tracking-tight">Support pipeline lab</h1>
-    <p class="text-slate-600 mt-1 text-sm">Local only. Step through triage → snapshot → account → Stripe → policies → Claude → Help Scout writes.</p>
+    <p class="text-slate-600 mt-1 text-sm">Triage → account lookup → Stripe → policies → Claude draft → Help Scout write.</p>
 
     <section class="mt-8 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-      <h2 class="font-medium text-slate-800">1. Inputs</h2>
-      <div class="mt-4 grid gap-4">
+      <div class="grid gap-4">
         <label class="block text-sm">
-          <span class="text-slate-600">Help Scout conversation ID</span>
-          <input id="convo_id" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 font-mono text-sm" placeholder="e.g. 123456789"/>
+          <span class="font-medium text-slate-700">Help Scout conversation ID</span>
+          <input id="convo_id" type="text" autofocus
+            class="mt-1 w-full border rounded-lg px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="e.g. 123456789"/>
         </label>
         <label class="block text-sm">
-          <span class="text-slate-600">Customer email (Maven / account lookup)</span>
-          <input id="email" type="email" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm" placeholder="customer@example.com"/>
+          <span class="text-slate-600">Customer email <span class="text-slate-400">(optional — auto-fetched from Help Scout)</span></span>
+          <input id="email" type="email"
+            class="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="auto-detected from conversation"/>
         </label>
-        <label class="block text-sm">
-          <span class="text-slate-600">Subject (used for Claude unless you use live thread)</span>
-          <input id="subject" type="text" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm"/>
-        </label>
-        <label class="block text-sm">
-          <span class="text-slate-600">Body (ticket text for Claude)</span>
-          <textarea id="body" rows="6" class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-mono"></textarea>
-        </label>
-        <div class="flex flex-wrap gap-4 text-sm">
-          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="skip_triage"/> Skip triage</label>
-          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="skip_writes"/> Skip Help Scout draft + note</label>
-          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="use_live_thread"/> Use live thread subject/body from Help Scout after snapshot</label>
+        <div class="flex flex-wrap gap-5 text-sm pt-1">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="skip_triage" class="rounded"/> Skip triage
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="skip_writes" class="rounded"/> Skip Help Scout draft + note
+          </label>
         </div>
-        <button id="btn_start" type="button" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800">Start session</button>
-        <p id="session_meta" class="text-xs text-slate-500 font-mono"></p>
+        <button id="btn_run" type="button"
+          class="mt-1 bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed">
+          Run Pipeline
+        </button>
+        <p id="session_meta" class="text-xs text-slate-400 font-mono hidden"></p>
       </div>
     </section>
 
     <section id="steps_wrap" class="mt-8 hidden">
-      <h2 class="font-medium text-slate-800 mb-4">2. Run steps in order</h2>
-      <div id="steps" class="space-y-4"></div>
+      <div id="steps" class="space-y-3"></div>
     </section>
   </div>
 
 <script>
 const STEP_LABELS = {
-  triage: "Triage (Help Scout tags / team / Claude triage)",
-  helpscout_snapshot: "Fetch conversation (customer id, optional live thread)",
-  account: "Account lookup (Maven / configured backend)",
-  stripe: "Stripe enrichment (if platform is Stripe)",
-  policies: "Load policy markdown corpus",
-  claude: "Draft generation (Claude Sonnet)",
-  helpscout_write: "Create draft reply + internal note",
+  triage: "Triage",
+  helpscout_snapshot: "Fetch conversation",
+  account: "Account lookup",
+  stripe: "Stripe enrichment",
+  policies: "Load policies",
+  claude: "Claude draft",
+  helpscout_write: "Write to Help Scout",
 };
 
 const ORDER = ["triage","helpscout_snapshot","account","stripe","policies","claude","helpscout_write"];
 
-document.getElementById("btn_start").onclick = async () => {
-  const payload = {
-    convo_id: document.getElementById("convo_id").value.trim(),
-    email: document.getElementById("email").value.trim(),
-    subject: document.getElementById("subject").value,
-    body: document.getElementById("body").value,
-    skip_triage: document.getElementById("skip_triage").checked,
-    skip_helpscout_writes: document.getElementById("skip_writes").checked,
-    use_live_thread: document.getElementById("use_live_thread").checked,
-  };
-  const r = await fetch("/api/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  if (!r.ok) { alert(await r.text()); return; }
-  const data = await r.json();
-  window.__sid = data.session_id;
-  document.getElementById("session_meta").textContent = "session_id: " + data.session_id;
-  document.getElementById("steps_wrap").classList.remove("hidden");
-  renderSteps(data.completed || [], data.step_logs || {});
-};
-
-function fillStepCard(card, log) {
-  if (!log) return;
-  const pre = card.querySelector(".step-out");
-  const techD = card.querySelector(".tech-details");
-  const techP = card.querySelector(".tech-pre");
-  pre.classList.remove("hidden");
-  pre.textContent = (log.summary || "") + "\\n\\n" + (log.detail || "");
-  const tl = log.technical_log || [];
-  if (tl.length) {
-    techD.classList.remove("hidden");
-    techP.textContent = tl.join("\\n");
-  }
+function statusBadge(log) {
+  if (!log) return '<span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-500">pending</span>';
+  return log.ok
+    ? '<span class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">done</span>'
+    : '<span class="text-xs font-mono px-2 py-0.5 rounded bg-red-100 text-red-700">failed</span>';
 }
 
 function renderSteps(completed, stepLogs) {
   stepLogs = stepLogs || {};
   const root = document.getElementById("steps");
   root.innerHTML = "";
-  ORDER.forEach((step, i) => {
+  ORDER.forEach(step => {
+    const log = stepLogs[step];
     const done = completed.includes(step);
-    const prev = i === 0 ? true : completed.includes(ORDER[i-1]);
-    const unlocked = prev || done;
-
     const card = document.createElement("div");
-    card.className = "step-card bg-white rounded-xl border border-slate-200 p-4 shadow-sm";
+    card.className = "bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden";
     card.innerHTML = `
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <h3 class="font-medium text-slate-800">${STEP_LABELS[step]}</h3>
-        <span class="step-status text-xs font-mono px-2 py-1 rounded ${done ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}">${done ? "done" : unlocked ? "ready" : "locked"}</span>
+      <div class="flex items-center justify-between px-4 py-3 cursor-pointer select-none step-header">
+        <span class="font-medium text-sm text-slate-800">${STEP_LABELS[step]}</span>
+        <div class="flex items-center gap-3">
+          ${log ? '<span class="text-xs text-slate-500 truncate max-w-xs">' + escHtml(log.summary || "") + '</span>' : ''}
+          ${statusBadge(log)}
+          ${done ? '<svg class="w-4 h-4 text-slate-400 chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>' : ''}
+        </div>
       </div>
-      <p class="text-xs text-slate-500 mt-2">Step: <code>${step}</code></p>
-      <div class="mt-3 flex gap-2 items-center">
-        <button type="button" class="run-btn bg-indigo-600 text-white text-sm px-3 py-1.5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed" data-step="${step}" ${done || !unlocked ? "disabled" : ""}>Run step</button>
-      </div>
-      <pre class="step-out mt-3 text-xs bg-slate-50 border rounded-lg p-3 overflow-auto max-h-96 whitespace-pre-wrap font-mono text-slate-800 hidden"></pre>
-      <details class="tech-details mt-2 hidden border border-slate-800 rounded-lg overflow-hidden">
-        <summary class="text-xs px-3 py-2 cursor-pointer bg-slate-900 text-amber-100 font-medium select-none">Technical / API log</summary>
-        <pre class="tech-pre text-xs p-3 bg-slate-950 text-green-300 overflow-auto max-h-80 whitespace-pre-wrap font-mono leading-relaxed"></pre>
-      </details>
+      ${done ? `
+      <div class="step-body hidden border-t border-slate-100">
+        <pre class="text-xs bg-slate-50 p-4 overflow-auto max-h-96 whitespace-pre-wrap font-mono text-slate-800">${escHtml((log.detail || ""))}</pre>
+        ${(log.technical_log || []).length ? `
+        <details class="border-t border-slate-200">
+          <summary class="text-xs px-4 py-2 cursor-pointer bg-slate-900 text-amber-100 font-medium select-none">Technical / API log</summary>
+          <pre class="text-xs p-4 bg-slate-950 text-green-300 overflow-auto max-h-72 whitespace-pre-wrap font-mono leading-relaxed">${escHtml((log.technical_log || []).join("\\n"))}</pre>
+        </details>` : ''}
+      </div>` : ''}
     `;
+    if (done) {
+      card.querySelector(".step-header").onclick = () => {
+        const body = card.querySelector(".step-body");
+        const chev = card.querySelector(".chevron");
+        body.classList.toggle("hidden");
+        if (chev) chev.style.transform = body.classList.contains("hidden") ? "" : "rotate(180deg)";
+      };
+    }
     root.appendChild(card);
-    if (done && stepLogs[step]) fillStepCard(card, stepLogs[step]);
-  });
-
-  root.querySelectorAll(".run-btn").forEach(btn => {
-    btn.onclick = async () => {
-      const step = btn.getAttribute("data-step");
-      btn.disabled = true;
-      const card = btn.closest(".step-card");
-      const pre = card.querySelector(".step-out");
-      const techD = card.querySelector(".tech-details");
-      const techP = card.querySelector(".tech-pre");
-      pre.classList.remove("hidden");
-      techD.classList.add("hidden");
-      pre.textContent = "Running…";
-      const r = await fetch(`/api/session/${window.__sid}/step/${step}`, { method: "POST" });
-      const raw = await r.text();
-      let j;
-      try { j = JSON.parse(raw); } catch { pre.textContent = raw; btn.disabled = false; return; }
-      if (!r.ok) {
-        pre.textContent = raw;
-        btn.disabled = false;
-        return;
-      }
-      pre.textContent = (j.summary || "") + "\\n\\n" + (j.detail || "");
-      const tl = j.technical_log || [];
-      if (tl.length) {
-        techD.classList.remove("hidden");
-        techP.textContent = tl.join("\\n");
-      }
-      const st = await fetch(`/api/session/${window.__sid}`);
-      const s = await st.json();
-      renderSteps(s.completed || [], s.step_logs || {});
-    };
   });
 }
+
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+document.getElementById("btn_run").onclick = async () => {
+  const convoId = document.getElementById("convo_id").value.trim();
+  if (!convoId) { alert("Enter a conversation ID."); return; }
+
+  const btn = document.getElementById("btn_run");
+  btn.disabled = true;
+  btn.textContent = "Running…";
+
+  const payload = {
+    convo_id: convoId,
+    email: document.getElementById("email").value.trim(),
+    subject: "",
+    body: "",
+    skip_triage: document.getElementById("skip_triage").checked,
+    skip_helpscout_writes: document.getElementById("skip_writes").checked,
+    use_live_thread: true,
+  };
+
+  let sid;
+  try {
+    const r = await fetch("/api/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    if (!r.ok) { alert(await r.text()); return; }
+    const data = await r.json();
+    sid = data.session_id;
+    window.__sid = sid;
+    document.getElementById("session_meta").textContent = "session: " + sid;
+    document.getElementById("session_meta").classList.remove("hidden");
+    document.getElementById("steps_wrap").classList.remove("hidden");
+    renderSteps(data.completed || [], data.step_logs || {});
+  } catch(e) { alert("Session create failed: " + e); btn.disabled = false; btn.textContent = "Run Pipeline"; return; }
+
+  try {
+    const r2 = await fetch(`/api/session/${sid}/run-all`, { method: "POST" });
+    const raw = await r2.text();
+    let result;
+    try { result = JSON.parse(raw); } catch { alert("Bad response: " + raw); return; }
+    renderSteps(result.completed || [], result.step_logs || {});
+    if (result.failed_at) {
+      btn.textContent = "Failed at: " + result.failed_at + " — Run Pipeline";
+      btn.disabled = false;
+    } else {
+      btn.textContent = "Done — Run Again";
+      btn.disabled = false;
+    }
+  } catch(e) { alert("Run-all failed: " + e); btn.disabled = false; btn.textContent = "Run Pipeline"; }
+};
+
+document.getElementById("convo_id").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("btn_run").click();
+});
 </script>
 </body>
 </html>

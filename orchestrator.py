@@ -36,16 +36,18 @@ from triage_tickets import (  # noqa: E402
 log = logging.getLogger("support_orchestrator")
 
 DRAFT_SYSTEM_PROMPT_PATH = os.path.join(_SUPPORT_DIR, "prompts", "draft_system_prompt.txt")
-DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_CLAUDE_MODEL = "claude-opus-4-6"
 
 DRAFT_JSON_RETRY_USER_SUFFIX = """
 
 IMPORTANT — your last reply was empty or not valid JSON for this pipeline.
 
 Reply with ONLY one JSON object (no markdown fences, no commentary before or after).
-Required keys: draft_reply, needs_action, action_description, auto_sendable,
-do_not_send_reasons, referenced_policies, confidence, reasoning.
+Required keys: draft_reply, escalate, escalate_reason, needs_action, action_description,
+auto_sendable, do_not_send_reasons, referenced_policies, confidence, reasoning.
 Use null for action_description when needs_action is false.
+Use null for escalate_reason when escalate is false.
+Use null for draft_reply when escalate is true.
 If you must shorten draft_reply to fit, keep JSON valid and closed."""
 
 
@@ -276,6 +278,8 @@ def _format_internal_note_html(
     parsed: dict[str, Any],
     stripe_lines_for_note: str,
 ) -> str:
+    escalate = bool(parsed.get("escalate"))
+    escalate_reason = parsed.get("escalate_reason")
     needs_action = parsed.get("needs_action")
     auto_sendable = parsed.get("auto_sendable")
     confidence = parsed.get("confidence", "")
@@ -294,11 +298,19 @@ def _format_internal_note_html(
         if action_desc
         else ""
     )
+    escalation_html = (
+        f"<p style='color:red'><strong>ESCALATION — no draft created.</strong><br/>"
+        f"Reason: {_html_escape(str(escalate_reason or '(see reasoning)'))}</p>"
+        if escalate
+        else ""
+    )
 
     return (
         "<p><strong>🤖 AI Draft Classification</strong></p>"
         "<hr/>"
-        f"<p><strong>Action Required:</strong> {yn(needs_action)}<br/>"
+        f"{escalation_html}"
+        f"<p><strong>Escalation:</strong> {yn(escalate)}<br/>"
+        f"<strong>Action Required:</strong> {yn(needs_action)}<br/>"
         f"<strong>Auto-Sendable:</strong> {yn(auto_sendable)}<br/>"
         f"<strong>Confidence:</strong> {_html_escape(str(confidence))}</p>"
         f"{action_html}"
@@ -310,6 +322,24 @@ def _format_internal_note_html(
         "<p><strong>Stripe Pricing Context:</strong><br/>"
         f"{stripe_lines_for_note}</p>"
     )
+
+
+def _extract_tag_names(tags_field: list) -> list[str]:
+    names = []
+    for t in tags_field or []:
+        if isinstance(t, dict):
+            names.append(t.get("tag") or t.get("name") or "")
+        else:
+            names.append(str(t))
+    return [n for n in names if n]
+
+
+def _add_escalation_tag(session: requests.Session, cid: str, existing_tags: list[str]) -> None:
+    if "escalation" in existing_tags:
+        return
+    merged = existing_tags + ["escalation"]
+    resp = session.put(f"{BASE_URL}/conversations/{cid}/tags", json={"tags": merged})
+    resp.raise_for_status()
 
 
 def _html_escape(s: str) -> str:
@@ -343,6 +373,8 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
         "multiple_subscribed": False,
         "emails_checked": [],
         "claude_model": os.getenv("CLAUDE_DRAFT_MODEL", DEFAULT_CLAUDE_MODEL),
+        "escalated": False,
+        "escalate_reason": None,
         "needs_action": None,
         "auto_sendable": None,
         "confidence": None,
@@ -393,6 +425,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
         convo_email = (cust.get("email") or "").strip()
         email = email_in or convo_email
         out["customer_email"] = email
+        existing_tags = _extract_tag_names(convo.get("tags", []))
 
         customer_name = _customer_display_name(cust)
         subject = convo.get("subject") or "(no subject)"
@@ -480,12 +513,22 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
 
         draft_reply = parsed.get("draft_reply") or ""
         out["draft_text"] = draft_reply
-        out["needs_action"] = True if out["multiple_subscribed"] else bool(parsed.get("needs_action"))
-        out["auto_sendable"] = False if out["multiple_subscribed"] else bool(parsed.get("auto_sendable"))
+        is_escalation = bool(parsed.get("escalate")) or out["multiple_subscribed"]
+        out["escalated"] = is_escalation
+        out["escalate_reason"] = parsed.get("escalate_reason")
+        out["needs_action"] = True if (is_escalation or out["multiple_subscribed"]) else bool(parsed.get("needs_action"))
+        out["auto_sendable"] = False if (is_escalation or out["multiple_subscribed"]) else bool(parsed.get("auto_sendable"))
         out["confidence"] = parsed.get("confidence")
         out["referenced_policies"] = parsed.get("referenced_policies") or []
         out["do_not_send_reasons"] = parsed.get("do_not_send_reasons") or []
         out["reasoning"] = parsed.get("reasoning")
+
+        if is_escalation:
+            try:
+                _add_escalation_tag(session, cid, existing_tags)
+                log.info("Escalation: added 'escalation' tag to conversation %s", cid)
+            except requests.RequestException:
+                log.exception("Failed to add escalation tag to conversation %s", cid)
 
         note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
         note_html = _format_internal_note_html(
@@ -493,7 +536,13 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
             stripe_lines_for_note=stripe_note_block,
         )
 
-        if hs_customer_id is None:
+        if is_escalation:
+            log.info(
+                "Escalation: skipping draft reply for conversation %s. Reason: %s",
+                cid,
+                out["escalate_reason"] or "(multiple subscribed accounts)" if out["multiple_subscribed"] else out["escalate_reason"],
+            )
+        elif hs_customer_id is None:
             log.error(
                 "No Help Scout customer id on conversation — cannot create draft. Draft text logged below.\n%s",
                 draft_reply[:8000],
