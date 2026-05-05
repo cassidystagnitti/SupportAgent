@@ -37,6 +37,7 @@ load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
 import orchestrator as orch  # noqa: E402
 from account_context import fetch_account_contexts_for_ticket  # noqa: E402
+from product_prioritization import run_product_prioritization  # noqa: E402
 from stripe_context import fetch_stripe_context, format_stripe_context  # noqa: E402
 from triage_tickets import run_triage  # noqa: E402
 
@@ -50,6 +51,7 @@ STEP_ORDER = [
     "policies",
     "claude",
     "helpscout_write",
+    "product_prioritization",
 ]
 
 MAX_SESSIONS = 40
@@ -147,6 +149,7 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
             if not sess["email"] and hs_email:
                 sess["email"] = hs_email
                 tech.append(f"Email auto-populated from Help Scout customer: {hs_email}")
+            sess["existing_tags"] = orch._extract_tag_names(convo.get("tags", []))
             live_subject = convo.get("subject") or ""
             live_body = orch.get_conversation_text(hs, int(cid)) or ""
             sess["live_subject"] = live_subject
@@ -310,14 +313,14 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
             ]
             agent_name = os.getenv("SUPPORT_AGENT_SIGNOFF_NAME", "Happier Meditation Support")
             cust_name = sess.get("customer_name_hs") or "there"
-            user_msg = orch._build_user_prompt(
+            policy_docs = sess.get("policy_docs") or ""
+            user_msg = orch._build_dynamic_user_message(
                 ticket_subject=sess.get("effective_subject") or subject_in,
                 ticket_body=sess.get("effective_body") or body_in,
                 customer_name=cust_name,
                 customer_email=email or "(unknown)",
                 account_blob=sess.get("account_blob") or "",
                 stripe_context=sess.get("stripe_block") or "",
-                policy_docs=sess.get("policy_docs") or "",
                 agent_name=agent_name,
             )
             sess["last_user_prompt_chars"] = len(user_msg)
@@ -329,7 +332,8 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
             msg, parsed, raw_assistant = orch._call_claude_draft(
                 client,
                 system_prompt=system_prompt,
-                user_message=user_msg,
+                policy_docs=policy_docs,
+                dynamic_user_message=user_msg,
                 model=model,
             )
             sess["claude_parsed"] = parsed
@@ -462,6 +466,43 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
 
         ok = not any("FAILED" in line for line in lines_out)
         return {"ok": ok, "summary": "Help Scout write step finished.", "detail": "\n\n".join(lines_out), "technical_log": tech}
+
+    if step == "product_prioritization":
+        tags = sess.get("existing_tags") or []
+        tech = [
+            f"Tags on conversation after triage: {tags}",
+            "Runs only when 'feedback' tag is present and LINEAR_PRODUCT_TEAM_ID is set.",
+        ]
+        try:
+            result = run_product_prioritization(
+                ticket_subject=sess.get("effective_subject") or subject_in,
+                ticket_body=sess.get("effective_body") or body_in,
+                tags=tags,
+                conversation_id=cid,
+            )
+            if result.get("skipped"):
+                reason = (
+                    "ticket not tagged 'feedback'"
+                    if "feedback" not in [t.lower() for t in tags]
+                    else "LINEAR_PRODUCT_TEAM_ID not set"
+                )
+                return {
+                    "ok": True,
+                    "summary": f"Skipped — {reason}.",
+                    "detail": json.dumps(result, indent=2),
+                    "technical_log": tech,
+                }
+            detail = json.dumps(result, indent=2)
+            if result.get("matched"):
+                summary = f"Matched Linear issue {result.get('linear_issue_identifier')} — comment added."
+            elif result.get("error"):
+                summary = f"Error: {result['error']}"
+            else:
+                summary = "No matching Linear issue found."
+            return {"ok": not bool(result.get("error")), "summary": summary, "detail": detail, "technical_log": tech}
+        except Exception:
+            tech.append(traceback.format_exc())
+            return {"ok": False, "summary": "Product prioritization failed.", "detail": traceback.format_exc(), "technical_log": tech}
 
     return {"ok": False, "summary": "Unknown step.", "detail": step, "technical_log": []}
 
@@ -637,9 +678,10 @@ const STEP_LABELS = {
   policies: "Load policies",
   claude: "Claude draft",
   helpscout_write: "Write to Help Scout",
+  product_prioritization: "Product prioritization",
 };
 
-const ORDER = ["triage","helpscout_snapshot","account","stripe","policies","claude","helpscout_write"];
+const ORDER = ["triage","helpscout_snapshot","account","stripe","policies","claude","helpscout_write","product_prioritization"];
 
 function statusBadge(log) {
   if (!log) return '<span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-500">pending</span>';

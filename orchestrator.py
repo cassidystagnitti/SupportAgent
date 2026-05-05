@@ -24,6 +24,7 @@ load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
 load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
 from account_context import fetch_account_contexts_for_ticket  # noqa: E402
+from product_prioritization import run_product_prioritization  # noqa: E402
 from stripe_context import fetch_stripe_context, format_stripe_context  # noqa: E402
 from triage_tickets import (  # noqa: E402
     BASE_URL,
@@ -180,16 +181,38 @@ def _call_claude_draft(
     client: anthropic.Anthropic,
     *,
     system_prompt: str,
-    user_message: str,
+    policy_docs: str,
+    dynamic_user_message: str,
     model: str,
 ) -> tuple[Any, dict[str, Any], str]:
     """Returns (message, parsed_json, raw_assistant_text)."""
-    user_variants = [user_message, user_message.strip() + DRAFT_JSON_RETRY_USER_SUFFIX]
+    system_blocks = [
+        {
+            "type": "text",
+            "text": system_prompt,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
+
+    def _user_content(retry: bool) -> list[dict]:
+        dynamic = dynamic_user_message.strip() + (DRAFT_JSON_RETRY_USER_SUFFIX if retry else "")
+        return [
+            {
+                "type": "text",
+                "text": f"=== POLICY DOCUMENTS ===\n{policy_docs}\n",
+                "cache_control": {"type": "ephemeral"},
+            },
+            {
+                "type": "text",
+                "text": dynamic,
+            },
+        ]
+
     last_json_err: json.JSONDecodeError | None = None
     last_api_err: BaseException | None = None
     last_raw_text = ""
 
-    for variant_idx, msg_body in enumerate(user_variants):
+    for variant_idx in range(2):
         if variant_idx == 1:
             log.info("Retrying Claude draft with strict JSON-only user suffix")
         for api_attempt in range(2):
@@ -197,8 +220,8 @@ def _call_claude_draft(
                 message = client.messages.create(
                     model=model,
                     max_tokens=8192,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": msg_body}],
+                    system=system_blocks,
+                    messages=[{"role": "user", "content": _user_content(variant_idx == 1)}],
                 )
                 text = _assistant_text_from_message(message)
                 last_raw_text = text
@@ -240,7 +263,7 @@ def _call_claude_draft(
     ) from (last_json_err or last_api_err)
 
 
-def _build_user_prompt(
+def _build_dynamic_user_message(
     *,
     ticket_subject: str,
     ticket_body: str,
@@ -248,14 +271,12 @@ def _build_user_prompt(
     customer_email: str,
     account_blob: str,
     stripe_context: str,
-    policy_docs: str,
     agent_name: str,
 ) -> str:
+    today = datetime.now(timezone.utc).strftime("%B %d, %Y")
     return f"""
-=== POLICY DOCUMENTS ===
-{policy_docs}
-
 === CUSTOMER ACCOUNT DATA ===
+Today's Date: {today}
 Customer Name: {customer_name}
 Customer Email: {customer_email}
 
@@ -389,6 +410,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
         "latency_ms": None,
         "draft_text": None,
         "reasoning": None,
+        "product_prioritization": None,
         "error": None,
     }
 
@@ -486,14 +508,13 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
         system_prompt = _load_system_prompt()
         agent_name = os.getenv("SUPPORT_AGENT_SIGNOFF_NAME", "Happier Meditation Support")
 
-        user_message = _build_user_prompt(
+        dynamic_message = _build_dynamic_user_message(
             ticket_subject=subject,
             ticket_body=body,
             customer_name=customer_name,
             customer_email=email or "(unknown)",
             account_blob=account_blob,
             stripe_context=stripe_block_for_prompt,
-            policy_docs=policy_docs,
             agent_name=agent_name,
         )
 
@@ -502,7 +523,8 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
         msg, parsed, _raw_assistant = _call_claude_draft(
             client,
             system_prompt=system_prompt,
-            user_message=user_message,
+            policy_docs=policy_docs,
+            dynamic_user_message=dynamic_message,
             model=model,
         )
 
@@ -580,6 +602,22 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
                 log.exception("Help Scout internal note failed — draft may still exist")
         else:
             log.warning("HELPSCOUT_NOTE_USER_ID unset — skipping internal note")
+
+        pp = run_product_prioritization(
+            ticket_subject=subject,
+            ticket_body=body,
+            tags=existing_tags,
+            conversation_id=cid,
+        )
+        out["product_prioritization"] = pp
+        if not pp.get("skipped"):
+            log.info(
+                "product_prioritization: matched=%s issue=%s reasoning=%s error=%s",
+                pp.get("matched"),
+                pp.get("linear_issue_identifier"),
+                pp.get("reasoning"),
+                pp.get("error"),
+            )
 
         out["latency_ms"] = int((time.monotonic() - t0) * 1000)
         log.info("%s", json.dumps({k: out[k] for k in out if k != "draft_text"}, default=str))

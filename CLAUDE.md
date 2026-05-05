@@ -21,7 +21,7 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `build_saved_reply_embeddings.py` | Standalone CLI | Embeds saved replies for semantic search |
 | `search_saved_replies.py` | Standalone CLI | Searches embedded saved replies |
 | `lab_app.py` | Experimental | Scratch/lab code — not part of the production pipeline |
-| `policies/` | Live | 14 markdown policy docs, loaded wholesale into every draft prompt |
+| `policies/` | Live | 17 markdown policy docs, loaded wholesale into every draft prompt |
 | `prompts/draft_system_prompt.txt` | Live | System prompt for draft generation (edit here, not in Python) |
 | `prompts/triage_prompt.txt` | Live | System prompt for triage classification |
 
@@ -48,7 +48,7 @@ Help Scout webhook
 
 ## Key Architecture Decisions
 
-- **All policy docs are loaded into every prompt (no RAG).** The corpus is ~14 docs, ~15-20k tokens. Full context is more reliable than retrieval at this scale. Revisit if corpus exceeds ~40 docs.
+- **All policy docs are loaded into every prompt (no RAG).** The corpus is ~17 docs, ~15-20k tokens. Full context is more reliable than retrieval at this scale. Revisit if corpus exceeds ~40 docs.
 - **Stripe enrichment only runs for Stripe subscribers.** Apple/Google subscribers are skipped — we can't act on their subscriptions from the backend anyway.
 - **Classification and draft come from one Claude call.** No separate classifier. One call returns: `draft_reply`, `needs_action`, `auto_sendable`, `confidence`, `referenced_policies`, `reasoning`.
 - **`auto_sendable` is captured but not acted on.** Auto-send is a future feature gated by env var. Right now everything goes to draft.
@@ -59,6 +59,35 @@ Help Scout webhook
 ## Notion Sync
 
 Policy docs live in two places: the `policies/` directory in this repo (used by the AI pipeline) and the **Support Policy Docs** page in Notion (used by the human team). **Both must be kept in sync.** Whenever a policy doc is updated in either place, update the other immediately. The repo is the source of truth for structure and AI-facing content; Notion is the source of truth for human readability and team review.
+
+**This is a hard requirement every time a policy doc is created or updated:**
+1. Add/update the `.md` file in `policies/`
+2. Add/update the corresponding page in the **Support Policy Docs** Notion page (ID: `356cffdf-527f-808d-a4fc-f7d05499523f`)
+
+Never consider a policy doc task complete until both locations are updated.
+
+## Creating Policy Documents
+
+When asked to create a new policy document, follow these steps in order:
+
+1. **Read all existing policy docs** — read every file in `policies/` to understand current coverage, tone, and formatting conventions.
+2. **Read all saved replies** — load `data/saved_replies.json` and extract the full list of saved reply names from `mailboxes[0].saved_replies`.
+3. **Ask for context** — ask the user for a short summary of the policy area: what triggers this type of ticket, what the correct response is, any edge cases or exceptions, and any relevant saved replies they already know about.
+4. **Create the policy doc** — write a new `.md` file in `policies/` following the exact structure used by existing docs:
+   - `# <Title>`
+   - `# Summary` — one paragraph
+   - `# Trigger Conditions` — bullet list of ticket signals, account signals, keywords
+   - `# Required Context` — checklist of what the agent needs before responding
+   - `# Policy / Correct Response` — Standard Case, Variations, Edge Cases & Exceptions
+   - `# Action Classification` — No Action Required / Human Action Required / Do Not Auto-Send Conditions / Escalation Triggers
+   - `# Confidence Notes` — high confidence areas, judgment call areas, gaps
+   - `# Saved Reply Mapping` — a table (or set of tables by platform/condition) mapping user state + use case → specific saved reply title. Every row must reference an exact saved reply name from `data/saved_replies.json`.
+   - `# Related Policies` — cross-references to other policy docs
+5. **Sync to Notion** — follow the Notion Sync requirement: add the corresponding page under the **Support Policy Docs** Notion page (ID: `356cffdf-527f-808d-a4fc-f7d05499523f`).
+
+Never create a policy doc without a Saved Reply Mapping section. If no saved replies exist yet for the area, note that and flag it as a gap.
+
+---
 
 ## Working Principles
 
@@ -88,6 +117,10 @@ MAVEN_API_KEY                 # or equivalent auth
 
 # Stripe (optional enrichment)
 STRIPE_READ_API_KEY           # read-only restricted key
+
+# Linear (product prioritization)
+LINEAR_API_KEY                # personal API key from Linear settings
+LINEAR_PRODUCT_TEAM_ID        # UUID of the product prioritization team; run `python product_prioritization.py` to list all team IDs
 
 # Future
 AUTO_SEND_ENABLED=false       # gate for auto-send; currently always false

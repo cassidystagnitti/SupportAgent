@@ -38,6 +38,20 @@ Auto Renew Status: false
 Trial Status: (trial fields empty on subscription)
 ```
 
+**Example: Active Stripe annual subscriber, auto-renew off (canceled but still in paid period)**
+
+```
+Account Found: true
+Subscribed: true
+Subscription Platform: Stripe
+Subscription Start Date: 2026-01-09
+Subscription Expiration Date: 2027-01-09
+Auto Renew Status: false
+Trial Status: (trial fields empty on subscription)
+```
+
+> Note: `Subscribed: true` + `Auto Renew Status: false` is a normal, consistent state — it means the customer is currently in their paid period and has full access, but their subscription will not auto-renew when it expires. There is no data discrepancy here.
+
 **Example: Organizational subscription**
 
 ```
