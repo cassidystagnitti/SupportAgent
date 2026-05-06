@@ -23,13 +23,14 @@ _ROOT_DIR = os.path.dirname(_SUPPORT_DIR)
 load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
 load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
-from account_context import fetch_account_contexts_for_ticket  # noqa: E402
+from account_context import fetch_account_contexts_for_ticket, fetch_customer_emails_from_helpscout  # noqa: E402
 from product_prioritization import run_product_prioritization  # noqa: E402
 from stripe_context import fetch_stripe_context, format_stripe_context  # noqa: E402
 from triage_tickets import (  # noqa: E402
     BASE_URL,
     fetch_conversation,
     get_access_token,
+    get_conversation_history,
     get_conversation_text,
     run_triage,
 )
@@ -272,8 +273,23 @@ def _build_dynamic_user_message(
     account_blob: str,
     stripe_context: str,
     agent_name: str,
+    conversation_history: str = "",
 ) -> str:
     today = datetime.now(timezone.utc).strftime("%B %d, %Y")
+    is_reply = bool(conversation_history)
+
+    history_section = (
+        f"\n=== CONVERSATION HISTORY ===\n{conversation_history}\n"
+        if is_reply
+        else ""
+    )
+    instruction = (
+        "This is a follow-up in an ongoing conversation. Use the conversation history above for context, "
+        f"but respond to the latest customer message only. Sign off as {agent_name}."
+        if is_reply
+        else f"Draft a reply to this ticket. Sign off as {agent_name}."
+    )
+
     return f"""
 === CUSTOMER ACCOUNT DATA ===
 Today's Date: {today}
@@ -283,14 +299,14 @@ Customer Email: {customer_email}
 {account_blob}
 
 {stripe_context}
-
+{history_section}
 === TICKET ===
 Subject: {ticket_subject}
 
 {ticket_body}
 
 === INSTRUCTIONS ===
-Draft a reply to this ticket. Sign off as {agent_name}. Respond with the JSON object specified in your instructions.
+{instruction} Respond with the JSON object specified in your instructions.
 """
 
 
@@ -375,7 +391,7 @@ def _html_escape(s: str) -> str:
     )
 
 
-def process_ticket_sync(conversation_id: str, customer_email: str | None = None) -> dict[str, Any]:
+def process_ticket_sync(conversation_id: str, customer_email: str | None = None, *, is_reply: bool = False) -> dict[str, Any]:
     """
     Full pipeline: triage → account lookup → stripe enrichment → policy retrieval →
     Claude draft → Help Scout draft + note.
@@ -420,17 +436,20 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
     email_in = (customer_email or "").strip()
 
     try:
-        try:
-            run_triage(
-                conversation_ids=[cid],
-                auto_apply=True,
-                skip_unassigned_scan=True,
-            )
-            out["triage_success"] = True
-        except SystemExit as e:
-            log.warning("run_triage called sys.exit (%s) — check Help Scout / Anthropic env", e.code)
-        except Exception:
-            log.exception("triage failed — continuing pipeline")
+        if is_reply:
+            log.info("Skipping triage for reply on conversation %s", cid)
+        else:
+            try:
+                run_triage(
+                    conversation_ids=[cid],
+                    auto_apply=True,
+                    skip_unassigned_scan=True,
+                )
+                out["triage_success"] = True
+            except SystemExit as e:
+                log.warning("run_triage called sys.exit (%s) — check Help Scout / Anthropic env", e.code)
+            except Exception:
+                log.exception("triage failed — continuing pipeline")
 
         app_id = os.getenv("HELPSCOUT_APP_ID")
         app_secret = os.getenv("HELPSCOUT_APP_SECRET")
@@ -454,13 +473,21 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
 
         customer_name = _customer_display_name(cust)
         subject = convo.get("subject") or "(no subject)"
-        body = get_conversation_text(session, int(cid)) or "(empty)"
+
+        if is_reply:
+            conversation_history, body = get_conversation_history(session, int(cid))
+            body = body or "(empty)"
+        else:
+            conversation_history = ""
+            body = get_conversation_text(session, int(cid)) or "(empty)"
 
         account_blob = ""
         try:
+            hs_emails = fetch_customer_emails_from_helpscout(session, hs_customer_id) if hs_customer_id else []
             ctx = fetch_account_contexts_for_ticket(
                 primary_email=email or None,
                 ticket_text=body,
+                extra_emails=hs_emails,
             )
             account_blob = ctx["combined_blob"]
             out["emails_checked"] = ctx["emails_checked"]
@@ -521,6 +548,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
             account_blob=account_blob,
             stripe_context=stripe_block_for_prompt,
             agent_name=agent_name,
+            conversation_history=conversation_history,
         )
 
         client = anthropic.Anthropic(api_key=api_key)

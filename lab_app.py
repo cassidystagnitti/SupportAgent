@@ -36,10 +36,10 @@ load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
 load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
 import orchestrator as orch  # noqa: E402
-from account_context import fetch_account_contexts_for_ticket  # noqa: E402
+from account_context import fetch_account_contexts_for_ticket, fetch_customer_emails_from_helpscout  # noqa: E402
 from product_prioritization import run_product_prioritization  # noqa: E402
 from stripe_context import fetch_stripe_context, format_stripe_context  # noqa: E402
-from triage_tickets import run_triage  # noqa: E402
+from triage_tickets import get_conversation_history, run_triage  # noqa: E402
 
 log = logging.getLogger("pipeline_lab")
 
@@ -143,15 +143,27 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
             hs = _helpscout_session(tech)
             convo = orch.fetch_conversation(hs, int(cid))
             cust = orch._customer_from_conversation(convo)
-            sess["hs_customer_id"] = cust.get("id")
+            hs_customer_id = cust.get("id")
+            sess["hs_customer_id"] = hs_customer_id
             sess["customer_name_hs"] = orch._customer_display_name(cust)
             hs_email = (cust.get("email") or "").strip()
             if not sess["email"] and hs_email:
                 sess["email"] = hs_email
                 tech.append(f"Email auto-populated from Help Scout customer: {hs_email}")
+            hs_emails = fetch_customer_emails_from_helpscout(hs, hs_customer_id) if hs_customer_id else []
+            sess["hs_customer_emails"] = hs_emails
+            if hs_emails:
+                tech.append(f"Help Scout customer emails: {hs_emails}")
             sess["existing_tags"] = orch._extract_tag_names(convo.get("tags", []))
             live_subject = convo.get("subject") or ""
-            live_body = orch.get_conversation_text(hs, int(cid)) or ""
+            if sess.get("is_reply"):
+                conversation_history, live_body = get_conversation_history(hs, int(cid))
+                live_body = live_body or ""
+                sess["conversation_history"] = conversation_history
+                tech.append(f"Reply mode: fetched conversation history ({len(conversation_history)} chars) + latest message ({len(live_body)} chars).")
+            else:
+                live_body = orch.get_conversation_text(hs, int(cid)) or ""
+                sess["conversation_history"] = ""
             sess["live_subject"] = live_subject
             sess["live_body"] = live_body
             # always use live thread data — that's what prod does
@@ -198,6 +210,7 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
             ctx = fetch_account_contexts_for_ticket(
                 primary_email=email,
                 ticket_text=ticket_text,
+                extra_emails=sess.get("hs_customer_emails"),
             )
             blob = ctx["combined_blob"]
             emails_checked = ctx["emails_checked"]
@@ -325,6 +338,7 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
                 account_blob=sess.get("account_blob") or "",
                 stripe_context=sess.get("stripe_block") or "",
                 agent_name=agent_name,
+                conversation_history=sess.get("conversation_history") or "",
             )
             sess["last_user_prompt_chars"] = len(user_msg)
             model = os.getenv("CLAUDE_DRAFT_MODEL", orch.DEFAULT_CLAUDE_MODEL)
@@ -532,7 +546,8 @@ def create_session(payload: dict[str, Any]) -> dict[str, Any]:
     email = str(payload.get("email") or "").strip()
     subject = str(payload.get("subject") or "").strip()
     body = str(payload.get("body") or "").strip()
-    skip_triage = bool(payload.get("skip_triage"))
+    is_reply = bool(payload.get("is_reply"))
+    skip_triage = bool(payload.get("skip_triage")) or is_reply
     skip_writes = bool(payload.get("skip_helpscout_writes"))
     use_live = bool(payload.get("use_live_thread"))
 
@@ -549,6 +564,7 @@ def create_session(payload: dict[str, Any]) -> dict[str, Any]:
         "email": email,
         "subject": subject,
         "body": body,
+        "is_reply": is_reply,
         "skip_triage": skip_triage,
         "skip_helpscout_writes": skip_writes,
         "use_live_thread": use_live,
@@ -558,12 +574,13 @@ def create_session(payload: dict[str, Any]) -> dict[str, Any]:
     _sessions[sid] = sess
 
     if skip_triage:
+        reason = "Reply mode — triage skipped." if is_reply else "Triage skipped via checkbox when session was created."
         sess["completed"].append("triage")
         sess["step_logs"]["triage"] = {
             "ok": True,
             "summary": "Auto-skipped at session start.",
             "detail": "",
-            "technical_log": ["Triage skipped via checkbox when session was created."],
+            "technical_log": [reason],
         }
 
     return {
@@ -669,6 +686,9 @@ PAGE_HTML = """<!DOCTYPE html>
         </label>
         <div class="flex flex-wrap gap-5 text-sm pt-1">
           <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="is_reply" class="rounded"/> Customer reply (not new ticket)
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" id="skip_triage" class="rounded"/> Skip triage
           </label>
           <label class="flex items-center gap-2 cursor-pointer select-none">
@@ -766,6 +786,7 @@ document.getElementById("btn_run").onclick = async () => {
     email: document.getElementById("email").value.trim(),
     subject: "",
     body: "",
+    is_reply: document.getElementById("is_reply").checked,
     skip_triage: document.getElementById("skip_triage").checked,
     skip_helpscout_writes: document.getElementById("skip_writes").checked,
     use_live_thread: true,

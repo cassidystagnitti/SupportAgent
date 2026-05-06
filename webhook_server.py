@@ -87,10 +87,10 @@ def _customer_email_from_payload(payload: dict) -> Optional[str]:
     return None
 
 
-def _run_pipeline_sync(conversation_id: int, payload: dict) -> None:
+def _run_pipeline_sync(conversation_id: int, payload: dict, is_reply: bool = False) -> None:
     try:
         email = _customer_email_from_payload(payload)
-        process_ticket_sync(str(conversation_id), email)
+        process_ticket_sync(str(conversation_id), email, is_reply=is_reply)
     except Exception:
         log.exception("support pipeline failed for conversation %s", conversation_id)
 
@@ -120,10 +120,12 @@ async def helpscout_webhook(
         log.warning("no conversation id in payload for event=%s", event)
         return {"ok": True, "skipped": True, "reason": "no conversation id"}
 
+    is_reply = event == "convo.customer.reply.created"
     # Respond immediately so Help Scout does not retry; run pipeline in a thread.
     threading.Thread(
         target=_run_pipeline_sync,
         args=(cid, payload),
+        kwargs={"is_reply": is_reply},
         daemon=True,
     ).start()
     log.info("queued support pipeline for conversation %s (%s)", cid, event)

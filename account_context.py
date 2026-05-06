@@ -33,6 +33,7 @@ import requests
 from dotenv import load_dotenv
 
 _SUPPORT_DIR = os.path.dirname(os.path.abspath(__file__))
+_HS_BASE_URL = "https://api.helpscout.net/v2"
 ROOT_DIR = os.path.dirname(_SUPPORT_DIR)
 load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
@@ -144,6 +145,17 @@ def fetch_account_context(
     return ""
 
 
+def fetch_customer_emails_from_helpscout(session: requests.Session, customer_id: int | str) -> list[str]:
+    """Return all email addresses on a Help Scout customer profile."""
+    try:
+        resp = session.get(f"{_HS_BASE_URL}/customers/{customer_id}", timeout=10)
+        resp.raise_for_status()
+        emails = resp.json().get("_embedded", {}).get("emails", [])
+        return [e["value"].strip().lower() for e in emails if e.get("value")]
+    except Exception:
+        return []
+
+
 def extract_emails_from_text(text: str) -> list[str]:
     """Return unique lowercase email addresses found in text, in order of first appearance."""
     return list(dict.fromkeys(m.lower() for m in _EMAIL_RE.findall(text or "")))
@@ -153,6 +165,7 @@ def fetch_account_contexts_for_ticket(
     primary_email: str | None,
     ticket_text: str | None = None,
     *,
+    extra_emails: list[str] | None = None,
     timeout_sec: float = 30.0,
 ) -> dict:
     """Look up every email in the ticket and return combined account context.
@@ -170,7 +183,11 @@ def fetch_account_contexts_for_ticket(
     """
     seen: dict[str, str] = {}
 
-    candidates = ([primary_email] if primary_email else []) + extract_emails_from_text(ticket_text or "")
+    candidates = (
+        ([primary_email] if primary_email else [])
+        + extract_emails_from_text(ticket_text or "")
+        + (extra_emails or [])
+    )
     for raw in candidates:
         email = (raw or "").strip().lower()
         if not email or email in seen:
