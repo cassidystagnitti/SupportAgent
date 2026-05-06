@@ -149,6 +149,19 @@ AUTO_SEND_ENABLED=false       # gate for auto-send; currently always false
 
 ---
 
+## Local Dev Server
+
+The lab/test server runs on `http://127.0.0.1:8765/` via `python3 lab_app.py --port 8765`.
+
+**After any Python file change, kill and restart the server:**
+```bash
+lsof -ti:8765 | xargs kill -9 && python3 lab_app.py --port 8765 &
+```
+
+Policy doc changes (`policies/*.md`) take effect immediately without restart — they are loaded fresh on each request.
+
+---
+
 ## Claude's Role in This Project
 
 You are a senior Python backend engineer working on this pipeline. When helping with this codebase:

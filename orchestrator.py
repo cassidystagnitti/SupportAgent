@@ -355,11 +355,14 @@ def _extract_tag_names(tags_field: list) -> list[str]:
     return [n for n in names if n]
 
 
-def _add_escalation_tag(session: requests.Session, cid: str, existing_tags: list[str]) -> None:
-    if "escalation" in existing_tags:
+def _update_conversation_tags(session: requests.Session, cid: str, existing_tags: list[str], tags_to_add: list[str]) -> None:
+    current = list(existing_tags)
+    for tag in tags_to_add:
+        if tag not in current:
+            current.append(tag)
+    if current == existing_tags:
         return
-    merged = existing_tags + ["escalation"]
-    resp = session.put(f"{BASE_URL}/conversations/{cid}/tags", json={"tags": merged})
+    resp = session.put(f"{BASE_URL}/conversations/{cid}/tags", json={"tags": current})
     resp.raise_for_status()
 
 
@@ -487,7 +490,9 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
         stripe_block_for_prompt = ""
         stripe_note_block = ""
 
-        if platform and platform.lower() == "stripe":
+        is_stripe_platform = platform and platform.lower() == "stripe"
+        is_gift_ticket = "gift-subscription" in existing_tags
+        if is_stripe_platform or is_gift_ticket:
             out["stripe_enrichment_attempted"] = True
             try:
                 stripe_ctx_dict = fetch_stripe_context(email) if email else None
@@ -545,19 +550,18 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
         out["do_not_send_reasons"] = parsed.get("do_not_send_reasons") or []
         out["reasoning"] = parsed.get("reasoning")
 
+        # --- Tags (single PUT to avoid clobbering) ---
+        tags_to_add: list[str] = []
         if is_escalation:
-            try:
-                _add_escalation_tag(session, cid, existing_tags)
-                log.info("Escalation: added 'escalation' tag to conversation %s", cid)
-            except requests.RequestException:
-                log.exception("Failed to add escalation tag to conversation %s", cid)
+            tags_to_add.append("escalation")
+        tags_to_add.append("automated" if out["auto_sendable"] else "technical")
+        try:
+            _update_conversation_tags(session, cid, existing_tags, tags_to_add)
+            log.info("Tags updated for conversation %s: added %s", cid, tags_to_add)
+        except requests.RequestException:
+            log.exception("Failed to update tags on conversation %s", cid)
 
-        note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
-        note_html = _format_internal_note_html(
-            parsed=parsed,
-            stripe_lines_for_note=stripe_note_block,
-        )
-
+        # --- Draft reply ---
         if is_escalation:
             log.info(
                 "Escalation: skipping draft reply for conversation %s. Reason: %s",
@@ -589,19 +593,25 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None)
                     draft_reply[:8000],
                 )
 
-        if note_user_id:
-            note_url = f"{BASE_URL}/conversations/{cid}/notes"
-            note_payload = {"text": note_html, "user": int(note_user_id)}
-            try:
-                r2 = _helpscout_post(session, note_url, note_payload)
-                r2.raise_for_status()
-                nid = r2.headers.get("Resource-ID") or r2.headers.get("resource-id")
-                out["helpscout_note_id"] = nid
-                out["note_created"] = True
-            except requests.RequestException:
-                log.exception("Help Scout internal note failed — draft may still exist")
-        else:
-            log.warning("HELPSCOUT_NOTE_USER_ID unset — skipping internal note")
+        # --- Internal note (escalations only) ---
+        if is_escalation:
+            note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
+            if note_user_id:
+                note_html = _format_internal_note_html(
+                    parsed=parsed,
+                    stripe_lines_for_note=stripe_note_block,
+                )
+                note_url = f"{BASE_URL}/conversations/{cid}/notes"
+                try:
+                    r2 = _helpscout_post(session, note_url, {"text": note_html, "user": int(note_user_id)})
+                    r2.raise_for_status()
+                    nid = r2.headers.get("Resource-ID") or r2.headers.get("resource-id")
+                    out["helpscout_note_id"] = nid
+                    out["note_created"] = True
+                except requests.RequestException:
+                    log.exception("Help Scout escalation note failed")
+            else:
+                log.warning("HELPSCOUT_NOTE_USER_ID unset — skipping escalation note")
 
         pp = run_product_prioritization(
             ticket_subject=subject,

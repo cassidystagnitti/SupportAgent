@@ -149,6 +149,16 @@ def fetch_stripe_context(customer_email: str) -> dict[str, Any] | None:
                 "duration_in_months": getattr(coupon, "duration_in_months", None),
             }
 
+    # Effective price = what they actually pay per period after coupon applied
+    effective = unit_amount
+    d = ctx.get("discount")
+    if effective is not None and d:
+        if d.get("percent_off"):
+            effective = round(effective * (1 - d["percent_off"] / 100))
+        elif d.get("amount_off"):
+            effective = max(0, effective - d["amount_off"])
+    ctx["effective_plan_amount"] = effective
+
     def fetch_next_invoice_preview():
         """Upcoming invoice API removed in newer Stripe SDKs; use create_preview with subscription."""
         inv = stripe.Invoice
@@ -179,18 +189,21 @@ def format_stripe_context(ctx: dict[str, Any] | None) -> str:
         )
 
     amt = ctx.get("plan_amount")
+    effective = ctx.get("effective_plan_amount")
     currency = (ctx.get("plan_currency") or "usd").upper()
     interval = ctx.get("plan_interval") or "?"
-    plan_line = "unknown plan"
+
     if amt is not None:
-        plan_line = f"{interval}ly at ${amt / 100:.2f} {currency}"
+        plan_line = f"{interval}ly at ${amt / 100:.2f} {currency} (base/full price)"
+    else:
+        plan_line = "unknown plan"
 
     lines = [
         "Stripe Subscription Data:",
         f"  Stripe Customer ID: {ctx.get('stripe_customer_id')}",
         f"  Subscription ID: {ctx.get('subscription_id')}",
         f"  Status: {ctx.get('subscription_status')}",
-        f"  Plan: {plan_line}",
+        f"  Base Plan: {plan_line}",
         f"  Current Period: {_format_timestamp(ctx.get('current_period_start'))} to "
         f"{_format_timestamp(ctx.get('current_period_end'))}",
     ]
@@ -203,15 +216,27 @@ def format_stripe_context(ctx: dict[str, Any] | None) -> str:
             discount_desc = f"${d['amount_off'] / 100:.2f} off"
         else:
             discount_desc = "discount active"
+        duration_desc = d.get("duration") or ""
+        if duration_desc == "repeating" and d.get("duration_in_months"):
+            duration_desc = f"repeating ({d['duration_in_months']} months)"
         lines.append(
-            f"  Active Discount: {discount_desc} ({d.get('duration')}) "
-            f"— coupon: {d.get('coupon_id')}"
+            f"  Active Coupon: {d.get('coupon_id')} — {discount_desc}, duration: {duration_desc}"
         )
+        if d.get("coupon_name"):
+            lines.append(f"  Coupon Name: {d['coupon_name']}")
     else:
-        lines.append("  Active Discount: None (paying full price)")
+        lines.append("  Active Coupon: None")
+
+    if effective is not None and amt is not None:
+        if effective == amt:
+            lines.append(f"  Effective Price (what they pay): ${effective / 100:.2f} {currency}/{interval} — no discount applied")
+        else:
+            lines.append(f"  Effective Price (what they pay): ${effective / 100:.2f} {currency}/{interval} — discounted from ${amt / 100:.2f}")
+    elif effective is not None:
+        lines.append(f"  Effective Price (what they pay): ${effective / 100:.2f} {currency}/{interval}")
 
     upcoming = ctx.get("upcoming_invoice_amount")
     if upcoming is not None:
-        lines.append(f"  Next Invoice Amount: ${upcoming / 100:.2f}")
+        lines.append(f"  Next Renewal Amount (from Stripe): ${upcoming / 100:.2f} {currency} — use this as their renewal price")
 
     return "\n".join(lines)

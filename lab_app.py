@@ -232,11 +232,14 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
             f"Parsed Maven/account line Subscription Platform → {platform!r}",
             "Enrichment uses stripe-python (Customer.list → Subscription.list → optional Invoice.create_preview or Invoice.upcoming).",
         ]
-        if not platform or platform.lower() != "stripe":
+        is_stripe_platform = platform and platform.lower() == "stripe"
+        is_gift_ticket = "gift-subscription" in (sess.get("existing_tags") or [])
+        tech.append(f"gift-subscription tag present: {is_gift_ticket}")
+        if not is_stripe_platform and not is_gift_ticket:
             sess["stripe_block"] = (
                 f"N/A — customer is on {platform or 'unknown'} (not Stripe web billing)"
             )
-            tech.append("Stripe API not called (platform is not Stripe).")
+            tech.append("Stripe API not called (platform is not Stripe and gift-subscription tag absent).")
             return {
                 "ok": True,
                 "summary": "Stripe enrichment skipped (platform is not Stripe).",
@@ -401,68 +404,84 @@ def _execute_step(sess: dict[str, Any], step: str) -> dict[str, Any]:
                 "detail": _trim(draft_reply, 4000),
                 "technical_log": tech,
             }
-        note_html = orch._format_internal_note_html(
-            parsed=parsed,
-            stripe_lines_for_note=(sess.get("stripe_block") or "").replace("\n", "<br/>"),
-        )
-        lines_out = []
+        is_escalation = bool(parsed.get("escalate")) or bool(sess.get("multiple_subscribed"))
+        auto_sendable = False if is_escalation else bool(parsed.get("auto_sendable"))
+        existing_tags = sess.get("existing_tags") or []
+
+        # --- Tags (single PUT) ---
+        tags_to_add: list[str] = []
+        if is_escalation:
+            tags_to_add.append("escalation")
+        tags_to_add.append("automated" if auto_sendable else "technical")
         try:
-            hs = _helpscout_session(tech)
-            reply_url = f"{orch.BASE_URL}/conversations/{cid}/reply"
-            payload_preview = {"customer": {"id": int(hid)}, "text": f"<{len(draft_reply)} chars>", "draft": True}
-            tech.append(f"POST reply payload summary: {payload_preview}")
-            r = orch._helpscout_post(
-                hs,
-                reply_url,
-                {"customer": {"id": int(hid)}, "text": draft_reply, "draft": True},
-            )
-            r.raise_for_status()
-            rid = r.headers.get("Resource-ID") or r.headers.get("resource-id")
-            lines_out.append(f"Draft reply created. Resource-ID: {rid}")
-            tech.append(f"Reply draft: HTTP {r.status_code}, Resource-ID header: {rid!r}")
-        except requests.HTTPError as e:
-            resp = e.response
-            extra = ""
-            if resp is not None:
-                extra = f"\nResponse body (truncated): {_trim(resp.text, 2000)}"
-            tb = traceback.format_exc() + extra
-            lines_out.append("Draft reply FAILED:\n" + tb)
-            tech.append(tb)
+            hs_tags = _helpscout_session(tech)
+            orch._update_conversation_tags(hs_tags, cid, existing_tags, tags_to_add)
+            lines_out_tags = f"Tags updated: added {tags_to_add}"
+            tech.append(lines_out_tags)
         except Exception:
             tb = traceback.format_exc()
-            lines_out.append("Draft reply FAILED:\n" + tb)
-            tech.append(tb)
+            tech.append("Tag update FAILED:\n" + tb)
 
-        note_uid = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
-        if note_uid:
+        lines_out = []
+        if is_escalation:
+            lines_out.append("Escalation — draft skipped.")
+        else:
             try:
-                hs2 = _helpscout_session(tech)
-                note_url = f"{orch.BASE_URL}/conversations/{cid}/notes"
-                tech.append(f"POST note user={note_uid}, text HTML chars={len(note_html)}")
-                r2 = orch._helpscout_post(
-                    hs2,
-                    note_url,
-                    {"text": note_html, "user": int(note_uid)},
+                hs = _helpscout_session(tech)
+                reply_url = f"{orch.BASE_URL}/conversations/{cid}/reply"
+                payload_preview = {"customer": {"id": int(hid)}, "text": f"<{len(draft_reply)} chars>", "draft": True}
+                tech.append(f"POST reply payload summary: {payload_preview}")
+                r = orch._helpscout_post(
+                    hs,
+                    reply_url,
+                    {"customer": {"id": int(hid)}, "text": draft_reply, "draft": True},
                 )
-                r2.raise_for_status()
-                nid = r2.headers.get("Resource-ID") or r2.headers.get("resource-id")
-                lines_out.append(f"Internal note created. Resource-ID: {nid}")
-                tech.append(f"Note: HTTP {r2.status_code}, Resource-ID: {nid!r}")
+                r.raise_for_status()
+                rid = r.headers.get("Resource-ID") or r.headers.get("resource-id")
+                lines_out.append(f"Draft reply created. Resource-ID: {rid}")
+                tech.append(f"Reply draft: HTTP {r.status_code}, Resource-ID header: {rid!r}")
             except requests.HTTPError as e:
                 resp = e.response
                 extra = ""
                 if resp is not None:
                     extra = f"\nResponse body (truncated): {_trim(resp.text, 2000)}"
                 tb = traceback.format_exc() + extra
-                lines_out.append("Internal note FAILED:\n" + tb)
+                lines_out.append("Draft reply FAILED:\n" + tb)
                 tech.append(tb)
             except Exception:
                 tb = traceback.format_exc()
-                lines_out.append("Internal note FAILED:\n" + tb)
+                lines_out.append("Draft reply FAILED:\n" + tb)
                 tech.append(tb)
-        else:
-            lines_out.append("HELPSCOUT_NOTE_USER_ID unset — note skipped.")
-            tech.append("HELPSCOUT_NOTE_USER_ID unset — internal note not POSTed.")
+
+        if is_escalation:
+            note_uid = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
+            if note_uid:
+                note_html = orch._format_internal_note_html(
+                    parsed=parsed,
+                    stripe_lines_for_note=(sess.get("stripe_block") or "").replace("\n", "<br/>"),
+                )
+                try:
+                    hs2 = _helpscout_session(tech)
+                    note_url = f"{orch.BASE_URL}/conversations/{cid}/notes"
+                    tech.append(f"POST escalation note user={note_uid}, text HTML chars={len(note_html)}")
+                    r2 = orch._helpscout_post(hs2, note_url, {"text": note_html, "user": int(note_uid)})
+                    r2.raise_for_status()
+                    nid = r2.headers.get("Resource-ID") or r2.headers.get("resource-id")
+                    lines_out.append(f"Escalation note created. Resource-ID: {nid}")
+                    tech.append(f"Note: HTTP {r2.status_code}, Resource-ID: {nid!r}")
+                except requests.HTTPError as e:
+                    resp = e.response
+                    extra = f"\nResponse body (truncated): {_trim(resp.text, 2000)}" if resp is not None else ""
+                    tb = traceback.format_exc() + extra
+                    lines_out.append("Escalation note FAILED:\n" + tb)
+                    tech.append(tb)
+                except Exception:
+                    tb = traceback.format_exc()
+                    lines_out.append("Escalation note FAILED:\n" + tb)
+                    tech.append(tb)
+            else:
+                lines_out.append("HELPSCOUT_NOTE_USER_ID unset — escalation note skipped.")
+                tech.append("HELPSCOUT_NOTE_USER_ID unset — escalation note not POSTed.")
 
         ok = not any("FAILED" in line for line in lines_out)
         return {"ok": ok, "summary": "Help Scout write step finished.", "detail": "\n\n".join(lines_out), "technical_log": tech}

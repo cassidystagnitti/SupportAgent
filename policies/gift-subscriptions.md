@@ -17,6 +17,7 @@ Covers all tickets where someone is purchasing, redeeming, or asking about a gif
 - [ ] If active subscription: what platform is it on and when does it expire?
 - [ ] If purchaser: are they asking for purchase info, requesting a discount, or requesting a copy of the certificate?
 - [ ] Is this a **refund request** on a gift purchase? (→ see *Refund Policy*)
+- [ ] **Check the Stripe context block.** Stripe enrichment runs automatically on gift tickets. If the purchaser's email matches a Stripe customer, the purchase record will be present. If Stripe returns "not found," the purchase was likely made with a different email — see below for how to locate it.
 
 # Policy / Correct Response
 
@@ -82,6 +83,10 @@ Always include the expiration date of their current subscription so they know ex
 
 Support can resend the PDF gift certificate. Attach a copy directly to the reply along with the Help Center redemption link for the recipient.
 
+**Locating the purchase in Stripe:**
+- Check the Stripe context block first. If the purchaser's email is on file in Stripe, the purchase is locatable directly.
+- If Stripe returns "not found," the purchase was likely made under a different email address. Ask the customer for the **last 4 digits of the card used** and the **approximate date of purchase** — these are sufficient to locate the transaction in Stripe. Do not attempt to resend the certificate until the purchase is confirmed.
+
 ### Self-gifting
 
 Customers can purchase a gift subscription for themselves. They follow the normal purchase flow (their own email at checkout, receive the PDF, redeem it themselves). If they have an active subscription, they must wait until it expires before redeeming — same rule as any recipient. Reassure them the code won't expire in the meantime.
@@ -111,7 +116,7 @@ Standard *Refund Policy* windows apply: **30 days from purchase** for the annual
 - **Gift code already redeemed, purchaser never gave it to anyone:** Gift codes are single-use. If it's been redeemed, verify which account it landed on. If it was redeemed in error (e.g., the purchaser accidentally redeemed it themselves), support may be able to transfer it — flag for human review.
 - **Purchaser requesting a refund after recipient already redeemed the code:** Outside standard policy — the subscription has been used. Escalate; this is a discretionary decision.
 - **Customer asks whether the gift can be transferred to a different account:** Not self-serve, but support can manually apply it. Use `Get GiftCertificateWePutCodeOnYourAccount`.
-- **Purchaser never received the gift certificate PDF:** It was sent to the email address they entered at checkout. Confirm that email and resend. If the wrong email was entered at purchase, support may need to locate the purchase in Stripe.
+- **Purchaser never received the gift certificate PDF:** It was sent to the email address they entered at checkout. Confirm that email and resend. If the wrong email was entered at purchase, check the Stripe context block — if the purchase isn't found there, ask for the **last 4 digits of the card used** and the **approximate date of purchase** to locate the transaction in Stripe before resending.
 
 # Action Classification
 
@@ -152,11 +157,13 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 # Confidence Notes
 
 - **High confidence areas:** No auto-renewal on gift subscriptions. Code has no redemption deadline. Cannot apply while an active subscription exists — must wait for expiry. Purchaser gets the PDF, not the recipient. 40% off is the standard discount offer, 50% is the escalation. Standard 30-day refund window applies to gift purchases. All gift purchases go through Stripe (website only).
+- **Stripe enrichment:** Stripe data is automatically enriched for any ticket tagged `gift-subscription`. If the purchaser wrote in from the email they used at checkout, the Stripe customer record will be present. If not found, the purchase was likely made under a different email — ask for last 4 digits of card + approximate purchase date before attempting to locate or resend.
 - **Judgment call areas:** Whether to proactively surface the 40% discount when someone asks about gift pricing without specifically asking for a deal. Current guidance: don't volunteer — offer only when they ask about discounts.
 - **Gaps:**
     - Whether gift terms beyond 1-year and 4-month exist (the purchase page should be the source of truth).
     - What happens if a gift code is redeemed onto an account that has a pending renewal mid-dunning — is the renewal affected?
     - No defined policy on refunding a gift where the code has been partially used (e.g., redeemed but only 1 week in).
+    - No saved reply exists for asking the purchaser for card last 4 + purchase date when the Stripe lookup returns nothing. Should be created.
 
 # Saved Reply Mapping
 
