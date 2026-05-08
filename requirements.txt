@@ -3,3 +3,6 @@ requests
 python-dotenv
 fastapi
 uvicorn[standard]
+openai
+numpy
+stripe>=10.0.0

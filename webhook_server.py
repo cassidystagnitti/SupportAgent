@@ -1,5 +1,6 @@
 """
-Help Scout webhook receiver: verifies signatures and runs triage for new conversations.
+Help Scout webhook receiver: verifies signatures and runs the support pipeline
+(triage → account context → optional Stripe → policies → Claude draft → Help Scout draft + note).
 
 Deploy behind HTTPS. Register the URL in Help Scout: Manage → Apps → Webhooks,
 or via POST https://api.helpscout.net/v2/webhooks with events + secret.
@@ -7,6 +8,9 @@ or via POST https://api.helpscout.net/v2/webhooks with events + secret.
 Environment:
   HELPSCOUT_WEBHOOK_SECRET — same secret configured on the webhook (for signature verification)
   HELPSCOUT_APP_ID, HELPSCOUT_APP_SECRET, ANTHROPIC_API_KEY — same as triage_tickets.py
+  HELPSCOUT_NOTE_USER_ID — Help Scout user id for internal AI notes (optional but recommended)
+  STRIPE_READ_API_KEY — optional Stripe enrichment for Stripe-platform subscribers
+  Plus account_context / Maven vars as documented in account_context.py
 
 Run locally (tunnel with ngrok/cloudflared for Help Scout to reach you):
   uvicorn webhook_server:app --host 0.0.0.0 --port 8000
@@ -24,7 +28,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Request
 
-from triage_tickets import run_triage
+from orchestrator import process_ticket_sync
 
 _SUPPORT_DIR = os.path.dirname(os.path.abspath(__file__))
 _ROOT_DIR = os.path.dirname(_SUPPORT_DIR)
@@ -43,7 +47,7 @@ TRIAGE_EVENTS = frozenset({
     "convo.customer.reply.created",
 })
 
-app = FastAPI(title="Help Scout triage webhook")
+app = FastAPI(title="Help Scout support webhook")
 
 
 def _verify_signature(raw_body: bytes, signature: str) -> bool:
@@ -66,15 +70,29 @@ def _conversation_id_from_payload(payload: dict) -> Optional[int]:
         return None
 
 
-def _run_triage_sync(conversation_id: int) -> None:
+def _customer_email_from_payload(payload: dict) -> Optional[str]:
+    for key in ("customer", "primaryCustomer"):
+        c = payload.get(key)
+        if isinstance(c, dict):
+            email = c.get("email")
+            if email:
+                return str(email).strip()
+    emb = payload.get("_embedded") or {}
+    for key in ("primaryCustomer", "customer"):
+        c = emb.get(key)
+        if isinstance(c, dict):
+            email = c.get("email")
+            if email:
+                return str(email).strip()
+    return None
+
+
+def _run_pipeline_sync(conversation_id: int, payload: dict, is_reply: bool = False) -> None:
     try:
-        run_triage(
-            conversation_ids=[str(conversation_id)],
-            auto_apply=True,
-            skip_unassigned_scan=True,
-        )
+        email = _customer_email_from_payload(payload)
+        process_ticket_sync(str(conversation_id), email, is_reply=is_reply)
     except Exception:
-        log.exception("triage failed for conversation %s", conversation_id)
+        log.exception("support pipeline failed for conversation %s", conversation_id)
 
 
 @app.post("/helpscout/webhook")
@@ -102,9 +120,15 @@ async def helpscout_webhook(
         log.warning("no conversation id in payload for event=%s", event)
         return {"ok": True, "skipped": True, "reason": "no conversation id"}
 
-    # Respond immediately so Help Scout does not retry; run triage in a thread.
-    threading.Thread(target=_run_triage_sync, args=(cid,), daemon=True).start()
-    log.info("queued triage for conversation %s (%s)", cid, event)
+    is_reply = event == "convo.customer.reply.created"
+    # Respond immediately so Help Scout does not retry; run pipeline in a thread.
+    threading.Thread(
+        target=_run_pipeline_sync,
+        args=(cid, payload),
+        kwargs={"is_reply": is_reply},
+        daemon=True,
+    ).start()
+    log.info("queued support pipeline for conversation %s (%s)", cid, event)
     return {"ok": True, "conversation_id": cid, "event": event}
 
 

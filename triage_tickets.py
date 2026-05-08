@@ -18,6 +18,7 @@ load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
 BASE_URL = "https://api.helpscout.net/v2"
 TOKEN_URL = f"{BASE_URL}/oauth2/token"
+DEFAULT_TRIAGE_MODEL = os.getenv("CLAUDE_TRIAGE_MODEL", "claude-sonnet-4-6")
 
 APP_ID = os.getenv("HELPSCOUT_APP_ID")
 APP_SECRET = os.getenv("HELPSCOUT_APP_SECRET")
@@ -212,10 +213,9 @@ def build_tickets_for_ids(session, conversation_ids):
     return tickets
 
 
-def get_conversation_text(session, conversation_id):
+def _fetch_all_threads(session, conversation_id):
     threads = []
     page = 1
-
     while True:
         data = api_get(
             session,
@@ -224,19 +224,50 @@ def get_conversation_text(session, conversation_id):
         )
         page_threads = data.get("_embedded", {}).get("threads", [])
         threads.extend(page_threads)
-
         total_pages = data.get("page", {}).get("totalPages", 1)
         if page >= total_pages:
             break
         page += 1
+    return threads
 
+
+def get_conversation_text(session, conversation_id):
+    threads = _fetch_all_threads(session, conversation_id)
     customer_threads = [t for t in threads if t.get("type") == "customer"]
     if not customer_threads:
         return None
-
-    first_thread = customer_threads[-1]
-    body = first_thread.get("body", "")
+    body = customer_threads[-1].get("body", "")
     return strip_html(body) if body else None
+
+
+def get_conversation_history(session, conversation_id):
+    """Return (history_text, latest_customer_message) for reply processing.
+
+    history_text is a chronological transcript of all prior turns (customer +
+    support), excluding the most recent customer message. latest_customer_message
+    is the stripped body of that most recent customer thread.
+    """
+    threads = _fetch_all_threads(session, conversation_id)
+
+    customer_threads = [t for t in threads if t.get("type") == "customer"]
+    if not customer_threads:
+        return "", ""
+
+    # Threads are returned newest-first; index 0 is the most recent customer message.
+    latest = customer_threads[0]
+    latest_body = strip_html(latest.get("body", "") or "")
+
+    prior_threads = [t for t in threads if t is not latest and t.get("type") in ("customer", "message")]
+    # Reverse to present history oldest-first.
+    lines = []
+    for t in reversed(prior_threads):
+        body = strip_html(t.get("body", "") or "").strip()
+        if not body:
+            continue
+        role = "[Customer]" if t.get("type") == "customer" else "[Support]"
+        lines.append(f"{role}\n{body}")
+
+    return "\n\n".join(lines), latest_body
 
 
 def extract_tag_names(tags_field):
@@ -272,7 +303,7 @@ def triage_batch(client, tickets, tag_names, team_names, strict=False):
         prompt += TRIAGE_RETRY_SUFFIX
 
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=DEFAULT_TRIAGE_MODEL,
         max_tokens=8192,
         messages=[{"role": "user", "content": prompt}],
     )
