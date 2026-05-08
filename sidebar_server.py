@@ -4,8 +4,11 @@ Help Scout Custom App sidebar — triggers the AI draft pipeline from the HS sid
 Deploy this as the Render start command:
   uvicorn sidebar_server:app --host 0.0.0.0 --port $PORT
 
-Configure the Help Scout app URL as:
-  https://<your-render-host>/sidebar?id={{id}}&customer_email={{customer.email}}
+Configure the Help Scout app URL as a plain static URL (no template variables):
+  https://<your-render-host>/sidebar
+
+Help Scout POSTs form-encoded context to that URL when an agent opens a conversation.
+The response HTML is rendered in the sidebar iframe.
 
 Environment:
   SIDEBAR_SECRET            — random string you generate; sent with every /trigger-draft
@@ -16,6 +19,7 @@ Environment:
   (all other pipeline env vars apply as documented in CLAUDE.md)
 """
 
+import hashlib
 import hmac
 import json
 import logging
@@ -25,7 +29,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from orchestrator import process_ticket_sync
@@ -209,22 +213,46 @@ function resetBtn(label) {
 """
 
 
-@app.get("/sidebar", response_class=HTMLResponse)
-async def sidebar(
-    id: Optional[str] = Query(None),
-    customer_email: Optional[str] = Query(None),
-):
-    cid = (id or "").strip()
-    if not cid or not cid.isdigit():
-        return HTMLResponse("<p style='font-family:sans-serif;padding:16px'>Missing or invalid conversation id.</p>", status_code=400)
-
+def _render_sidebar(cid: str, email: str) -> HTMLResponse:
     html = (
         _SIDEBAR_HTML
         .replace("__CID__", json.dumps(cid))
-        .replace("__EMAIL__", json.dumps((customer_email or "").strip()))
+        .replace("__EMAIL__", json.dumps(email))
         .replace("__SECRET__", json.dumps(SIDEBAR_SECRET))
     )
     return HTMLResponse(html)
+
+
+@app.post("/sidebar", response_class=HTMLResponse)
+async def sidebar_post(request: Request):
+    """
+    Help Scout POSTs form-encoded context here when an agent opens a conversation.
+    Fields: conversation[id], customer[email], customer[fname], customer[lname],
+            mailbox[id], timestamp, signature.
+    """
+    form = await request.form()
+    cid = str(form.get("conversation[id]") or "").strip()
+    email = str(form.get("customer[email]") or "").strip()
+
+    if not cid or not cid.isdigit():
+        return HTMLResponse(
+            "<p style='font-family:sans-serif;padding:16px'>No conversation id received from Help Scout.</p>",
+            status_code=400,
+        )
+    return _render_sidebar(cid, email)
+
+
+@app.get("/sidebar", response_class=HTMLResponse)
+async def sidebar_get(request: Request):
+    """Manual test endpoint — open /sidebar?id=12345 in a browser to preview the UI."""
+    cid = str(request.query_params.get("id") or "").strip()
+    email = str(request.query_params.get("customer_email") or "").strip()
+    if not cid or not cid.isdigit():
+        return HTMLResponse(
+            "<p style='font-family:sans-serif;padding:16px'>Pass ?id=&lt;conversation_id&gt; to preview.</p>",
+            status_code=400,
+        )
+    return _render_sidebar(cid, email)
 
 
 @app.post("/trigger-draft")
