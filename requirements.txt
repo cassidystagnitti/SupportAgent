@@ -6,3 +6,5 @@ uvicorn[standard]
 openai
 numpy
 stripe>=10.0.0
+markdown
+mavenagi
