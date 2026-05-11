@@ -20,8 +20,9 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `pull_saved_replies.py` | Standalone CLI | Fetches Help Scout saved replies |
 | `build_saved_reply_embeddings.py` | Standalone CLI | Embeds saved replies for semantic search |
 | `search_saved_replies.py` | Standalone CLI | Searches embedded saved replies |
+| `push_kb_docs.py` | Standalone CLI | Syncs policies/*.md to Help Scout Docs (private/internal collection) |
 | `lab_app.py` | Experimental | Scratch/lab code — not part of the production pipeline |
-| `policies/` | Live | 17 markdown policy docs, loaded wholesale into every draft prompt |
+| `policies/` | Live | 21 markdown policy docs, loaded wholesale into every draft prompt |
 | `prompts/draft_system_prompt.txt` | Live | System prompt for draft generation (edit here, not in Python) |
 | `prompts/triage_prompt.txt` | Live | System prompt for triage classification |
 
@@ -111,6 +112,12 @@ HELPSCOUT_NOTE_USER_ID        # HS user id for AI-authored notes (optional but r
 # Anthropic
 ANTHROPIC_API_KEY
 
+# MavenAGI (draft engine alternative to Claude)
+MAVEN_ORG_ID          # MavenAGI organization ID
+MAVEN_AGENT_ID        # MavenAGI agent ID
+MAVEN_APP_ID          # MavenAGI app ID
+MAVEN_APP_SECRET      # MavenAGI app secret
+
 # Maven / Happier API
 MAVEN_API_BASE_URL
 MAVEN_API_KEY                 # or equivalent auth
@@ -121,6 +128,10 @@ STRIPE_READ_API_KEY           # read-only restricted key
 # Linear (product prioritization)
 LINEAR_API_KEY                # personal API key from Linear settings
 LINEAR_PRODUCT_TEAM_ID        # UUID of the product prioritization team; run `python product_prioritization.py` to list all team IDs
+
+# Help Scout Docs (internal KB sync — push_kb_docs.py)
+HELPSCOUT_DOCS_API_KEY        # Docs API key: Settings → Docs → Your Site → API Keys
+HELPSCOUT_DOCS_COLLECTION_ID  # ID of the private/internal collection (run push_kb_docs.py --list-collections)
 
 # Future
 AUTO_SEND_ENABLED=false       # gate for auto-send; currently always false
