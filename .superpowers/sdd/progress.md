@@ -37,3 +37,9 @@ Task 10: complete — action_executor.py scaffold (ActionPlan, prepare_coupon, p
   13/13 new tests pass, 65/66 full suite (pre-existing test_maven_orchestrator failure, out of scope)
   stripe_context.py key mapping: brief's `customer_id` -> real `stripe_customer_id`; `subscription_id` matches as-is
   execute() still raises NotImplementedError past the env gate — no real Stripe write calls yet (write key pending approval)
+Task 10: complete (commits ed0d1c1..332a827, review clean after fix: note now posts for needs_action tickets, not just escalations)
+  Minor for final review: _html_escape duplicated in action_executor; stale "escalation note" warning text at orchestrator.py:836
+Task 11: complete — linear_client.py (search_issues, create_issue) for the Technical team's Linear board (SUP-458/462)
+  11/11 new tests pass, 79/80 full suite (pre-existing test_maven_orchestrator failure, out of scope)
+  Brief's `searchIssues(query: ...)` shape adapted: real API arg is `term`, not `query`; team scoping via `filter.team.id`, confirmed by live GraphQL introspection
+  Live smoke test empty (not T-786 as expected): current LINEAR_API_KEY only has visibility into the Prod Prioritization team, not Technical — env/credential gap, not a code issue
