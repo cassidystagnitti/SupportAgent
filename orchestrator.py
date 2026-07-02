@@ -24,6 +24,7 @@ load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
 load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
 import bug_registry  # noqa: E402
+import draft_registry  # noqa: E402
 import notion_bridge  # noqa: E402
 from account_context import fetch_account_contexts_for_ticket, fetch_customer_emails_from_helpscout  # noqa: E402
 from action_executor import format_actions_note  # noqa: E402
@@ -445,7 +446,15 @@ def _format_internal_note_html(
     stripe_ctx: dict[str, Any] | None = None,
     research_ran: bool = False,
     research_sources: list[str] | None = None,
+    supersedes_existing_draft: bool = False,
 ) -> str:
+    supersede_html = (
+        "<p style='color:#b45309'><strong>"
+        "⚠️ Supersedes the earlier draft — discard the old one."
+        "</strong></p>"
+        if supersedes_existing_draft
+        else ""
+    )
     actions_html = ""
     try:
         actions_html = format_actions_note(parsed, stripe_ctx)
@@ -489,6 +498,7 @@ def _format_internal_note_html(
         )
 
     return (
+        f"{supersede_html}"
         f"{actions_html}"
         "<p><strong>🤖 AI Draft Classification</strong></p>"
         "<hr/>"
@@ -579,13 +589,24 @@ def _fetch_conversation_threads(session: requests.Session, convo: dict[str, Any]
     return threads
 
 
-def process_ticket_sync(conversation_id: str, customer_email: str | None = None, *, is_reply: bool = False, skip_triage: bool = False) -> dict[str, Any]:
+def process_ticket_sync(
+    conversation_id: str,
+    customer_email: str | None = None,
+    *,
+    is_reply: bool = False,
+    skip_triage: bool = False,
+    force: bool = False,
+) -> dict[str, Any]:
     """
     Full pipeline: triage → account lookup → stripe enrichment → policy retrieval →
     Claude draft → Help Scout draft + note.
 
     Returns dict with draft_text, needs_action, reasoning, referenced_policies,
     helpscout_draft_id, helpscout_note_id, plus telemetry fields.
+
+    `force`: when True, bypass the draft registry's duplicate-draft guard even
+    outside reply mode — used for deliberate manual re-drafts. See
+    draft_registry.should_skip_draft for the skip/supersede decision table.
     """
     t0 = time.monotonic()
     cid = str(conversation_id).strip()
@@ -620,6 +641,8 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         "research_ran": False,
         "research_sources": [],
         "draft_created": False,
+        "skipped_existing_draft": False,
+        "supersedes_existing_draft": False,
         "note_created": False,
         "helpscout_draft_id": None,
         "helpscout_note_id": None,
@@ -657,6 +680,21 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         threads = _fetch_conversation_threads(session, convo, int(cid))
         reply_mode = detect_reply_mode(threads)
         out["reply_mode"] = reply_mode
+
+        existing_draft = draft_registry.get(cid)
+        if draft_registry.should_skip_draft(existing_draft, reply_mode, force):
+            log.info(
+                "Skipping draft for conversation %s — existing draft thread %s already recorded "
+                "(not reply_mode, not forced)",
+                cid,
+                (existing_draft or {}).get("thread_id"),
+            )
+            out["skipped_existing_draft"] = True
+            out["latency_ms"] = int((time.monotonic() - t0) * 1000)
+            log.info("%s", json.dumps({k: out[k] for k in out if k != "draft_text"}, default=str))
+            return out
+
+        supersedes_existing_draft = bool(existing_draft) and (reply_mode or force)
 
         if reply_mode or skip_triage:
             log.info("Skipping triage for conversation %s", cid)
@@ -881,6 +919,9 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
                 draft_rid = r.headers.get("Resource-ID") or r.headers.get("resource-id")
                 out["helpscout_draft_id"] = draft_rid
                 out["draft_created"] = True
+                out["supersedes_existing_draft"] = supersedes_existing_draft
+                if draft_rid:
+                    draft_registry.set(cid, draft_rid, out["timestamp"])
             except requests.RequestException as e:
                 log.exception(
                     "Help Scout draft reply failed — preserving draft in logs. Error: %s\nDraft:\n%s",
@@ -905,8 +946,8 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         except Exception:
             log.exception("bug_registry.record_bug failed for conversation %s", cid)
 
-        # --- Internal note (escalations and needs_action tickets) ---
-        if should_post_note(is_escalation, parsed):
+        # --- Internal note (escalations, needs_action tickets, and superseding drafts) ---
+        if should_post_note(is_escalation, parsed) or out["supersedes_existing_draft"]:
             note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
             if note_user_id:
                 note_html = _format_internal_note_html(
@@ -915,6 +956,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
                     stripe_ctx=stripe_ctx_dict,
                     research_ran=out["research_ran"],
                     research_sources=out["research_sources"],
+                    supersedes_existing_draft=out["supersedes_existing_draft"],
                 )
                 note_url = f"{BASE_URL}/conversations/{cid}/notes"
                 try:
