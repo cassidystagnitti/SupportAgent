@@ -527,11 +527,11 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         subject = convo.get("subject") or "(no subject)"
 
         if reply_mode:
-            conversation_history, body = get_conversation_history(session, int(cid))
+            conversation_history, body = get_conversation_history(session, int(cid), threads=threads)
             body = body or "(empty)"
         else:
             conversation_history = ""
-            body = get_conversation_text(session, int(cid)) or "(empty)"
+            body = get_conversation_text(session, int(cid), threads=threads) or "(empty)"
 
         account_blob = ""
         try:

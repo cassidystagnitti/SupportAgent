@@ -202,3 +202,79 @@ non-pure-function wiring that unit tests can't easily cover without a live Help 
    wasn't part of the brief's Step 1 test list) — the brief's `detect_reply_mode` unit tests don't
    exercise the HTTP-fetching code paths. If desired, a follow-up could add
    `tests/test_conversation_threads.py` with mocked `api_get`.
+
+## Fix: duplicate thread fetch
+
+### Finding
+
+Every ticket fetched conversation threads twice: `orchestrator.py:~500` calls
+`_fetch_conversation_threads` to derive `reply_mode` via `detect_reply_mode`, and then, depending
+on `reply_mode`, `get_conversation_history` or `get_conversation_text` (both in
+`triage_tickets.py`) called `_fetch_all_threads` internally — an identical paginated
+`GET /conversations/{id}/threads` call already satisfied by the first fetch.
+
+### Change
+
+- `triage_tickets.py`:
+  - Added `from __future__ import annotations` (needed for the `list | None` parameter
+    annotation to work under the project's Python 3.9 test runtime — `orchestrator.py` already
+    had this import for the same reason).
+  - `get_conversation_text(session, conversation_id, threads: list | None = None)`: when
+    `threads` is provided, uses it directly; when `None`, calls `_fetch_all_threads` exactly as
+    before.
+  - `get_conversation_history(session, conversation_id, threads: list | None = None)`: same
+    pattern, plus a docstring note explaining why the parameter exists.
+  - No other callers were touched — `conversation_to_ticket` (triage_tickets.py), `lab_app.py`,
+    `maven_orchestrator.py`, and `test_run.py` all call these functions without `threads` and are
+    unaffected (`threads=None` preserves prior behavior exactly).
+- `orchestrator.py`: `process_ticket_sync` now passes `threads=threads` (the threads already
+  fetched via `_fetch_conversation_threads` a few lines above) into both
+  `get_conversation_history(...)` and `get_conversation_text(...)`, eliminating the second HTTP
+  round-trip per ticket.
+- No changes to reply-mode prompt text or any other logic/structure.
+
+### Test
+
+Added `test_passing_threads_avoids_refetch` to `tests/test_reply_detection.py`: monkeypatches
+`triage_tickets._fetch_all_threads` to raise `AssertionError` if called, then calls both
+`get_conversation_text(...)` and `get_conversation_history(...)` with `threads=` supplied
+explicitly, asserting they return the expected values without ever invoking the patched fetch
+function.
+
+### Test run
+
+```
+python3 -m pytest tests/test_reply_detection.py tests/test_claude_utils.py -v
+```
+
+```
+============================= test session starts ==============================
+platform darwin -- Python 3.9.6, pytest-8.4.2, pluggy-1.6.0 -- /Applications/Xcode.app/Contents/Developer/usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/cassidystagnitti/code/code-happierMeditation/SupportAgent
+plugins: anyio-4.12.1
+collecting ... collected 8 items
+
+tests/test_reply_detection.py::test_new_conversation_is_not_reply PASSED [ 12%]
+tests/test_reply_detection.py::test_agent_reply_makes_it_reply_mode PASSED [ 25%]
+tests/test_reply_detection.py::test_draft_agent_message_does_not_count PASSED [ 37%]
+tests/test_reply_detection.py::test_notes_do_not_count PASSED            [ 50%]
+tests/test_reply_detection.py::test_passing_threads_avoids_refetch PASSED [ 62%]
+tests/test_claude_utils.py::test_extract_text_skips_thinking_block PASSED [ 75%]
+tests/test_claude_utils.py::test_extract_text_plain PASSED               [ 87%]
+tests/test_claude_utils.py::test_extract_text_no_text_block PASSED       [100%]
+
+=============================== warnings summary ===============================
+../../../Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35
+  /Users/cassidystagnitti/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/warnings.html
+========================= 8 passed, 1 warning in 0.31s =========================
+```
+
+Full suite (`tests/`) also run for sanity: 19/20 pass. The one failure,
+`tests/test_maven_orchestrator.py::test_maven_client_raises_when_env_missing`, is pre-existing
+and unrelated — confirmed by stashing this fix's changes and re-running the same test on a clean
+checkout of `bert-v1-buildout`, where it fails identically (env/module-reload isolation issue, not
+touched by this change).

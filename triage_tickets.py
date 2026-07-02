@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -233,8 +235,9 @@ def _fetch_all_threads(session, conversation_id):
     return threads
 
 
-def get_conversation_text(session, conversation_id):
-    threads = _fetch_all_threads(session, conversation_id)
+def get_conversation_text(session, conversation_id, threads: list | None = None):
+    if threads is None:
+        threads = _fetch_all_threads(session, conversation_id)
     customer_threads = [t for t in threads if t.get("type") == "customer"]
     if not customer_threads:
         return None
@@ -242,14 +245,19 @@ def get_conversation_text(session, conversation_id):
     return strip_html(body) if body else None
 
 
-def get_conversation_history(session, conversation_id):
+def get_conversation_history(session, conversation_id, threads: list | None = None):
     """Return (history_text, latest_customer_message) for reply processing.
 
     history_text is a chronological transcript of all prior turns (customer +
     support), excluding the most recent customer message. latest_customer_message
     is the stripped body of that most recent customer thread.
+
+    If `threads` is provided, it is used as-is instead of re-fetching via
+    `_fetch_all_threads` (avoids a duplicate GET /conversations/{id}/threads
+    call when the caller already has the threads, e.g. from orchestrator.py).
     """
-    threads = _fetch_all_threads(session, conversation_id)
+    if threads is None:
+        threads = _fetch_all_threads(session, conversation_id)
 
     customer_threads = [t for t in threads if t.get("type") == "customer"]
     if not customer_threads:
