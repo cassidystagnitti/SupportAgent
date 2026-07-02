@@ -69,6 +69,11 @@ def needs_action_retry(parsed: dict) -> bool:
     return bool(parsed.get("needs_action")) and not (parsed.get("action_description") or "").strip()
 
 
+def should_post_note(is_escalation: bool, parsed: dict) -> bool:
+    """Internal note posts for escalations and for any ticket needing manual action."""
+    return bool(is_escalation or parsed.get("needs_action"))
+
+
 def compute_tags(parsed: dict) -> list[str]:
     """Derive Help Scout conversation tags from classification output.
 
@@ -824,8 +829,8 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         # --- Notion gap/action hooks (fail-soft; never blocks the draft) ---
         record_gap_and_action(out, parsed)
 
-        # --- Internal note (escalations only) ---
-        if is_escalation:
+        # --- Internal note (escalations and needs_action tickets) ---
+        if should_post_note(is_escalation, parsed):
             note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
             if note_user_id:
                 note_html = _format_internal_note_html(
@@ -841,7 +846,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
                     out["helpscout_note_id"] = nid
                     out["note_created"] = True
                 except requests.RequestException:
-                    log.exception("Help Scout escalation note failed")
+                    log.exception("Help Scout internal note failed")
             else:
                 log.warning("HELPSCOUT_NOTE_USER_ID unset — skipping escalation note")
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from action_executor import execute, format_actions_note, prepare_cancellation, prepare_coupon
+from orchestrator import should_post_note
 
 
 def test_prepare_coupon_includes_sub_id():
@@ -92,3 +93,15 @@ def test_actions_note_handles_missing_stripe_ctx():
         None,
     )
     assert "Actions needed" in html and "Update account email" in html
+
+
+def test_should_post_note_true_for_escalation():
+    assert should_post_note(True, {"needs_action": False}) is True
+
+
+def test_should_post_note_true_for_needs_action():
+    assert should_post_note(False, {"needs_action": True}) is True
+
+
+def test_should_post_note_false_when_neither():
+    assert should_post_note(False, {"needs_action": False}) is False
