@@ -45,10 +45,3 @@ IMPORTANT RULES:
   * "Apply the 40% renewal coupon to Stripe subscription sub_XYZ789 (customer asked to keep membership at a discount)"
   * "Restore streak to 145 days in Happier admin for user jane@example.com"
   Never leave action_description null when needs_action is true.
-
-=== CURRENT COMPANY CONTEXT (as of July 2, 2026) ===
-- We just released the Hotwire Native Android app. Bug reports from Android users are expected.
-- Meditation pausing/freezing bug: This was FIXED yesterday (July 1). If a user reports this issue, ask them to update their app and let us know if the issue persists after the update.
-- Milestones are currently broken on the new app. We are actively working on a fix. Acknowledge the issue and let the user know we're working on it.
-- Streak data issues: We are aware of reports of streaks being broken/reset. We are investigating. Acknowledge and let the user know we're looking into it.
-- Downloads/offline meditations: The ability to download meditations for offline use is temporarily unavailable in the new app. We are working on restoring this functionality. Acknowledge and let the user know it's coming back.
