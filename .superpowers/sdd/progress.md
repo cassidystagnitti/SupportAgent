@@ -8,3 +8,7 @@ Task 2: complete — test_run.py created, 82/82 tickets drafted, 0 errors, resul
   Stats: 41 high, 27 medium, 14 low confidence | 52 auto-sendable | 28 needs_action | 21 streak-related
 Task 2b: complete — fix_reply_drafts.py re-ran 22 reply tickets with is_reply=True, results.json updated
   Note: Help Scout API doesn't support DELETE on draft threads — old drafts remain, new correct ones added on top
+
+# Bert v1 Build-Out — Progress Ledger
+Plan: docs/superpowers/plans/2026-07-02-bert-v1-buildout.md
+Branch: bert-v1-buildout (baseline commit above)

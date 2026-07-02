@@ -19,6 +19,8 @@ import anthropic
 import requests
 from dotenv import load_dotenv
 
+from claude_utils import extract_text
+
 _SUPPORT_DIR = os.path.dirname(os.path.abspath(__file__))
 _ROOT_DIR = os.path.dirname(_SUPPORT_DIR)
 load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
@@ -152,7 +154,7 @@ def _call_claude(
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
     )
-    text = (message.content[0].text or "").strip()
+    text = (extract_text(message) or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text).strip()

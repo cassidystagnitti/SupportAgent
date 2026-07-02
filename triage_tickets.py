@@ -11,6 +11,8 @@ import anthropic
 import requests
 from dotenv import load_dotenv
 
+from claude_utils import extract_text
+
 _SUPPORT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(_SUPPORT_DIR)
 load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
@@ -308,7 +310,7 @@ def triage_batch(client, tickets, tag_names, team_names, strict=False):
         messages=[{"role": "user", "content": prompt}],
     )
 
-    response_text = message.content[0].text.strip()
+    response_text = extract_text(message).strip()
     if response_text.startswith("```"):
         response_text = re.sub(r"^```(?:json)?\s*", "", response_text)
         response_text = re.sub(r"\s*```$", "", response_text)
