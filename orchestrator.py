@@ -28,6 +28,7 @@ from product_prioritization import run_product_prioritization  # noqa: E402
 from stripe_context import fetch_stripe_context, format_stripe_context  # noqa: E402
 from triage_tickets import (  # noqa: E402
     BASE_URL,
+    api_get,
     fetch_conversation,
     get_access_token,
     get_conversation_history,
@@ -391,6 +392,46 @@ def _html_escape(s: str) -> str:
     )
 
 
+REPLY_MODE_PROMPT_PREFIX = (
+    "NOTE: This is an ongoing thread — a support agent has already replied at least once. "
+    "Respond to the customer's LATEST message only; do not re-answer the original question. "
+    "Full thread history follows."
+)
+
+
+def detect_reply_mode(threads: list) -> bool:
+    """True iff a support agent has already sent a published reply."""
+    for t in threads or []:
+        if t.get("type") == "message" and t.get("state") == "published":
+            return True
+    return False
+
+
+def _fetch_conversation_threads(session: requests.Session, convo: dict[str, Any], conversation_id: int) -> list[dict]:
+    """Return the conversation's threads, reusing `_embedded.threads` if `fetch_conversation`
+    already embedded them; otherwise fetch via GET /conversations/{id}/threads (paginated)."""
+    embedded = (convo or {}).get("_embedded") or {}
+    embedded_threads = embedded.get("threads")
+    if embedded_threads is not None:
+        return embedded_threads
+
+    threads: list[dict] = []
+    page = 1
+    while True:
+        data = api_get(
+            session,
+            f"{BASE_URL}/conversations/{conversation_id}/threads",
+            params={"page": page},
+        )
+        page_threads = data.get("_embedded", {}).get("threads", [])
+        threads.extend(page_threads)
+        total_pages = data.get("page", {}).get("totalPages", 1)
+        if page >= total_pages:
+            break
+        page += 1
+    return threads
+
+
 def process_ticket_sync(conversation_id: str, customer_email: str | None = None, *, is_reply: bool = False, skip_triage: bool = False) -> dict[str, Any]:
     """
     Full pipeline: triage → account lookup → stripe enrichment → policy retrieval →
@@ -406,6 +447,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         "customer_email": customer_email or "",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "triage_success": False,
+        "reply_mode": False,
         "account_lookup_success": False,
         "stripe_enrichment_attempted": False,
         "stripe_enrichment_success": False,
@@ -435,8 +477,31 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
 
     email_in = (customer_email or "").strip()
 
+    if is_reply:
+        log.warning(
+            "process_ticket_sync(is_reply=True) is deprecated — reply mode is now derived "
+            "from conversation threads. The passed value is ignored."
+        )
+
     try:
-        if is_reply or skip_triage:
+        app_id = os.getenv("HELPSCOUT_APP_ID")
+        app_secret = os.getenv("HELPSCOUT_APP_SECRET")
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not app_id or not app_secret:
+            raise RuntimeError("HELPSCOUT_APP_ID / HELPSCOUT_APP_SECRET required for Help Scout API.")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY required for draft generation.")
+
+        token = get_access_token()
+        session = requests.Session()
+        session.headers.update({"Authorization": f"Bearer {token}"})
+
+        convo = fetch_conversation(session, int(cid))
+        threads = _fetch_conversation_threads(session, convo, int(cid))
+        reply_mode = detect_reply_mode(threads)
+        out["reply_mode"] = reply_mode
+
+        if reply_mode or skip_triage:
             log.info("Skipping triage for conversation %s", cid)
         else:
             try:
@@ -451,19 +516,6 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
             except Exception:
                 log.exception("triage failed — continuing pipeline")
 
-        app_id = os.getenv("HELPSCOUT_APP_ID")
-        app_secret = os.getenv("HELPSCOUT_APP_SECRET")
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not app_id or not app_secret:
-            raise RuntimeError("HELPSCOUT_APP_ID / HELPSCOUT_APP_SECRET required for Help Scout API.")
-        if not api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY required for draft generation.")
-
-        token = get_access_token()
-        session = requests.Session()
-        session.headers.update({"Authorization": f"Bearer {token}"})
-
-        convo = fetch_conversation(session, int(cid))
         cust = _customer_from_conversation(convo)
         hs_customer_id = cust.get("id")
         convo_email = (cust.get("email") or "").strip()
@@ -474,7 +526,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         customer_name = _customer_display_name(cust)
         subject = convo.get("subject") or "(no subject)"
 
-        if is_reply:
+        if reply_mode:
             conversation_history, body = get_conversation_history(session, int(cid))
             body = body or "(empty)"
         else:
@@ -550,6 +602,8 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
             agent_name=agent_name,
             conversation_history=conversation_history,
         )
+        if reply_mode:
+            dynamic_message = f"{REPLY_MODE_PROMPT_PREFIX}\n\n{dynamic_message}"
 
         client = anthropic.Anthropic(api_key=api_key)
         model = out["claude_model"]

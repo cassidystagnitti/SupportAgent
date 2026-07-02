@@ -12,3 +12,5 @@ Task 2b: complete — fix_reply_drafts.py re-ran 22 reply tickets with is_reply=
 # Bert v1 Build-Out — Progress Ledger
 Plan: docs/superpowers/plans/2026-07-02-bert-v1-buildout.md
 Branch: bert-v1-buildout (baseline commit above)
+Task 1: complete (commits 923a051..eeb5aee, review clean)
+Task 2: complete — reply mode derived from conversation threads (SUP-447); detect_reply_mode() in orchestrator.py, webhook event already whitelisted, 18/19 tests pass (pre-existing unrelated failure in test_maven_orchestrator.py)

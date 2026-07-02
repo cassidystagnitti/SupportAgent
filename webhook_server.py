@@ -41,10 +41,15 @@ log = logging.getLogger("helpscout_webhook")
 WEBHOOK_SECRET = os.getenv("HELPSCOUT_WEBHOOK_SECRET", "")
 
 # Subscribe to these in Help Scout. convo.created can arrive before the first
-# customer thread exists; add convo.customer.reply.created if triage often sees empty bodies.
+# customer thread exists; convo.customer.reply.created fires when a customer replies
+# to an already-answered conversation. Both route to the same pipeline — reply mode
+# is derived from the conversation's threads in orchestrator.detect_reply_mode(),
+# not from which event triggered the run. Event name per Help Scout webhook docs
+# (Manage -> Apps -> Webhooks -> available events): "Customer Reply Created".
+CUSTOMER_REPLY_EVENT = "convo.customer.reply.created"
 TRIAGE_EVENTS = frozenset({
     "convo.created",
-    "convo.customer.reply.created",
+    CUSTOMER_REPLY_EVENT,
 })
 
 app = FastAPI(title="Help Scout support webhook")
@@ -87,10 +92,12 @@ def _customer_email_from_payload(payload: dict) -> Optional[str]:
     return None
 
 
-def _run_pipeline_sync(conversation_id: int, payload: dict, is_reply: bool = False) -> None:
+def _run_pipeline_sync(conversation_id: int, payload: dict) -> None:
     try:
         email = _customer_email_from_payload(payload)
-        process_ticket_sync(str(conversation_id), email, is_reply=is_reply)
+        # reply_mode is derived inside process_ticket_sync from the conversation's
+        # threads (see orchestrator.detect_reply_mode) — no need to pass it here.
+        process_ticket_sync(str(conversation_id), email)
     except Exception:
         log.exception("support pipeline failed for conversation %s", conversation_id)
 
@@ -120,12 +127,10 @@ async def helpscout_webhook(
         log.warning("no conversation id in payload for event=%s", event)
         return {"ok": True, "skipped": True, "reason": "no conversation id"}
 
-    is_reply = event == "convo.customer.reply.created"
     # Respond immediately so Help Scout does not retry; run pipeline in a thread.
     threading.Thread(
         target=_run_pipeline_sync,
         args=(cid, payload),
-        kwargs={"is_reply": is_reply},
         daemon=True,
     ).start()
     log.info("queued support pipeline for conversation %s (%s)", cid, event)
