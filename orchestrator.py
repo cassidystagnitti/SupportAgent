@@ -23,6 +23,7 @@ _ROOT_DIR = os.path.dirname(_SUPPORT_DIR)
 load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
 load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
+import bug_registry  # noqa: E402
 import notion_bridge  # noqa: E402
 from account_context import fetch_account_contexts_for_ticket, fetch_customer_emails_from_helpscout  # noqa: E402
 from action_executor import format_actions_note  # noqa: E402
@@ -615,6 +616,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         "open_question": None,
         "needs_product_research": None,
         "bug_report": None,
+        "bug_candidate": None,
         "research_ran": False,
         "research_sources": [],
         "draft_created": False,
@@ -888,6 +890,20 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
 
         # --- Notion gap/action hooks (fail-soft; never blocks the draft) ---
         record_gap_and_action(out, parsed)
+
+        # --- Bug candidate registry / Linear auto-filing (fail-soft; never
+        # blocks the draft). `out` has no ticket_body field — `body` is the
+        # customer's ticket text already resolved above (reply-mode aware).
+        try:
+            excerpt = (out.get("ticket_body") or body or "")[:300]
+            candidate = bug_registry.record_bug(parsed, cid, out["customer_email"], excerpt)
+            if candidate:
+                out["bug_candidate"] = {
+                    "summary": candidate.get("summary"),
+                    "linear_id": candidate.get("linear_id"),
+                }
+        except Exception:
+            log.exception("bug_registry.record_bug failed for conversation %s", cid)
 
         # --- Internal note (escalations and needs_action tickets) ---
         if should_post_note(is_escalation, parsed):
