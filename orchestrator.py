@@ -47,12 +47,21 @@ IMPORTANT — your last reply was empty or not valid JSON for this pipeline.
 
 Reply with ONLY one JSON object (no markdown fences, no commentary before or after).
 Required keys: draft_reply, escalate, escalate_reason, needs_action, action_description,
-auto_sendable, do_not_send_reasons, referenced_policies, confidence, reasoning.
-Use null for action_description when needs_action is false.
+action_system, auto_sendable, do_not_send_reasons, referenced_policies, confidence, reasoning.
+Use null for action_description and action_system when needs_action is false.
 Use null for escalate_reason when escalate is false.
 Use null for draft_reply when escalate is true.
 If you must shorten draft_reply to fit, keep JSON valid and closed."""
 
+ACTION_DESCRIPTION_RETRY_USER_SUFFIX = (
+    "\n\nYour JSON set needs_action=true but action_description was null/empty. "
+    "Re-send the SAME JSON with a specific, executable action_description (and action_system)."
+)
+
+
+def needs_action_retry(parsed: dict) -> bool:
+    """True iff the draft JSON claims an action is needed but gave no description for it."""
+    return bool(parsed.get("needs_action")) and not (parsed.get("action_description") or "").strip()
 
 
 def load_policy_docs(policy_dir: str | None = None) -> str:
@@ -265,6 +274,45 @@ def _call_claude_draft(
     ) from (last_json_err or last_api_err)
 
 
+def _call_claude_draft_with_action_retry(
+    client: anthropic.Anthropic,
+    *,
+    system_prompt: str,
+    policy_docs: str,
+    dynamic_user_message: str,
+    model: str,
+) -> tuple[Any, dict[str, Any], str]:
+    """Wraps _call_claude_draft with a one-time corrective retry when needs_action=true
+    but action_description came back null/empty. On persistent failure, keeps the result
+    and flags it via the caller (see action_description_missing in process_ticket_sync)."""
+    message, parsed, raw_text = _call_claude_draft(
+        client,
+        system_prompt=system_prompt,
+        policy_docs=policy_docs,
+        dynamic_user_message=dynamic_user_message,
+        model=model,
+    )
+
+    if needs_action_retry(parsed):
+        log.warning(
+            "Draft JSON has needs_action=true with missing action_description — retrying once"
+        )
+        retry_message = dynamic_user_message.strip() + ACTION_DESCRIPTION_RETRY_USER_SUFFIX
+        message, parsed, raw_text = _call_claude_draft(
+            client,
+            system_prompt=system_prompt,
+            policy_docs=policy_docs,
+            dynamic_user_message=retry_message,
+            model=model,
+        )
+        if needs_action_retry(parsed):
+            log.warning(
+                "action_description still missing after corrective retry — keeping result and flagging"
+            )
+
+    return message, parsed, raw_text
+
+
 def _build_dynamic_user_message(
     *,
     ticket_subject: str,
@@ -458,6 +506,9 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         "escalated": False,
         "escalate_reason": None,
         "needs_action": None,
+        "action_description": None,
+        "action_system": None,
+        "action_description_missing": False,
         "auto_sendable": None,
         "confidence": None,
         "referenced_policies": [],
@@ -607,7 +658,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
 
         client = anthropic.Anthropic(api_key=api_key)
         model = out["claude_model"]
-        msg, parsed, _raw_assistant = _call_claude_draft(
+        msg, parsed, _raw_assistant = _call_claude_draft_with_action_retry(
             client,
             system_prompt=system_prompt,
             policy_docs=policy_docs,
@@ -631,6 +682,14 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         out["referenced_policies"] = parsed.get("referenced_policies") or []
         out["do_not_send_reasons"] = parsed.get("do_not_send_reasons") or []
         out["reasoning"] = parsed.get("reasoning")
+        out["action_description"] = parsed.get("action_description")
+        out["action_system"] = parsed.get("action_system")
+        if needs_action_retry(parsed):
+            out["action_description_missing"] = True
+            log.warning(
+                "action_description_missing=True for conversation %s (needs_action=true, no description after retry)",
+                cid,
+            )
 
         # --- Tags (single PUT to avoid clobbering) ---
         tags_to_add: list[str] = []
