@@ -236,13 +236,35 @@ def _fetch_all_threads(session, conversation_id):
 
 
 def get_conversation_text(session, conversation_id, threads: list | None = None):
+    """Return the customer message(s) awaiting a reply.
+
+    Threads come back newest-first. We collect every customer message newer than
+    our most recent published reply (i.e. everything the customer has said that we
+    haven't answered yet); if we've never replied, that's all of their messages.
+    They're joined oldest-first so the draft prompt sees full context ending on the
+    latest ask — the previous implementation returned only the OLDEST message, so a
+    customer who sent a follow-up before we replied got answered on their first
+    message (e.g. missing a later "…I want a refund").
+    """
     if threads is None:
         threads = _fetch_all_threads(session, conversation_id)
-    customer_threads = [t for t in threads if t.get("type") == "customer"]
-    if not customer_threads:
-        return None
-    body = customer_threads[-1].get("body", "")
-    return strip_html(body) if body else None
+
+    unanswered = []
+    for t in threads:  # newest-first
+        if t.get("type") == "message" and t.get("state") == "published":
+            break  # reached our last sent reply; earlier messages are already answered
+        if t.get("type") == "customer":
+            unanswered.append(t)
+
+    if not unanswered:
+        customer_threads = [t for t in threads if t.get("type") == "customer"]
+        if not customer_threads:
+            return None
+        unanswered = [customer_threads[0]]  # fall back to the newest customer message
+
+    parts = [strip_html(t.get("body", "") or "").strip() for t in reversed(unanswered)]
+    parts = [p for p in parts if p]
+    return "\n\n".join(parts) if parts else None
 
 
 def get_conversation_history(session, conversation_id, threads: list | None = None):

@@ -43,9 +43,27 @@ def test_passing_threads_avoids_refetch(monkeypatch):
         {"type": "customer", "state": "published", "body": "Older message"},
     ]
 
+    # get_conversation_text must return the customer's message(s) awaiting a
+    # reply — the newest one here, NOT the older pre-reply message.
     text = get_conversation_text(session=None, conversation_id=123, threads=threads)
-    assert text == "Older message"
+    assert text == "Latest customer message"
 
     history, latest = get_conversation_history(session=None, conversation_id=123, threads=threads)
     assert latest == "Latest customer message"
     assert "Support reply" in history
+
+
+def test_multiple_customer_messages_before_reply_include_latest():
+    """When a customer sends several messages before any agent reply, the draft
+    body must include the LATEST message (and keep earlier context), not just
+    the first one. Regression for the initial-vs-latest drafting bug (SUP-447)."""
+    # Help Scout returns threads newest-first; no agent reply yet.
+    threads = [
+        {"type": "customer", "state": "published", "body": "It keeps freezing — I want a refund"},
+        {"type": "customer", "state": "published", "body": "The app is glitchy"},
+    ]
+    text = get_conversation_text(session=None, conversation_id=1, threads=threads)
+    assert "I want a refund" in text          # the latest ask must be present
+    assert "The app is glitchy" in text       # earlier context retained
+    # presented oldest-first for readability
+    assert text.index("The app is glitchy") < text.index("I want a refund")
