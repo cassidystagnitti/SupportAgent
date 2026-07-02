@@ -43,3 +43,21 @@ Task 11: complete — linear_client.py (search_issues, create_issue) for the Tec
   11/11 new tests pass, 79/80 full suite (pre-existing test_maven_orchestrator failure, out of scope)
   Brief's `searchIssues(query: ...)` shape adapted: real API arg is `term`, not `query`; team scoping via `filter.team.id`, confirmed by live GraphQL introspection
   Live smoke test empty (not T-786 as expected): current LINEAR_API_KEY only has visibility into the Prod Prioritization team, not Technical — env/credential gap, not a code issue
+Task 11: complete (commits 332a827..96a1b75, review clean)
+  IMPORTANT: LINEAR_API_KEY only sees Prod Prioritization team — Technical (T) board invisible to pipeline. Manual step for Cassidy: key with Technical access. Live search verified against visible team (P-22).
+  Minor for final review: linear_client CLI arg named logging_query
+Task 12: complete (commits 96a1b75..b171a0a, review clean; live smoke verified against real repos)
+  Minor for final review: uncapped ticket_text/account_summary into research prompt; SOURCES list-repr interpolation orchestrator.py:800; root-prefix strip by substring replace
+Task 13: complete (commits b171a0a..dbe9edf, review clean; FUZZY_MATCH_THRESHOLD 0.65 accepted — plan's 0.7 contradicted its own mandated fixture at 0.667)
+  Minor for final review: no re-check mechanism for matched-but-stale Linear issues; dead out.get("ticket_body") fallback
+Task 14: complete (commits dbe9edf..56b4559, review clean; PATCH unsupported (400) → supersede path; 3 live duplicate-draft convos in cleanup list, not 22 — most already handled)
+  Minor for final review: unused pytest import in test_draft_lifecycle_orchestrator; missing negative-path test for registry-set-on-POST-failure
+Task 15: complete (commits 56b4559..79d2298; smoke verified live with --limit 2 --dry-run, folder + trends line cleaned up)
+  Minor for final review: dry-run draft_created=True means "would have posted" (documented); draft_accuracy counts unsent-pending drafts as discarded (re-run later for final numbers); eval_run pins CLAUDE_DRAFT_MODEL via setdefault
+  NOTE: pre-existing uncommitted changes in triage_tickets.py + tests/test_reply_detection.py (multi-message fix, #317326) left uncommitted — not task 15 scope
+Task 15: complete (commits 56b4559..79d2298, eval harness + draft accuracy + trends; smoke verified live then cleaned)
+Orphan fix: 721a3c4 — get_conversation_text now drafts against ALL unanswered customer messages (was oldest-only). Left uncommitted by a stalled agent run; verified, cleaned (fake ticket ref removed), committed by controller. FLAG FOR FINAL REVIEW.
+Task 16: complete — full suite 155/1 (pre-existing test_maven_orchestrator failure, out of scope); 5 live acceptance re-runs via process_ticket_sync(force=True); CLAUDE.md repo map + pipeline flow + env vars updated; all 14 Linear sub-issues (447-462 minus 450, 457) marked Done with per-ticket notes, SUP-457 marked In Progress; SUP-450 untouched
+  2/5 acceptance criteria passed live (downloads, DND/known-bugs); 3/5 missed for non-pipeline reasons — 2 environment drift/404 in Help Scout sandbox, 1 genuine bug found and NOT fixed here (see below)
+  NEW FINDING: _fetch_conversation_threads (orchestrator.py) short-circuits on an empty (not absent) _embedded.threads array, which Help Scout's GET /conversations/{id} is currently returning for every conversation tested — reply-mode detection is non-functional live right now. Follow-up task spawned (task_50d18731), not fixed in this task per validation-only scope.
+  Full detail: eval/2026-07-02/acceptance_validation.md, .superpowers/sdd/task-16-report.md

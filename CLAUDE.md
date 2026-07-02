@@ -22,6 +22,19 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `search_saved_replies.py` | Standalone CLI | Searches embedded saved replies |
 | `push_kb_docs.py` | Standalone CLI | Syncs policies/*.md to Help Scout Docs (private/internal collection) |
 | `lab_app.py` | Experimental | Scratch/lab code — not part of the production pipeline |
+| `claude_utils.py` | Live | Shared helper to extract text from Anthropic API responses (tolerates ThinkingBlock) |
+| `notion_bridge.py` | Live | Bert Gap Queue + Bert Action Log Notion databases: upsert gap/action rows, fetch answered gaps; fails soft (raises internally) when `NOTION_TOKEN` is unset |
+| `linear_client.py` | Live | GraphQL client for the Technical team's Linear board: search + create issues (bug filing/dedupe) |
+| `research_agent.py` | Live | Two-pass codebase + Linear research agent; runs when the first draft is low-confidence, cites no policy, or flags a product question |
+| `bug_registry.py` | Live | New-bug candidate registry; auto-files a Linear Technical issue once a fuzzy-matched bug summary has 2+ reports |
+| `action_executor.py` | Built, execution gated | Prepared-action scaffold for Stripe-affecting actions (coupon, cancellation); builds the "Actions needed" note now, real writes wait on `STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED` |
+| `draft_registry.py` | Live | Local JSON registry of conversation → drafted thread; prevents duplicate Help Scout drafts and drives the skip/supersede decision |
+| `eval_run.py` | Standalone CLI | Repeatable eval harness: batch-runs the draft pipeline over active tickets, writes `eval/<date>/results.json` |
+| `eval_draft_accuracy.py` | Standalone CLI | Compares Bert's draft against the reply a human agent actually sent, per eval run |
+| `eval_reports.py` | Built | Shared report generators (action log, policy gaps, new bugs, scorecard) used by `eval_run.py` |
+| `process_answered_gaps.py` | Standalone CLI | Writes answered Bert Gap Queue rows (from Notion) back into `policies/*.md` |
+| `scripts/sync_new_policy_docs.py` | Standalone CLI | Syncs specific `policies/*.md` files to Notion as child pages under Support Policy Docs |
+| `scripts/list_stale_drafts.py` | Standalone CLI | Seeds the draft registry from a past eval run and lists conversations with duplicate live drafts to clean up manually |
 | `policies/` | Live | 21 markdown policy docs, loaded wholesale into every draft prompt |
 | `prompts/draft_system_prompt.txt` | Live | System prompt for draft generation (edit here, not in Python) |
 | `prompts/triage_prompt.txt` | Live | System prompt for triage classification |
@@ -36,13 +49,25 @@ The saved-reply embedding tools (`pull_saved_replies.py`, `build_saved_reply_emb
 Help Scout webhook
   → webhook_server.py (signature verification)
     → orchestrator.py
-        1. triage_tickets.py          — tags / team / priority / tier
+        0. detect_reply_mode()         — is there already a published agent thread? changes which
+                                          message the draft addresses (latest reply vs. original)
+        1. triage_tickets.py          — tags / team / priority / tier (skipped in reply mode)
         2. account_context.py         — Maven customer + subscription data
         3. stripe_context.py          — Stripe pricing / discount / invoice (Stripe subscribers only)
         4. policies/*.md              — all policy docs loaded as full text
         5. Claude (draft_system_prompt.txt) — draft reply + classification JSON
-        6. Help Scout POST /v2/conversations/{id}/reply  (draft: true)
-        7. Help Scout POST /v2/conversations/{id}/notes  (classification metadata)
+        5a. research_agent.py          — two-pass codebase + Linear research, only when the first
+                                          draft is low-confidence, cites no policy, or flags a product
+                                          question; re-drafts with findings appended
+        6. draft_registry.py           — skip a duplicate draft, or mark this one as superseding an
+                                          earlier draft thread (reply mode / forced re-draft)
+        7. Help Scout POST /v2/conversations/{id}/reply  (draft: true)
+        8. Help Scout POST /v2/conversations/{id}/notes  (classification metadata + supersede banner)
+        9. notion_bridge.py            — best-effort: log an open policy gap and/or a manual action
+                                          row to Notion (Bert Gap Queue / Bert Action Log); fails soft
+                                          if NOTION_TOKEN is unset or the API call errors
+       10. bug_registry.py             — best-effort: track new-bug candidates, auto-file to Linear
+                                          Technical once a fuzzy-matched summary has 2+ reports
 ```
 
 ---
@@ -128,10 +153,27 @@ STRIPE_READ_API_KEY           # read-only restricted key
 # Linear (product prioritization)
 LINEAR_API_KEY                # personal API key from Linear settings
 LINEAR_PRODUCT_TEAM_ID        # UUID of the product prioritization team; run `python product_prioritization.py` to list all team IDs
+LINEAR_TECHNICAL_TEAM_ID      # UUID of the Technical team's board; used by linear_client.py + bug_registry.py for bug search/filing.
+                               # KNOWN GAP: as of 2026-07-02 the LINEAR_API_KEY in use can see the Product team but not
+                               # Technical — Technical-team searches return [] rather than erroring (fails soft), but no
+                               # bug is ever actually matched/filed until a key with Technical visibility is supplied.
+
+# Notion (Bert Gap Queue + Bert Action Log — notion_bridge.py)
+NOTION_TOKEN                  # Notion integration secret. KNOWN GAP: EMPTY as of 2026-07-02 — every notion_bridge call
+                               # raises RuntimeError("NOTION_TOKEN not configured") internally; orchestrator.py catches
+                               # this per-call (record_gap_and_action) so it never blocks a draft, but no gap/action rows
+                               # are actually written to Notion until this is set.
+NOTION_VERSION                # Notion API version header (default: 2022-06-28)
 
 # Help Scout Docs (internal KB sync — push_kb_docs.py)
 HELPSCOUT_DOCS_API_KEY        # Docs API key: Settings → Docs → Your Site → API Keys
 HELPSCOUT_DOCS_COLLECTION_ID  # ID of the private/internal collection (run push_kb_docs.py --list-collections)
+
+# Stripe write actions (action_executor.py — SUP-457)
+STRIPE_WRITE_API_KEY          # write-capable Stripe key for real coupon/cancellation execution. NOT YET SET — execute()
+                               # raises NotImplementedError past the env gate until this is approved and provided.
+ACTION_EXECUTION_ENABLED      # "true" to allow action_executor.execute() to run at all; default off. Both this AND
+                               # STRIPE_WRITE_API_KEY must be set before any real Stripe write happens.
 
 # Future
 AUTO_SEND_ENABLED=false       # gate for auto-send; currently always false
