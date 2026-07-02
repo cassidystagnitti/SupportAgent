@@ -596,6 +596,7 @@ def process_ticket_sync(
     is_reply: bool = False,
     skip_triage: bool = False,
     force: bool = False,
+    create_draft: bool = True,
 ) -> dict[str, Any]:
     """
     Full pipeline: triage → account lookup → stripe enrichment → policy retrieval →
@@ -607,6 +608,24 @@ def process_ticket_sync(
     `force`: when True, bypass the draft registry's duplicate-draft guard even
     outside reply mode — used for deliberate manual re-drafts. See
     draft_registry.should_skip_draft for the skip/supersede decision table.
+
+    `create_draft`: when False (eval dry-run mode, SUP-459), the pipeline still
+    runs the read path — conversation fetch, reply-mode detection, triage-skip
+    logic, account/Stripe enrichment, and the Claude draft call — so the
+    classification JSON is real, but performs NO external writes anywhere:
+      - no Help Scout draft POST, internal-note POST, or tag PUT;
+      - no draft-registry write;
+      - no Notion gap/action hooks;
+      - no bug-registry hook (which can auto-file Linear issues);
+      - no product-prioritization pass (which can post Linear comments);
+      - triage is skipped outright (run_triage auto-applies tags/teams,
+        which are Help Scout writes).
+    The two-pass research step is also skipped in dry-run to save cost — a
+    dry-run classification therefore reflects the FIRST draft only, without
+    the research re-draft low-confidence tickets would get in production.
+    In dry-run, `draft_created=True` means "a draft WOULD have been posted"
+    (non-escalated, non-empty draft text, customer id present);
+    `helpscout_draft_id` stays None and the draft registry is not updated.
     """
     t0 = time.monotonic()
     cid = str(conversation_id).strip()
@@ -648,6 +667,8 @@ def process_ticket_sync(
         "helpscout_note_id": None,
         "total_input_tokens": None,
         "total_output_tokens": None,
+        "cache_read_input_tokens": None,
+        "dry_run": not create_draft,
         "latency_ms": None,
         "draft_text": None,
         "reasoning": None,
@@ -696,8 +717,15 @@ def process_ticket_sync(
 
         supersedes_existing_draft = bool(existing_draft) and (reply_mode or force)
 
-        if reply_mode or skip_triage:
-            log.info("Skipping triage for conversation %s", cid)
+        if reply_mode or skip_triage or not create_draft:
+            if not create_draft and not (reply_mode or skip_triage):
+                log.info(
+                    "Dry-run: skipping triage for conversation %s (run_triage auto-applies "
+                    "tags/teams — external Help Scout writes)",
+                    cid,
+                )
+            else:
+                log.info("Skipping triage for conversation %s", cid)
         else:
             try:
                 run_triage(
@@ -815,7 +843,11 @@ def process_ticket_sync(
         # cited no policy, or flagged a product question, investigate the
         # codebases + Linear and re-draft with findings appended. Any research
         # exception or empty findings → keep the first draft untouched.
-        if should_research(parsed):
+        # Skipped entirely in dry-run (create_draft=False) to save cost.
+        if not create_draft:
+            if should_research(parsed):
+                log.info("Dry-run: skipping research pass for conversation %s (cost saving)", cid)
+        elif should_research(parsed):
             try:
                 research = run_research(
                     ticket_text=f"Subject: {subject}\n\n{body}",
@@ -860,6 +892,7 @@ def process_ticket_sync(
         if usage:
             out["total_input_tokens"] = getattr(usage, "input_tokens", None)
             out["total_output_tokens"] = getattr(usage, "output_tokens", None)
+            out["cache_read_input_tokens"] = getattr(usage, "cache_read_input_tokens", None)
 
         draft_reply = parsed.get("draft_reply") or ""
         out["draft_text"] = draft_reply
@@ -884,15 +917,18 @@ def process_ticket_sync(
                 cid,
             )
 
-        # --- Tags (single PUT to avoid clobbering) ---
+        # --- Tags (single PUT to avoid clobbering; skipped in dry-run) ---
         tags_to_add = compute_tags(
             {"escalate": is_escalation, "auto_sendable": out["auto_sendable"], "confidence": out["confidence"]}
         )
-        try:
-            _update_conversation_tags(session, cid, existing_tags, tags_to_add)
-            log.info("Tags updated for conversation %s: added %s", cid, tags_to_add)
-        except requests.RequestException:
-            log.exception("Failed to update tags on conversation %s", cid)
+        if create_draft:
+            try:
+                _update_conversation_tags(session, cid, existing_tags, tags_to_add)
+                log.info("Tags updated for conversation %s: added %s", cid, tags_to_add)
+            except requests.RequestException:
+                log.exception("Failed to update tags on conversation %s", cid)
+        else:
+            log.info("Dry-run: would have added tags %s to conversation %s", tags_to_add, cid)
 
         # --- Draft reply ---
         if is_escalation:
@@ -905,6 +941,17 @@ def process_ticket_sync(
             log.error(
                 "No Help Scout customer id on conversation — cannot create draft. Draft text logged below.\n%s",
                 draft_reply[:8000],
+            )
+        elif not create_draft:
+            # Dry-run: no Help Scout POST, no draft-registry write. draft_created=True
+            # records that a draft WOULD have been posted (real classification JSON).
+            if draft_reply:
+                out["draft_created"] = True
+                out["supersedes_existing_draft"] = supersedes_existing_draft
+            log.info(
+                "Dry-run: skipping Help Scout draft POST for conversation %s (draft length %s)",
+                cid,
+                len(draft_reply),
             )
         else:
             reply_url = f"{BASE_URL}/conversations/{cid}/reply"
@@ -929,25 +976,30 @@ def process_ticket_sync(
                     draft_reply[:8000],
                 )
 
-        # --- Notion gap/action hooks (fail-soft; never blocks the draft) ---
-        record_gap_and_action(out, parsed)
+        # --- Notion gap/action hooks (fail-soft; never blocks the draft;
+        # skipped in dry-run — Notion page writes) ---
+        if create_draft:
+            record_gap_and_action(out, parsed)
 
         # --- Bug candidate registry / Linear auto-filing (fail-soft; never
-        # blocks the draft). `out` has no ticket_body field — `body` is the
-        # customer's ticket text already resolved above (reply-mode aware).
-        try:
-            excerpt = (out.get("ticket_body") or body or "")[:300]
-            candidate = bug_registry.record_bug(parsed, cid, out["customer_email"], excerpt)
-            if candidate:
-                out["bug_candidate"] = {
-                    "summary": candidate.get("summary"),
-                    "linear_id": candidate.get("linear_id"),
-                }
-        except Exception:
-            log.exception("bug_registry.record_bug failed for conversation %s", cid)
+        # blocks the draft; skipped in dry-run — registry write + potential
+        # Linear issue creation). `out` has no ticket_body field — `body` is
+        # the customer's ticket text already resolved above (reply-mode aware).
+        if create_draft:
+            try:
+                excerpt = (out.get("ticket_body") or body or "")[:300]
+                candidate = bug_registry.record_bug(parsed, cid, out["customer_email"], excerpt)
+                if candidate:
+                    out["bug_candidate"] = {
+                        "summary": candidate.get("summary"),
+                        "linear_id": candidate.get("linear_id"),
+                    }
+            except Exception:
+                log.exception("bug_registry.record_bug failed for conversation %s", cid)
 
-        # --- Internal note (escalations, needs_action tickets, and superseding drafts) ---
-        if should_post_note(is_escalation, parsed) or out["supersedes_existing_draft"]:
+        # --- Internal note (escalations, needs_action tickets, and superseding
+        # drafts; skipped in dry-run — Help Scout POST) ---
+        if create_draft and (should_post_note(is_escalation, parsed) or out["supersedes_existing_draft"]):
             note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
             if note_user_id:
                 note_html = _format_internal_note_html(
@@ -970,12 +1022,24 @@ def process_ticket_sync(
             else:
                 log.warning("HELPSCOUT_NOTE_USER_ID unset — skipping escalation note")
 
-        pp = run_product_prioritization(
-            ticket_subject=subject,
-            ticket_body=body,
-            tags=existing_tags,
-            conversation_id=cid,
-        )
+        # Skipped in dry-run: run_product_prioritization can post Linear
+        # comments (external write) and burns an extra Claude call.
+        if not create_draft:
+            pp = {
+                "skipped": True,
+                "matched": False,
+                "linear_issue_id": None,
+                "linear_issue_identifier": None,
+                "reasoning": "dry_run (create_draft=False)",
+                "error": None,
+            }
+        else:
+            pp = run_product_prioritization(
+                ticket_subject=subject,
+                ticket_body=body,
+                tags=existing_tags,
+                conversation_id=cid,
+            )
         out["product_prioritization"] = pp
         if not pp.get("skipped"):
             log.info(
