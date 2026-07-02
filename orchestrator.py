@@ -38,7 +38,7 @@ from triage_tickets import (  # noqa: E402
 log = logging.getLogger("support_orchestrator")
 
 DRAFT_SYSTEM_PROMPT_PATH = os.path.join(_SUPPORT_DIR, "prompts", "draft_system_prompt.txt")
-DEFAULT_CLAUDE_MODEL = "claude-opus-4-6"
+DEFAULT_CLAUDE_MODEL = "claude-opus-4-8"
 
 DRAFT_JSON_RETRY_USER_SUFFIX = """
 
@@ -391,7 +391,7 @@ def _html_escape(s: str) -> str:
     )
 
 
-def process_ticket_sync(conversation_id: str, customer_email: str | None = None, *, is_reply: bool = False) -> dict[str, Any]:
+def process_ticket_sync(conversation_id: str, customer_email: str | None = None, *, is_reply: bool = False, skip_triage: bool = False) -> dict[str, Any]:
     """
     Full pipeline: triage → account lookup → stripe enrichment → policy retrieval →
     Claude draft → Help Scout draft + note.
@@ -436,8 +436,8 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
     email_in = (customer_email or "").strip()
 
     try:
-        if is_reply:
-            log.info("Skipping triage for reply on conversation %s", cid)
+        if is_reply or skip_triage:
+            log.info("Skipping triage for conversation %s", cid)
         else:
             try:
                 run_triage(
