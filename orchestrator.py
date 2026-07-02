@@ -27,6 +27,7 @@ import notion_bridge  # noqa: E402
 from account_context import fetch_account_contexts_for_ticket, fetch_customer_emails_from_helpscout  # noqa: E402
 from action_executor import format_actions_note  # noqa: E402
 from product_prioritization import run_product_prioritization  # noqa: E402
+from research_agent import detect_platform, run_research, should_research  # noqa: E402
 from stripe_context import fetch_stripe_context, format_stripe_context  # noqa: E402
 from triage_tickets import (  # noqa: E402
     BASE_URL,
@@ -441,6 +442,8 @@ def _format_internal_note_html(
     parsed: dict[str, Any],
     stripe_lines_for_note: str,
     stripe_ctx: dict[str, Any] | None = None,
+    research_ran: bool = False,
+    research_sources: list[str] | None = None,
 ) -> str:
     actions_html = ""
     try:
@@ -475,11 +478,21 @@ def _format_internal_note_html(
         else ""
     )
 
+    research_html = ""
+    if research_ran:
+        srcs = research_sources or []
+        src_items = "".join(f"<li>{_html_escape(str(s))}</li>" for s in srcs) or "<li>(none)</li>"
+        research_html = (
+            "<p><strong>Research:</strong> codebase + Linear investigation informed this draft."
+            f"</p><ul>{src_items}</ul>"
+        )
+
     return (
         f"{actions_html}"
         "<p><strong>🤖 AI Draft Classification</strong></p>"
         "<hr/>"
         f"{escalation_html}"
+        f"{research_html}"
         f"<p><strong>Escalation:</strong> {yn(escalate)}<br/>"
         f"<strong>Action Required:</strong> {yn(needs_action)}<br/>"
         f"<strong>Auto-Sendable:</strong> {yn(auto_sendable)}<br/>"
@@ -602,6 +615,8 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         "open_question": None,
         "needs_product_research": None,
         "bug_report": None,
+        "research_ran": False,
+        "research_sources": [],
         "draft_created": False,
         "note_created": False,
         "helpscout_draft_id": None,
@@ -756,6 +771,51 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
             model=model,
         )
 
+        # --- Two-pass research (fail-soft): if the first draft is low-confidence,
+        # cited no policy, or flagged a product question, investigate the
+        # codebases + Linear and re-draft with findings appended. Any research
+        # exception or empty findings → keep the first draft untouched.
+        if should_research(parsed):
+            try:
+                research = run_research(
+                    ticket_text=f"Subject: {subject}\n\n{body}",
+                    account_summary=account_blob,
+                    platform_hint=detect_platform(body, {"platform": platform}),
+                )
+            except Exception:
+                log.exception("run_research raised (should be fail-soft) — keeping first draft")
+                research = {"findings": "", "sources": [], "tool_calls": 0}
+
+            findings = (research.get("findings") or "").strip()
+            if findings:
+                sources = research.get("sources") or []
+                log.info(
+                    "Research ran for conversation %s: %s tool calls, %s sources",
+                    cid,
+                    research.get("tool_calls"),
+                    len(sources),
+                )
+                research_block = (
+                    "\n\n=== RESEARCH FINDINGS (internal, do not quote code to customer) ===\n"
+                    f"{findings}\n"
+                    f"SOURCES: {sources}\n"
+                )
+                try:
+                    msg, parsed, _raw_assistant = _call_claude_draft_with_action_retry(
+                        client,
+                        system_prompt=system_prompt,
+                        policy_docs=policy_docs,
+                        dynamic_user_message=dynamic_message + research_block,
+                        model=model,
+                    )
+                    out["research_ran"] = True
+                    out["research_sources"] = sources
+                except Exception:
+                    # Re-draft failed — fall back to the first draft/parse.
+                    log.exception("Research re-draft failed — keeping first draft for conversation %s", cid)
+            else:
+                log.info("Research produced no findings for conversation %s — keeping first draft", cid)
+
         usage = getattr(msg, "usage", None)
         if usage:
             out["total_input_tokens"] = getattr(usage, "input_tokens", None)
@@ -837,6 +897,8 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
                     parsed=parsed,
                     stripe_lines_for_note=stripe_note_block,
                     stripe_ctx=stripe_ctx_dict,
+                    research_ran=out["research_ran"],
+                    research_sources=out["research_sources"],
                 )
                 note_url = f"{BASE_URL}/conversations/{cid}/notes"
                 try:
