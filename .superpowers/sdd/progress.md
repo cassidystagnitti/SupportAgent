@@ -29,3 +29,11 @@ Task 8: complete — notion_bridge.py (gap queue + action log) + process_answere
   18/18 new tests pass, 44/45 full suite (pre-existing test_maven_orchestrator failure, out of scope)
   Live via MCP connector: Bert Ops page (391cffdf-527f-8127-9dc0-e9aa16830794) + Bert Gap Queue db (3d1669df-974c-46e6-b1f7-eb67033c2ad1) + Bert Action Log db (dbd2c888-6814-4987-ad7d-8e1a00097405) created under Support Policy Docs; schemas verified via notion-fetch; ids cached in data/notion_ids.json (force-added, data/ is gitignored)
   Still no NOTION_TOKEN in .env — upsert_gap/upsert_action/fetch_answered_gaps/mark_incorporated REST paths are unit-tested (payload builders) but not live-tested end-to-end; will work once token is added
+Task 8: complete (commits 69dec3d..efad22c, review clean)
+  Live: Bert Ops page 391cffdf-527f-8127-9dc0-e9aa16830794, Gap DB 3d1669df-974c-46e6-b1f7-eb67033c2ad1, Action DB dbd2c888-6814-4987-ad7d-8e1a00097405; IDs cached in data/notion_ids.json
+  Minor for final review: _target_doc_path exact-match only; _request post-loop raise style
+Task 9: complete (commits efad22c..ed0d1c1, review clean; bug_report sink lands in Task 13 by design)
+Task 10: complete — action_executor.py scaffold (ActionPlan, prepare_coupon, prepare_cancellation, execute gated on STRIPE_WRITE_API_KEY + ACTION_EXECUTION_ENABLED=true, format_actions_note) + "Actions needed" section prepended to internal note (SUP-457)
+  13/13 new tests pass, 65/66 full suite (pre-existing test_maven_orchestrator failure, out of scope)
+  stripe_context.py key mapping: brief's `customer_id` -> real `stripe_customer_id`; `subscription_id` matches as-is
+  execute() still raises NotImplementedError past the env gate — no real Stripe write calls yet (write key pending approval)

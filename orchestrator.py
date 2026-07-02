@@ -25,6 +25,7 @@ load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
 import notion_bridge  # noqa: E402
 from account_context import fetch_account_contexts_for_ticket, fetch_customer_emails_from_helpscout  # noqa: E402
+from action_executor import format_actions_note  # noqa: E402
 from product_prioritization import run_product_prioritization  # noqa: E402
 from stripe_context import fetch_stripe_context, format_stripe_context  # noqa: E402
 from triage_tickets import (  # noqa: E402
@@ -434,7 +435,14 @@ def _format_internal_note_html(
     *,
     parsed: dict[str, Any],
     stripe_lines_for_note: str,
+    stripe_ctx: dict[str, Any] | None = None,
 ) -> str:
+    actions_html = ""
+    try:
+        actions_html = format_actions_note(parsed, stripe_ctx)
+    except Exception:
+        log.exception("format_actions_note failed — omitting actions-needed section from note")
+
     escalate = bool(parsed.get("escalate"))
     escalate_reason = parsed.get("escalate_reason")
     needs_action = parsed.get("needs_action")
@@ -463,6 +471,7 @@ def _format_internal_note_html(
     )
 
     return (
+        f"{actions_html}"
         "<p><strong>🤖 AI Draft Classification</strong></p>"
         "<hr/>"
         f"{escalation_html}"
@@ -822,6 +831,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
                 note_html = _format_internal_note_html(
                     parsed=parsed,
                     stripe_lines_for_note=stripe_note_block,
+                    stripe_ctx=stripe_ctx_dict,
                 )
                 note_url = f"{BASE_URL}/conversations/{cid}/notes"
                 try:
