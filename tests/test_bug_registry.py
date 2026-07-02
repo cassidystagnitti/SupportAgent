@@ -75,6 +75,29 @@ def test_dissimilar_summaries_create_separate_candidates(tmp_path, monkeypatch):
     assert len(data["candidates"]) == 2
 
 
+def test_superficially_similar_but_distinct_bugs_stay_separate(tmp_path, monkeypatch):
+    """Regression: SequenceMatcher.quick_ratio() (bag-of-characters) scores these
+    pairs as similar (>= 0.7) despite being genuinely different bugs, because it
+    ignores word order/contiguity. The real ratio() (order-sensitive) correctly
+    keeps them apart at FUZZY_MATCH_THRESHOLD, which is why _similar() uses
+    ratio() rather than quick_ratio()."""
+    monkeypatch.setattr(bug_registry, "REGISTRY_PATH", str(tmp_path / "r.json"))
+    monkeypatch.setattr(bug_registry.linear_client, "search_issues", lambda q: [])
+    monkeypatch.setattr(bug_registry.linear_client, "create_issue", lambda t, d: {"identifier": "T-999"})
+
+    distinct_pairs = [
+        ("Cannot download offline meditations", "Cannot delete offline downloads"),
+        ("Timer does not stop playback", "Timer does not sync progress"),
+    ]
+    for summary_a, summary_b in distinct_pairs:
+        registry_path = tmp_path / f"r_{abs(hash(summary_a))}.json"
+        monkeypatch.setattr(bug_registry, "REGISTRY_PATH", str(registry_path))
+        bug_registry.record_bug(_parsed(summary_a), "1", "a@x.com", "e1")
+        bug_registry.record_bug(_parsed(summary_b), "2", "b@y.com", "e2")
+        data = json.loads(open(str(registry_path)).read())
+        assert len(data["candidates"]) == 2, f"{summary_a!r} and {summary_b!r} were wrongly merged"
+
+
 def test_registry_persists_atomically_across_calls(tmp_path, monkeypatch):
     registry_path = str(tmp_path / "r.json")
     monkeypatch.setattr(bug_registry, "REGISTRY_PATH", registry_path)

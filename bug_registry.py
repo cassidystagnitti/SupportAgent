@@ -36,9 +36,21 @@ _SUPPORT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Module-level so tests can monkeypatch it per-test (tmp_path isolation).
 REGISTRY_PATH = os.path.join(_SUPPORT_DIR, "data", "bug_candidates.json")
 
-# difflib.SequenceMatcher ratio threshold for treating two summaries as the
+# difflib.SequenceMatcher ratio() threshold for treating two summaries as the
 # same underlying bug.
-FUZZY_MATCH_THRESHOLD = 0.7
+#
+# The brief specifies "difflib ratio >= 0.7", but its own required fixture
+# ("Sleep timer resets randomly" vs. "sleep timer keeps resetting", which must
+# be treated as the same bug) scores exact ratio() = 0.667 — just under 0.7.
+# Rather than switch to SequenceMatcher.quick_ratio() (a bag-of-characters
+# upper-bound estimate that ignores word order/contiguity — verified to give
+# false-positive merges on realistic pairs, e.g. "Cannot download offline
+# meditations" vs. "Cannot delete offline downloads" scores 0.848 despite
+# being different bugs), the threshold is set to 0.65: the smallest round
+# value that satisfies the brief's fixture while still correctly separating
+# every dissimilar pair exercised in tests/test_bug_registry.py using the
+# real (order-sensitive) ratio().
+FUZZY_MATCH_THRESHOLD = 0.65
 
 # Minimum number of *distinct* customer emails a candidate needs before it is
 # auto-filed to Linear.
@@ -87,15 +99,14 @@ def _save_registry(data: dict[str, Any]) -> None:
 
 
 def _similar(a: str, b: str) -> float:
-    """difflib similarity ratio between two (lowercased) summaries.
+    """Exact difflib similarity ratio between two (lowercased) summaries.
 
-    Uses SequenceMatcher.quick_ratio() rather than the exact ratio(): it's a
-    fast upper-bound approximation based on character-frequency overlap, and
-    in practice it's more forgiving of reworded-but-same-bug summaries (e.g.
-    "resets randomly" vs. "keeps resetting") that exact ratio() scores just
-    under the 0.7 threshold. Still a difflib.SequenceMatcher score in [0, 1].
+    Deliberately uses SequenceMatcher.ratio() (order-sensitive, real
+    longest-matching-block similarity) rather than quick_ratio() — see
+    FUZZY_MATCH_THRESHOLD for why quick_ratio was rejected as a threshold
+    workaround (false-positive merges on realistic dissimilar summaries).
     """
-    return difflib.SequenceMatcher(None, (a or "").strip().lower(), (b or "").strip().lower()).quick_ratio()
+    return difflib.SequenceMatcher(None, (a or "").strip().lower(), (b or "").strip().lower()).ratio()
 
 
 def _find_matching_candidate(candidates: list[dict[str, Any]], summary: str) -> dict[str, Any] | None:
