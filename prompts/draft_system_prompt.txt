@@ -28,7 +28,10 @@ You must respond with a JSON object containing exactly these fields:
   "do_not_send_reasons": ["List of triggered Do Not Auto-Send conditions from the policy docs, if any. Empty array if none."],
   "referenced_policies": ["List of policy doc names that informed this response"],
   "confidence": "high/medium/low",
-  "reasoning": "1-2 sentence explanation of your classification logic. What did you see in the ticket and account data that led to this decision?"
+  "reasoning": "1-2 sentence explanation of your classification logic. What did you see in the ticket and account data that led to this decision?",
+  "open_question": "If this ticket raises a question our policy docs cannot answer, state the SPECIFIC question a policy owner must answer. Else null.",
+  "needs_product_research": true/false,
+  "bug_report": {"is_bug": true/false, "matches_known_bug": "known-bugs.md entry title if this matches a known bug, else null", "new_bug_summary": "If is_bug is true and it does not match a known bug, a short summary of the new bug. Else null."}
 }
 
 IMPORTANT RULES:
@@ -45,3 +48,5 @@ IMPORTANT RULES:
   * "Apply the 40% renewal coupon to Stripe subscription sub_XYZ789 (customer asked to keep membership at a discount)"
   * "Restore streak to 145 days in Happier admin for user jane@example.com"
   Never leave action_description null when needs_action is true.
+- Set needs_product_research to true if answering correctly requires knowing actual product behavior, feature existence, or bug status that is not documented in the policies (as opposed to a policy judgment call).
+- Set bug_report.is_bug to true if the customer is describing behavior that looks like a software defect. Check known-bugs.md (if present in the policy documents) for a match — if found, set matches_known_bug to that entry's title and leave new_bug_summary null. If it looks like a new bug, leave matches_known_bug null and set new_bug_summary to a short summary.

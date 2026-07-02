@@ -23,6 +23,7 @@ _ROOT_DIR = os.path.dirname(_SUPPORT_DIR)
 load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
 load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
+import notion_bridge  # noqa: E402
 from account_context import fetch_account_contexts_for_ticket, fetch_customer_emails_from_helpscout  # noqa: E402
 from product_prioritization import run_product_prioritization  # noqa: E402
 from stripe_context import fetch_stripe_context, format_stripe_context  # noqa: E402
@@ -47,10 +48,13 @@ IMPORTANT — your last reply was empty or not valid JSON for this pipeline.
 
 Reply with ONLY one JSON object (no markdown fences, no commentary before or after).
 Required keys: draft_reply, escalate, escalate_reason, needs_action, action_description,
-action_system, auto_sendable, do_not_send_reasons, referenced_policies, confidence, reasoning.
+action_system, auto_sendable, do_not_send_reasons, referenced_policies, confidence, reasoning,
+open_question, needs_product_research, bug_report.
 Use null for action_description and action_system when needs_action is false.
 Use null for escalate_reason when escalate is false.
 Use null for draft_reply when escalate is true.
+Use null for open_question when there is no unanswered policy question.
+bug_report must be an object: {"is_bug": bool, "matches_known_bug": string|null, "new_bug_summary": string|null}.
 If you must shorten draft_reply to fit, keep JSON valid and closed."""
 
 ACTION_DESCRIPTION_RETRY_USER_SUFFIX = (
@@ -78,6 +82,57 @@ def compute_tags(parsed: dict) -> list[str]:
     if parsed.get("auto_sendable") and parsed.get("confidence") != "low":
         tags.append("auto_send")
     return tags
+
+
+_ACTION_SYSTEM_MAP = {
+    "stripe": "Stripe",
+    "happier_admin": "Happier admin",
+    "helpscout": "Help Scout",
+}
+
+
+def _map_action_system(raw: Any) -> str:
+    """Map the draft JSON's action_system value onto the exact Notion select options."""
+    key = (raw or "").strip().lower()
+    return _ACTION_SYSTEM_MAP.get(key, "Other")
+
+
+def record_gap_and_action(out: dict, parsed: dict) -> None:
+    """Fail-soft hook: record an open policy gap and/or a manual action in Notion.
+
+    Never raises — a Notion outage or missing NOTION_TOKEN must never block a draft.
+    Each branch (gap, action) is independently wrapped so a failure in one doesn't
+    suppress the other.
+    """
+    ticket_id = out.get("conversation_id")
+    ticket_subject = out.get("ticket_subject")
+    customer_email = out.get("customer_email")
+
+    open_question = (parsed.get("open_question") or "").strip()
+    confidence = (parsed.get("confidence") or "").strip().lower()
+    if not open_question and confidence == "low":
+        open_question = f"How should we answer: {ticket_subject}?"
+
+    if open_question:
+        try:
+            notion_bridge.upsert_gap(open_question, ticket_id, ticket_subject)
+        except Exception:
+            log.exception("record_gap_and_action: upsert_gap failed for conversation %s", ticket_id)
+
+    if parsed.get("needs_action"):
+        try:
+            action_description = (parsed.get("action_description") or "").strip() or "Unspecified — see reasoning"
+            action_system = _map_action_system(parsed.get("action_system"))
+            confidence_display = confidence.capitalize() if confidence else confidence
+            notion_bridge.upsert_action(
+                action_description,
+                action_system,
+                ticket_id,
+                customer_email,
+                confidence_display,
+            )
+        except Exception:
+            log.exception("record_gap_and_action: upsert_action failed for conversation %s", ticket_id)
 
 
 def load_policy_docs(policy_dir: str | None = None) -> str:
@@ -509,6 +564,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
     out: dict[str, Any] = {
         "conversation_id": cid,
         "customer_email": customer_email or "",
+        "ticket_subject": None,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "triage_success": False,
         "reply_mode": False,
@@ -529,6 +585,9 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         "confidence": None,
         "referenced_policies": [],
         "do_not_send_reasons": [],
+        "open_question": None,
+        "needs_product_research": None,
+        "bug_report": None,
         "draft_created": False,
         "note_created": False,
         "helpscout_draft_id": None,
@@ -592,6 +651,7 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
 
         customer_name = _customer_display_name(cust)
         subject = convo.get("subject") or "(no subject)"
+        out["ticket_subject"] = subject
 
         if reply_mode:
             conversation_history, body = get_conversation_history(session, int(cid), threads=threads)
@@ -700,6 +760,9 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
         out["reasoning"] = parsed.get("reasoning")
         out["action_description"] = parsed.get("action_description")
         out["action_system"] = parsed.get("action_system")
+        out["open_question"] = parsed.get("open_question")
+        out["needs_product_research"] = parsed.get("needs_product_research")
+        out["bug_report"] = parsed.get("bug_report")
         if needs_action_retry(parsed):
             out["action_description_missing"] = True
             log.warning(
@@ -748,6 +811,9 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
                     e,
                     draft_reply[:8000],
                 )
+
+        # --- Notion gap/action hooks (fail-soft; never blocks the draft) ---
+        record_gap_and_action(out, parsed)
 
         # --- Internal note (escalations only) ---
         if is_escalation:
