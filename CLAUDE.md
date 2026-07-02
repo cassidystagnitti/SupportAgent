@@ -154,7 +154,7 @@ AUTO_SEND_ENABLED=false       # gate for auto-send; currently always false
 - Always use the **read-only restricted key** — never a full secret key
 
 ### Anthropic API
-- Model: `claude-sonnet-4-6` (current default)
+- Model: `claude-sonnet-5` (current default)
 - Use prompt caching on system prompt and policy docs (large, static content)
 - Parse Claude's response as JSON; handle malformed output gracefully with retry logic
 

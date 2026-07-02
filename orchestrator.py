@@ -39,7 +39,7 @@ from triage_tickets import (  # noqa: E402
 log = logging.getLogger("support_orchestrator")
 
 DRAFT_SYSTEM_PROMPT_PATH = os.path.join(_SUPPORT_DIR, "prompts", "draft_system_prompt.txt")
-DEFAULT_CLAUDE_MODEL = "claude-opus-4-8"
+DEFAULT_CLAUDE_MODEL = "claude-sonnet-5"
 
 DRAFT_JSON_RETRY_USER_SUFFIX = """
 
@@ -62,6 +62,22 @@ ACTION_DESCRIPTION_RETRY_USER_SUFFIX = (
 def needs_action_retry(parsed: dict) -> bool:
     """True iff the draft JSON claims an action is needed but gave no description for it."""
     return bool(parsed.get("needs_action")) and not (parsed.get("action_description") or "").strip()
+
+
+def compute_tags(parsed: dict) -> list[str]:
+    """Derive Help Scout conversation tags from classification output.
+
+    `parsed` carries (at least) `escalate`, `auto_sendable`, and `confidence` —
+    either the raw Claude classification dict or the equivalent post-escalation
+    `out` fields.
+    """
+    tags: list[str] = []
+    if parsed.get("escalate"):
+        tags.append("escalation")
+    tags.append("automated" if parsed.get("auto_sendable") else "technical")
+    if parsed.get("auto_sendable") and parsed.get("confidence") != "low":
+        tags.append("auto_send")
+    return tags
 
 
 def load_policy_docs(policy_dir: str | None = None) -> str:
@@ -692,10 +708,9 @@ def process_ticket_sync(conversation_id: str, customer_email: str | None = None,
             )
 
         # --- Tags (single PUT to avoid clobbering) ---
-        tags_to_add: list[str] = []
-        if is_escalation:
-            tags_to_add.append("escalation")
-        tags_to_add.append("automated" if out["auto_sendable"] else "technical")
+        tags_to_add = compute_tags(
+            {"escalate": is_escalation, "auto_sendable": out["auto_sendable"], "confidence": out["confidence"]}
+        )
         try:
             _update_conversation_tags(session, cid, existing_tags, tags_to_add)
             log.info("Tags updated for conversation %s: added %s", cid, tags_to_add)
