@@ -61,3 +61,9 @@ Task 16: complete — full suite 155/1 (pre-existing test_maven_orchestrator fai
   2/5 acceptance criteria passed live (downloads, DND/known-bugs); 3/5 missed for non-pipeline reasons — 2 environment drift/404 in Help Scout sandbox, 1 genuine bug found and NOT fixed here (see below)
   NEW FINDING: _fetch_conversation_threads (orchestrator.py) short-circuits on an empty (not absent) _embedded.threads array, which Help Scout's GET /conversations/{id} is currently returning for every conversation tested — reply-mode detection is non-functional live right now. Follow-up task spawned (task_50d18731), not fixed in this task per validation-only scope.
   Full detail: eval/2026-07-02/acceptance_validation.md, .superpowers/sdd/task-16-report.md
+Task 16: complete (commit f221254 after amend — controller commit raced agent's staged files, message fixed)
+  Acceptance: downloads PASS (high conf, no ETA), DND/known-bugs PASS, practice-goals MISS (stale convo), podcast MISS (convo 404), reply-mode MISS (real bug: _fetch_conversation_threads short-circuits on empty _embedded.threads)
+  Linear: SUP-447..462 (minus 450, 457) → Done; SUP-457 → In Progress; SUP-450 untouched
+  Reply-mode bug fix running in user-started external session task_50d18731 (uncommitted orchestrator.py/test changes in tree belong to it — DO NOT COMMIT)
+  CONFIG GAPS for Cassidy: NOTION_TOKEN (empty), LINEAR key Technical access, HELPSCOUT_NOTE_USER_ID unset (internal notes NEVER post live!), STRIPE_WRITE_API_KEY (pending approval)
+  Remaining: external fix lands → verify reply-mode live → final whole-branch review (opus)

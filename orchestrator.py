@@ -90,6 +90,9 @@ def compute_tags(parsed: dict) -> list[str]:
     tags.append("automated" if parsed.get("auto_sendable") else "technical")
     if parsed.get("auto_sendable") and parsed.get("confidence") != "low":
         tags.append("auto_send")
+    conf = (parsed.get("confidence") or "").strip().lower()
+    if conf in ("high", "medium", "low"):
+        tags.append(f"confidence-{conf}")
     return tags
 
 
@@ -566,10 +569,14 @@ def detect_reply_mode(threads: list) -> bool:
 
 def _fetch_conversation_threads(session: requests.Session, convo: dict[str, Any], conversation_id: int) -> list[dict]:
     """Return the conversation's threads, reusing `_embedded.threads` if `fetch_conversation`
-    already embedded them; otherwise fetch via GET /conversations/{id}/threads (paginated)."""
+    already embedded them; otherwise fetch via GET /conversations/{id}/threads (paginated).
+
+    Only a NON-EMPTY embed is trusted: Help Scout's GET /conversations/{id} returns
+    `_embedded: {"threads": []}` even for conversations with real thread history
+    (observed live 2026-07-02), so an empty embed means "not included", not "no threads"."""
     embedded = (convo or {}).get("_embedded") or {}
     embedded_threads = embedded.get("threads")
-    if embedded_threads is not None:
+    if embedded_threads:
         return embedded_threads
 
     threads: list[dict] = []

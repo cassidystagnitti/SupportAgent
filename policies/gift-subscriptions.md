@@ -39,6 +39,7 @@ Covers all tickets where someone is purchasing, redeeming, or asking about a gif
 - On request: offer **40% off** the annual gift ($99.99 → $59.99). Purchase link: https://my.meditatehappier.com/gifts?coupons=TNW594Ee&skus=sku_DzZ9r3QEKUYa6b
 - If 40% isn't sufficient or the customer specifically asks for it: escalate to **50% off** the annual gift ($99.99 → $49.99). Purchase link: https://my.meditatehappier.com/gifts?coupons=YzR7XLXM&skus=sku_DzZ9r3QEKUYa6b
 - Do not proactively advertise discount links — offer only when the customer asks.
+- **Link formatting:** never paste a raw gift/discount URL into a reply. Always hyperlink it with descriptive anchor text — e.g. `<a href="...">40% off an annual gift</a>`, `<a href="...">redeem your gift</a>`. See the link-formatting rule in *Account Lookup Data Model*.
 
 ## Standard Case
 

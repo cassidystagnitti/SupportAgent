@@ -1,3 +1,4 @@
+import orchestrator
 import triage_tickets
 from orchestrator import detect_reply_mode
 from triage_tickets import get_conversation_history, get_conversation_text
@@ -51,6 +52,44 @@ def test_passing_threads_avoids_refetch(monkeypatch):
     history, latest = get_conversation_history(session=None, conversation_id=123, threads=threads)
     assert latest == "Latest customer message"
     assert "Support reply" in history
+
+
+def test_empty_embedded_threads_falls_back_to_threads_endpoint(monkeypatch):
+    """Help Scout's GET /conversations/{id} returns `_embedded: {"threads": []}`
+    (empty list, NOT an absent key) even for conversations with real thread
+    history — observed live across every conversation tested on 2026-07-02.
+    An empty embed must not be trusted: fall back to the paginated /threads
+    endpoint, which does return the full history. Without the fallback,
+    detect_reply_mode always sees [] and reply mode is never detected live."""
+    real_threads = [
+        {"type": "customer", "state": "published", "body": "Latest customer message"},
+        {"type": "message", "state": "published", "body": "Support reply"},
+        {"type": "customer", "state": "published", "body": "Original question"},
+    ]
+
+    def fake_api_get(session, url, params=None):
+        assert url.endswith("/conversations/123/threads")
+        return {"_embedded": {"threads": real_threads}, "page": {"totalPages": 1}}
+
+    monkeypatch.setattr(orchestrator, "api_get", fake_api_get)
+
+    convo = {"_embedded": {"threads": []}}
+    result = orchestrator._fetch_conversation_threads(None, convo, 123)
+    assert result == real_threads
+    assert detect_reply_mode(result) is True
+
+
+def test_non_empty_embedded_threads_used_without_refetch(monkeypatch):
+    """A populated embed is still trusted as-is — no redundant /threads call."""
+
+    def _boom(session, url, params=None):
+        raise AssertionError("/threads should not be fetched when the embed has threads")
+
+    monkeypatch.setattr(orchestrator, "api_get", _boom)
+
+    threads = [{"type": "customer", "state": "published", "body": "Hi"}]
+    convo = {"_embedded": {"threads": threads}}
+    assert orchestrator._fetch_conversation_threads(None, convo, 123) == threads
 
 
 def test_multiple_customer_messages_before_reply_include_latest():
