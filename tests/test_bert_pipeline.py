@@ -122,6 +122,65 @@ def test_update_draft_patches_single_object(monkeypatch):
     assert captured["url"].endswith("/conversations/5/threads/777")
 
 
+def test_should_post_note_reuses_orchestrator():
+    assert pl.should_post_note({"needs_action": True}) is True
+    assert pl.should_post_note({"escalate": True}) is True
+    assert pl.should_post_note({"needs_action": False, "escalate": False}) is False
+
+
+def test_build_note_html_includes_action(monkeypatch):
+    parsed = {"needs_action": True, "action_description": "Refund via Google Play",
+              "action_system": "other", "confidence": "high", "reasoning": "eligible",
+              "referenced_policies": ["refund-policy.md"]}
+    html = pl.build_note_html(parsed, stripe_block="N/A — Google")
+    assert "Actions needed" in html
+    assert "Refund via Google Play" in html
+    assert pl.NOTE_MARKER in html
+
+
+def test_post_note_noop_without_user_id(monkeypatch):
+    monkeypatch.delenv("HELPSCOUT_NOTE_USER_ID", raising=False)
+    called = []
+    monkeypatch.setattr(pl.orchestrator, "_helpscout_post", lambda *a, **k: called.append(a))
+    assert pl.post_note(object(), 5, {"needs_action": True, "action_description": "x"}) is None
+    assert called == []
+
+
+def test_post_note_posts_with_user_id(monkeypatch):
+    monkeypatch.setenv("HELPSCOUT_NOTE_USER_ID", "875608")
+    captured = {}
+
+    class R:
+        headers = {"Resource-ID": "note-1"}
+
+        def raise_for_status(self):
+            pass
+
+    def fake_post(session, url, payload):
+        captured["url"] = url
+        captured["payload"] = payload
+        return R()
+
+    monkeypatch.setattr(pl.orchestrator, "_helpscout_post", fake_post)
+    nid = pl.post_note(object(), 5, {"needs_action": True, "action_description": "Refund",
+                                     "action_system": "other"}, "N/A")
+    assert nid == "note-1"
+    assert captured["payload"]["user"] == 875608
+    assert "Actions needed" in captured["payload"]["text"]
+    assert captured["url"].endswith("/conversations/5/notes")
+
+
+def test_has_ai_note_detects_marker(monkeypatch):
+    monkeypatch.setattr(pl.triage_tickets, "_fetch_all_threads", lambda s, cid: [
+        {"type": "note", "body": f"<p>{pl.NOTE_MARKER}</p>"},
+    ])
+    assert pl.has_ai_note(object(), 1) is True
+    monkeypatch.setattr(pl.triage_tickets, "_fetch_all_threads", lambda s, cid: [
+        {"type": "note", "body": "a human note"},
+    ])
+    assert pl.has_ai_note(object(), 1) is False
+
+
 def test_hydrate_ticket_assembles_context(monkeypatch):
     o = pl.orchestrator
     monkeypatch.setattr(o, "fetch_conversation", lambda s, cid: {"subject": "Sub", "tags": []})
@@ -144,3 +203,4 @@ def test_hydrate_ticket_assembles_context(monkeypatch):
     assert ctx["reply_mode"] is False
     # non-stripe platform → stripe_block is an N/A note, enrichment not attempted
     assert "apple" in ctx["stripe_block"].lower()
+    assert ctx["stripe_ctx"] is None

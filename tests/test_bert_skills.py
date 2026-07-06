@@ -34,7 +34,7 @@ def test_skills_reference_real_entry_points():
         "bert-summarize-mailbox": "bert.summarize",
         "bert-hydrate-ticket": "bert.pipeline",
         "bert-draft-all": "bert.fanout",
-        "bert-post": "bert.pipeline",
+        "bert-post": "bert.fanout.apply_result",
     }
     for name, module in checks.items():
         body = open(os.path.join(SKILL_DIR, name, "SKILL.md")).read()

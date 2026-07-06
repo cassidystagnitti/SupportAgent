@@ -132,7 +132,9 @@ Never create a policy doc without a Saved Reply Mapping section. If no saved rep
 HELPSCOUT_APP_ID
 HELPSCOUT_APP_SECRET
 HELPSCOUT_WEBHOOK_SECRET      # for signature verification
-HELPSCOUT_NOTE_USER_ID        # HS user id for AI-authored notes (optional but recommended)
+HELPSCOUT_NOTE_USER_ID        # HS user id AI-authored notes are attributed to. REQUIRED for notes:
+                              # if unset, internal notes (incl. "Actions needed" lists) are silently
+                              # SKIPPED — drafts still post. Set to the Support Automations agent user id.
 
 # Anthropic
 ANTHROPIC_API_KEY

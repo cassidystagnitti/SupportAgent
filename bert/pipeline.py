@@ -74,6 +74,7 @@ def hydrate_ticket(session, conversation_id: int) -> dict:
     is_stripe = bool(platform) and platform.lower() == "stripe"
     is_gift = "gift-subscription" in existing_tags
     stripe_block = ""
+    stripe_ctx = None
     if is_stripe or is_gift:
         try:
             stripe_ctx = o.fetch_stripe_context(email) if email else None
@@ -94,6 +95,7 @@ def hydrate_ticket(session, conversation_id: int) -> dict:
         "reply_mode": reply_mode,
         "account_blob": account_blob,
         "stripe_block": stripe_block,
+        "stripe_ctx": stripe_ctx,
         "existing_tags": existing_tags,
     }
 
@@ -136,6 +138,8 @@ def draft_one(client, ctx: dict, brief: str, *, model: str) -> dict:
         "bug_report": parsed.get("bug_report"),
         "action_description": parsed.get("action_description"),
         "action_system": parsed.get("action_system"),
+        # full Claude JSON, so the internal note can be rendered faithfully
+        "parsed": parsed,
     }
 
 
@@ -174,3 +178,48 @@ def update_draft(session, conversation_id, thread_id, text: str) -> bool:
     r = session.patch(url, json=body)
     r.raise_for_status()
     return r.status_code == 204
+
+
+# --- Internal action-note (same brain as the orchestrator) ---
+
+NOTE_MARKER = "AI Draft Classification"
+
+
+def should_post_note(parsed: dict) -> bool:
+    """True when a ticket needs an internal note (escalation or manual action)."""
+    return orchestrator.should_post_note(bool(parsed.get("escalate")), parsed)
+
+
+def has_ai_note(session, conversation_id) -> bool:
+    """True if an AI-authored internal note already exists (idempotency guard)."""
+    for t in triage_tickets._fetch_all_threads(session, int(conversation_id)):
+        if t.get("type") == "note" and NOTE_MARKER in (t.get("body") or ""):
+            return True
+    return False
+
+
+def build_note_html(parsed: dict, stripe_block: str = "", stripe_ctx: dict | None = None,
+                    *, supersedes: bool = False) -> str:
+    """Render the internal note HTML via the orchestrator's shared formatter."""
+    return orchestrator._format_internal_note_html(
+        parsed=parsed,
+        stripe_lines_for_note=(stripe_block or "N/A").replace("\n", "<br/>"),
+        stripe_ctx=stripe_ctx,
+        research_ran=False,
+        research_sources=[],
+        supersedes_existing_draft=supersedes,
+    )
+
+
+def post_note(session, conversation_id, parsed: dict, stripe_block: str = "",
+              stripe_ctx: dict | None = None, *, supersedes: bool = False) -> str | None:
+    """POST the internal action/classification note. No-op (returns None) when
+    HELPSCOUT_NOTE_USER_ID is unset — Help Scout requires a user to attribute it."""
+    note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
+    if not note_user_id:
+        return None
+    note_html = build_note_html(parsed, stripe_block, stripe_ctx, supersedes=supersedes)
+    url = f"{orchestrator.BASE_URL}/conversations/{int(conversation_id)}/notes"
+    r = orchestrator._helpscout_post(session, url, {"text": note_html, "user": int(note_user_id)})
+    r.raise_for_status()
+    return r.headers.get("Resource-ID") or r.headers.get("resource-id")

@@ -53,6 +53,59 @@ def test_draft_all_isolates_failures(monkeypatch):
     assert "hydrate fail" in by_id[2]["error"]
 
 
+def test_apply_result_updates_and_posts_note(monkeypatch):
+    calls = {"updated": [], "note": 0}
+    monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [11, 12])
+    monkeypatch.setattr(fo.pipeline, "update_draft", lambda s, cid, tid, txt: calls["updated"].append(tid))
+    monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: True)
+    monkeypatch.setattr(fo.pipeline, "has_ai_note", lambda s, cid: False)
+    monkeypatch.setattr(fo.pipeline, "post_note", lambda *a, **k: calls.update(note=calls["note"] + 1) or "note-1")
+    result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "hs_customer_id": 9,
+              "parsed": {"needs_action": True}, "stripe_block": "N/A", "stripe_ctx": None}
+    status = fo.apply_result(object(), result, timestamp="t")
+    assert status["draft_action"] == "updated"
+    assert status["threads_updated"] == 2 and calls["updated"] == [11, 12]
+    assert status["note_posted"] is True and calls["note"] == 1
+
+
+def test_apply_result_posts_new_when_no_draft(monkeypatch):
+    monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [])
+    posted = {}
+    monkeypatch.setattr(fo.pipeline, "post_draft", lambda s, cid, hcid, txt, ts: posted.update(cid=cid))
+    monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: False)
+    result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "hs_customer_id": 9,
+              "parsed": {"needs_action": False}}
+    status = fo.apply_result(object(), result, timestamp="t")
+    assert status["draft_action"] == "posted_new" and posted == {"cid": "5"}
+    assert status["note_posted"] is False
+
+
+def test_apply_result_skips_note_if_exists(monkeypatch):
+    monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [1])
+    monkeypatch.setattr(fo.pipeline, "update_draft", lambda *a: True)
+    monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: True)
+    monkeypatch.setattr(fo.pipeline, "has_ai_note", lambda s, cid: True)
+    posted = []
+    monkeypatch.setattr(fo.pipeline, "post_note", lambda *a, **k: posted.append(1))
+    result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "parsed": {"needs_action": True}}
+    status = fo.apply_result(object(), result, timestamp="t")
+    assert status["note_skipped_reason"] == "note_exists" and posted == []
+
+
+def test_apply_result_isolates_failure(monkeypatch):
+    def boom(s, cid):
+        raise RuntimeError("HS down")
+    monkeypatch.setattr(fo.pipeline, "find_draft_threads", boom)
+    result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "parsed": {}}
+    status = fo.apply_result(object(), result, timestamp="t")
+    assert "HS down" in status["error"]
+
+
+def test_apply_result_skips_failed_generation():
+    status = fo.apply_result(object(), {"conversation_id": 5, "ok": False, "error": "gen fail"}, timestamp="t")
+    assert status["error"] == "gen fail" and status["draft_action"] is None
+
+
 def test_draft_all_passes_brief_through(monkeypatch):
     seen = {}
     monkeypatch.setattr(fo.pipeline, "hydrate_ticket", lambda s, cid: {"conversation_id": cid, "hs_customer_id": 1})

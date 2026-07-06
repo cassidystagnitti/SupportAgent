@@ -9,13 +9,19 @@ Post the approved drafts. Everything goes to Help Scout as a DRAFT for human sen
 
 ## How to run
 
-For each approved result (from the `ready` set plus any `review` items Cassidy signed off on, excluding escalations that should not get a customer draft):
+For each approved result (from the `ready` set plus any `review` items Cassidy signed off on), call:
 
-1. Post the draft: `bert.pipeline.post_draft(session, conversation_id, hs_customer_id, draft_reply, timestamp)`.
-   - Returns the Help Scout draft thread id and records it in `draft_registry` (dedupe / supersede is handled there).
-   - Skip a ticket with no `hs_customer_id` (log it) — it can't receive a draft.
-2. For escalations and needs-action tickets, post the internal note as the production pipeline does (`orchestrator._format_internal_note_html` + the notes endpoint), so the human reviewer has the classification + reasoning.
-3. Mark each posted ticket in state (`bert.state.set_status(state, cid, posted=True, draft_id=...)`) and save.
+`bert.fanout.apply_result(session, result, timestamp=...)`
+
+It does the whole apply step for one ticket:
+1. **Draft** — if the ticket already has Bert draft thread(s), it **updates them in place** via `pipeline.update_draft` (no duplicate drafts). If none exist and there's an `hs_customer_id`, it posts a new draft via `pipeline.post_draft`. A ticket with no customer id is skipped.
+2. **Note** — if the classification needs one (`pipeline.should_post_note` → escalation or needs_action), it posts the internal action-note via `pipeline.post_note`, which renders the "🔧 Actions needed" checklist + classification using the SAME formatter as the production pipeline. Idempotent: skips if an AI note already exists, and no-ops if `HELPSCOUT_NOTE_USER_ID` is unset.
+
+`apply_result` never raises — it returns a status dict `{draft_action, threads_updated, note_posted, note_skipped_reason, error}`, so a batch keeps going on per-ticket failures.
+
+3. Mark each ticket in state (`bert.state.set_status(state, cid, posted=True, ...)`) from the returned status and save.
+
+**Config note:** notes require `HELPSCOUT_NOTE_USER_ID` (the Help Scout user the note is attributed to — currently the Support Automations agent). Without it, drafts still post but notes are silently skipped.
 
 ## What to tell Cassidy
 
