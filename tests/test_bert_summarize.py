@@ -89,8 +89,32 @@ def test_summarize_mailbox_preserves_order():
 def test_fetch_open_tickets_maps_fields(monkeypatch):
     monkeypatch.setattr(
         sm, "_list_conversations",
-        lambda session, mailbox_id, status: [{"id": 11, "subject": "Hi", "tags": [{"tag": "billing"}]}],
+        lambda session, mailbox_id, status: [
+            {"id": 11, "subject": "Hi", "tags": [{"tag": "billing"}],
+             "primaryCustomer": {"id": 1, "firstName": "Jo", "lastName": "Doe"}}
+        ],
     )
     monkeypatch.setattr(sm, "_conversation_text", lambda session, cid: "body text")
     out = sm.fetch_open_tickets(object())
-    assert out == [{"conversation_id": 11, "subject": "Hi", "body": "body text", "tags": ["billing"]}]
+    assert out == [{
+        "conversation_id": 11, "customer": "Jo Doe", "subject": "Hi",
+        "body": "body text", "tags": ["billing"],
+    }]
+
+
+def test_list_conversations_paginates(monkeypatch):
+    pages = {
+        1: {"_embedded": {"conversations": [{"id": 1}, {"id": 2}]}, "page": {"totalPages": 3, "number": 1}},
+        2: {"_embedded": {"conversations": [{"id": 3}, {"id": 4}]}, "page": {"totalPages": 3, "number": 2}},
+        3: {"_embedded": {"conversations": [{"id": 5}]}, "page": {"totalPages": 3, "number": 3}},
+    }
+    calls = []
+
+    def fake_api_get(session, url, params=None):
+        calls.append(params["page"])
+        return pages[params["page"]]
+
+    monkeypatch.setattr(sm.triage_tickets, "api_get", fake_api_get)
+    out = sm._list_conversations(object(), None, "active")
+    assert [c["id"] for c in out] == [1, 2, 3, 4, 5]
+    assert calls == [1, 2, 3]

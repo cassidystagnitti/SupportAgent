@@ -48,6 +48,7 @@ def parse_summary(text: str, conversation_id: int) -> dict:
     """Tolerant parse → record. On any failure, a fail-soft 'unavailable' record."""
     record = {
         "conversation_id": conversation_id,
+        "customer": "",
         "category": "unknown",
         "one_line": "(summary unavailable)",
         "urgent": False,
@@ -81,7 +82,10 @@ def summarize_ticket(client, ticket: dict) -> dict:
         max_tokens=300,
         messages=[{"role": "user", "content": build_summary_prompt(ticket)}],
     )
-    return parse_summary(claude_utils.extract_text(msg), ticket["conversation_id"])
+    record = parse_summary(claude_utils.extract_text(msg), ticket["conversation_id"])
+    # customer is deterministic conversation data, not something Haiku should guess
+    record["customer"] = ticket.get("customer") or ""
+    return record
 
 
 def summarize_mailbox(tickets: list[dict], client, *, max_workers: int = 8) -> list[dict]:
@@ -92,7 +96,9 @@ def summarize_mailbox(tickets: list[dict], client, *, max_workers: int = 8) -> l
         try:
             results[index] = summarize_ticket(client, ticket)
         except Exception:
-            results[index] = parse_summary("", ticket["conversation_id"])
+            fallback = parse_summary("", ticket["conversation_id"])
+            fallback["customer"] = ticket.get("customer") or ""
+            results[index] = fallback
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = [pool.submit(_one, i, t) for i, t in enumerate(tickets)]
@@ -104,12 +110,27 @@ def summarize_mailbox(tickets: list[dict], client, *, max_workers: int = 8) -> l
 # --- Open-ticket fetch (thin, monkeypatchable wrappers around triage_tickets) ---
 
 def _list_conversations(session, mailbox_id: int | None, status: str) -> list[dict]:
+    """Page through ALL matching conversations (Help Scout returns 25/page)."""
     url = f"{triage_tickets.BASE_URL}/conversations"
-    params = {"status": status}
-    if mailbox_id:
-        params["mailbox"] = mailbox_id
-    data = triage_tickets.api_get(session, url, params=params)
-    return (data.get("_embedded", {}) or {}).get("conversations", []) or []
+    conversations: list[dict] = []
+    page = 1
+    while True:
+        params = {"status": status, "page": page}
+        if mailbox_id:
+            params["mailbox"] = mailbox_id
+        data = triage_tickets.api_get(session, url, params=params)
+        batch = (data.get("_embedded", {}) or {}).get("conversations", []) or []
+        conversations.extend(batch)
+        page_info = data.get("page", {}) or {}
+        total_pages = page_info.get("totalPages")
+        # Stop when we've read the last page (or got an empty/short batch as a safety net).
+        if total_pages is not None:
+            if page >= total_pages:
+                break
+        elif not batch:
+            break
+        page += 1
+    return conversations
 
 
 def _conversation_text(session, conversation_id: int) -> str:
@@ -126,13 +147,19 @@ def _tag_names(tags_field) -> list[str]:
     return [n for n in names if n]
 
 
+def _customer_name(convo: dict) -> str:
+    import orchestrator
+    return orchestrator._customer_display_name(orchestrator._customer_from_conversation(convo))
+
+
 def fetch_open_tickets(session, mailbox_id: int | None = None, *, status: str = "active") -> list[dict]:
-    """Return open conversations as ticket dicts: {conversation_id, subject, body, tags}."""
+    """Return open conversations as ticket dicts: {conversation_id, customer, subject, body, tags}."""
     tickets = []
     for convo in _list_conversations(session, mailbox_id, status):
         cid = convo.get("id")
         tickets.append({
             "conversation_id": cid,
+            "customer": _customer_name(convo),
             "subject": convo.get("subject") or "(no subject)",
             "body": _conversation_text(session, cid),
             "tags": _tag_names(convo.get("tags")),
