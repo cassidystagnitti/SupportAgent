@@ -4,6 +4,8 @@
 **Scope:** An interactive, attended "morning review" surface for Bert — a Claude session that reads the whole mailbox with Cassidy, discusses status and bug-truths, drafts every reply via a fan-out, surfaces the low-confidence ones for discussion, and posts drafts on approval.
 **Relationship to prior work:** This is a **second front door** onto the capabilities built in `2026-07-02-bert-v1-buildout-design.md`. That spec built the *brain* (enrichment, drafting, research, Notion, bug registry, draft lifecycle) and the *unattended door* (`webhook_server.py` → `orchestrator.py`). This spec adds the *attended door*. It does **not** replace or refactor the production pipeline.
 
+> **As-built note (2026-07-06):** v1 shipped as the `bert/` package + `.claude/skills/bert-*` (see `docs/superpowers/plans/2026-07-06-bert-morning-review.md`). One deviation from Component C below: `process_ticket_sync` was **not** surgically refactored. The safety gate for that refactor is a live eval-run diff, which wasn't runnable in the build environment. Instead, Bert's `bert/pipeline.py` reuses the *same primitives* the orchestrator calls (`_call_claude_draft_with_action_retry`, `_build_dynamic_user_message`, `load_policy_docs`) — same brain, zero production risk. Rewiring the orchestrator to share the extracted seams remains a future DRY follow-up, to be done behind the eval-diff gate.
+
 ---
 
 ## Guiding principle: one brain, two front doors
