@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 
 import orchestrator
+import triage_tickets
 
 BRIEF_PREFIX = (
     "\n\n=== STANDING BRIEF (internal team context — apply it, but never quote it "
@@ -150,3 +151,26 @@ def post_draft(session, conversation_id: str, hs_customer_id: int, draft_reply: 
     if draft_rid:
         o.draft_registry.set(cid, draft_rid, timestamp)
     return draft_rid
+
+
+def find_draft_threads(session, conversation_id) -> list:
+    """Return the ids of all live draft message threads on a conversation."""
+    threads = triage_tickets._fetch_all_threads(session, int(conversation_id))
+    return [t.get("id") for t in threads
+            if t.get("type") == "message" and t.get("state") == "draft" and t.get("id") is not None]
+
+
+def update_draft(session, conversation_id, thread_id, text: str) -> bool:
+    """Edit an existing draft thread's text IN PLACE via Help Scout PATCH.
+
+    Contrary to the older note in draft_registry.py, update-in-place IS
+    supported — the working request is a SINGLE JSON-Patch object (not an
+    array): {"op": "replace", "path": "/text", "value": "..."}. Verified
+    2026-07-06 (HTTP 204). Using this avoids stacking duplicate drafts, since
+    Help Scout still has no DELETE for draft threads.
+    """
+    url = f"{orchestrator.BASE_URL}/conversations/{int(conversation_id)}/threads/{int(thread_id)}"
+    body = {"op": "replace", "path": "/text", "value": text}
+    r = session.patch(url, json=body)
+    r.raise_for_status()
+    return r.status_code == 204

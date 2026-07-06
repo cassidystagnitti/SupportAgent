@@ -7,25 +7,22 @@ tracks "we already drafted conversation X, thread Y, at time Z" in a small
 local JSON registry so `orchestrator.process_ticket_sync` can decide whether
 to skip, supersede, or (if ever supported) update the existing draft.
 
-Step 1 investigation — PATCH update-in-place (2026-07-02):
-    Tested `PATCH {BASE_URL}/conversations/{cid}/threads/{tid}` against a
-    real, still-in-`draft`-state thread (conversation 3365380903, thread
-    10295011235, recorded in eval/2026-07-02/results.json) with body
-    `{"text": "..."}`.
+Step 1 investigation — PATCH update-in-place (2026-07-02, CORRECTED 2026-07-06):
+    Original 2026-07-02 finding said update-in-place was NOT usable, because
+    `PATCH {BASE_URL}/conversations/{cid}/threads/{tid}` returned HTTP 400 for
+    both a `{"text": "..."}` body and a JSON-Patch *array*
+    (`[{"op": "replace", "path": "/text", "value": ...}]`).
 
-    Result: HTTP 400 `Error parsing request body into JSON`
-    (developer.helpscout.net/mailbox-api/overview/errors#invalid-json).
-    A control `PUT` to the same URL confirmed PATCH is in fact the only
-    supported method (`PUT` → 400 invalid-http-method, listing PATCH as
-    supported), and a JSON-Patch-style array body
-    (`[{"op": "replace", "path": "/text", "value": ...}]`) was tried too —
-    same generic parse-error 400. No variant attempted returned 2xx.
+    CORRECTION (2026-07-06): update-in-place DOES work. The request body must
+    be a SINGLE JSON-Patch object, not an array:
+        {"op": "replace", "path": "/text", "value": "..."}
+    Verified live against a real draft thread → HTTP 204, body changed, and a
+    follow-up PATCH restored the original. See `bert.pipeline.update_draft`,
+    which Bert uses to rewrite existing drafts in place (avoiding duplicate
+    drafts, since Help Scout still has no DELETE for draft threads).
 
-    Verdict: 4xx → update-in-place is NOT usable. Falling back to the
-    supersede-marker path per spec: create a new draft as usual and prepend
-    a "Supersedes the earlier draft" warning to the internal note, rather
-    than editing the existing draft thread. The original draft thread body
-    was verified unchanged after the failed PATCH attempts (no data lost).
+    The supersede-marker path below remains as a fallback for callers that do
+    not update in place.
 
 Registry JSON shape (see REGISTRY_PATH):
     {"<conversation_id>": {"thread_id": str, "drafted_at": str (ISO8601)}}

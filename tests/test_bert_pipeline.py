@@ -91,6 +91,37 @@ def test_post_draft_records_registry(monkeypatch):
     assert sets == {"5": "tid-9"}
 
 
+def test_find_draft_threads_filters(monkeypatch):
+    monkeypatch.setattr(pl.triage_tickets, "_fetch_all_threads", lambda s, cid: [
+        {"id": 1, "type": "message", "state": "published"},
+        {"id": 2, "type": "message", "state": "draft"},
+        {"id": 3, "type": "note", "state": "draft"},
+        {"id": 4, "type": "message", "state": "draft"},
+    ])
+    assert pl.find_draft_threads(object(), 99) == [2, 4]
+
+
+def test_update_draft_patches_single_object(monkeypatch):
+    captured = {}
+
+    class R:
+        status_code = 204
+
+        def raise_for_status(self):
+            pass
+
+    class Sess:
+        def patch(self, url, json=None):
+            captured["url"] = url
+            captured["json"] = json
+            return R()
+
+    ok = pl.update_draft(Sess(), 5, 777, "new text")
+    assert ok is True
+    assert captured["json"] == {"op": "replace", "path": "/text", "value": "new text"}
+    assert captured["url"].endswith("/conversations/5/threads/777")
+
+
 def test_hydrate_ticket_assembles_context(monkeypatch):
     o = pl.orchestrator
     monkeypatch.setattr(o, "fetch_conversation", lambda s, cid: {"subject": "Sub", "tags": []})

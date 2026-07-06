@@ -33,14 +33,15 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 
 ---
 
-## 1. Meditation Pausing / Freezing (Android v2)
+## 1. Meditation Pausing / Freezing / Stopping During Playback (Android v2)
 
-- **Status:** Fixed
-- **Platforms:** Android (Hotwire Native v2 app)
-- **What to tell the customer:** This was fixed on July 1, 2026. Ask the customer to update to the latest app version and confirm the issue is resolved. If it persists after updating, treat as a new report and escalate.
-- **Linear ticket:** N/A (resolved prior to ticket creation)
+- **Status:** Reopened — fix released, but reports are still coming in; actively re-investigating (as of 2026-07-06)
+- **Platforms:** Primarily Android (Hotwire Native v2 app). Confirm platform — because reports persist after the fix, do not assume Android-only.
+- **What to tell the customer:** Acknowledge and apologize that their meditation is pausing / stopping / freezing during playback. We released a fix for this, but we're aware that some users are still experiencing it, so our team is **actively investigating again**. Do NOT tell them it is already resolved. Do NOT promise a fix date. Ask them to confirm they're on the latest app version, and — to help the investigation — ask for their platform (iOS/Android), app version, and which meditation(s) it happens on. Reassure them we're on it.
+- **Auto-send:** Do NOT auto-send. Cap confidence at medium and route to human review while the investigation is open.
+- **Linear ticket:** Reopened investigation in progress (add ticket ref once filed)
 - **Date added:** 2026-07-01
-- **Date resolved:** 2026-07-01
+- **Date resolved:** — (marked Fixed 2026-07-01; **reopened 2026-07-06** after continued reports)
 
 ## 2. Milestones Broken (New App)
 
@@ -53,18 +54,18 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 
 ## 3. Streaks Broken or Reset
 
-- **Status:** Investigating
+- **Status:** Fix in progress (bug identified as of 2026-07-06)
 - **Platforms:** New app (Hotwire Native v2)
-- **What to tell the customer:** Acknowledge the report, let them know we're looking into it, and reassure them that their meditation history is safe even if the streak display looks wrong. Do not promise a specific fix date.
+- **What to tell the customer:** Acknowledge the report and let them know we've found a bug affecting streaks and are actively working on a fix. Reassure them that their meditation history is safe even if the streak display looks wrong. Do not promise a specific fix date.
 - **Linear ticket:** T-786
 - **Date added:** 2026-07-02
 - **Date resolved:** —
 
 ## 4. Downloads / Offline Meditations Unavailable
 
-- **Status:** Temporarily removed
+- **Status:** Known issue in latest update — fix in progress
 - **Platforms:** New app (Hotwire Native v2)
-- **What to tell the customer:** The ability to download meditations for offline use was temporarily removed in the new app. It's coming back — we will notify users when it's restored. Do not fabricate a timeline. See `downloads-offline.md` for the full policy, variations (e.g. churn-risk responses), and saved reply mapping for this issue.
+- **What to tell the customer:** There's a known issue affecting downloads in the latest app update, and we're actively working on a fix. We'll notify users once downloads are working again. Do NOT say downloads were "removed" or imply it was intentional — it's an unintended bug. Do not fabricate a timeline. See `downloads-offline.md` for the full policy, variations (e.g. churn-risk responses), and saved reply mapping for this issue.
 - **Linear ticket:** Not yet filed / tracked internally
 - **Date added:** 2026-07-02
 - **Date resolved:** —
@@ -105,12 +106,14 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 - **Date added:** 2026-07-02
 - **Date resolved:** —
 
-## 9. UI Theme Change / White Background
+## 9. UI Theme / Visual Design Changes (and Accessibility)
 
-- **Status:** Not a bug — intentional redesign
+- **Status:** Not a bug — treat as feedback (accessibility concerns taken seriously)
 - **Platforms:** New app (Hotwire Native v2)
-- **What to tell the customer:** This is an intentional design change in the new app, not a bug. There is currently no user-facing setting to change the theme. Acknowledge kindly and validate that preferences differ — do not apologize as though something broke. Log the sentiment as feedback (see `feedback-policy.md`) rather than treating it as a technical issue.
-- **Linear ticket:** N/A — not a bug, routed as feedback
+- **What to tell the customer:**
+  - **General theme / visual-preference complaints** (colors, white background, "I liked the old look"): treat as feedback, not a technical issue. Acknowledge kindly, validate that preferences differ, and let them know we've passed it to the team. There is currently no user-facing setting to change the theme. Do not apologize as though something broke. Log the sentiment as feedback (see `feedback-policy.md`).
+  - **Accessibility concerns** (readability, contrast, text size, hard to see/use for low-vision or other accessibility needs): take these seriously. Acknowledge the concern genuinely, let them know accessibility matters to us and that we'll work on improvements, and log it as high-priority feedback. Do not dismiss an accessibility concern as mere preference.
+- **Linear ticket:** N/A — routed as feedback
 - **Date added:** 2026-07-02
 - **Date resolved:** —
 
@@ -128,7 +131,7 @@ None. If a report suggests a new, systemic issue not covered by an entry above, 
 
 - The ticket mixes a bug report with a billing, refund, or cancellation demand (e.g., "this app is broken, I want a refund") — do not auto-send; route the billing/refund portion through the relevant billing policy and flag the bug portion for human review
 - The report doesn't clearly match any entry above — do not guess a status; flag for human review
-- The customer reports one of the "investigating" or "gathering info" bugs (entries 2, 3, 5, 6, 7, 8) as causing significant financial or access harm (e.g., lost a paid course entirely) — acknowledge but flag for human review rather than auto-sending a generic "we're looking into it"
+- The customer reports one of the "investigating," "reopened," or "gathering info" bugs (entries 1, 2, 3, 5, 6, 7, 8) as causing significant financial or access harm (e.g., lost a paid course entirely) — acknowledge but flag for human review rather than auto-sending a generic "we're looking into it"
 - Entry 9 (theme change) combined with a subscription cancellation threat — treat the cancellation portion under the appropriate billing policy; do not auto-send a feedback-only reply
 
 ## Escalation Triggers
@@ -156,7 +159,8 @@ No saved reply currently exists that matches the specific v2-launch bug scripts 
 | Milestones broken/feedback (entry 2) | `Feedback FeatureRequestMilestonesConfettiIssues` | Written for feature feedback, not bug status — personalize before use |
 | Android-specific milestone/stat bug (entry 2) | `TechSupport AndroidMilestones` | Check wording still matches current status before sending |
 | General stats/streak bug (entry 3) | `TechSupport med_stats_bug` | Generic bug acknowledgment; personalize to streak-specific wording |
-| Customer hasn't updated the app (entries 1, and any where update might help) | `TechSupport AndroidUpdateApp` / `TechSupport AppleAndAndroidUpdateApp SNIPPET` | Use only where relevant to the platform |
+| Customer hasn't updated the app (any entry where update might help) | `TechSupport AndroidUpdateApp` / `TechSupport AppleAndAndroidUpdateApp SNIPPET` | Use only where relevant to the platform. NOTE for entry 1: updating is worth confirming but is no longer a guaranteed fix — do not frame it as "this will resolve it." |
+| Meditation pausing/stopping still occurring (entry 1, reopened) | `TechSupport med_stats_bug` / `TechSupport SendUsScreenshot` | Personalize to playback-pausing wording; use to gather platform/app version/meditation for the reopened investigation. Do not claim it's fixed. |
 | Android home tab / general Android v2 bug context (entries 2, 5, 6, 7, 8) | `Bug android home tab not fixed` | Reference for tone only; confirm it doesn't overstate status |
 | Android feature parity framing (entry 9, if customer compares to old app) | `Feedback LaunchNotOnAndroidYet` | Not a direct match — only useful if the ticket also raises a parity question |
 | Need more detail before responding (entries 7, 8) | `TechSupport SendUsScreenshot` | Useful when asking for platform/app version plus a screenshot |
