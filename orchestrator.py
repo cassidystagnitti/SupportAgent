@@ -314,7 +314,7 @@ def _call_claude_draft(
             try:
                 message = client.messages.create(
                     model=model,
-                    max_tokens=8192,
+                    max_tokens=16000,
                     system=system_blocks,
                     messages=[{"role": "user", "content": _user_content(variant_idx == 1)}],
                 )
