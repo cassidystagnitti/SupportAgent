@@ -70,19 +70,35 @@ def apply_result(session, result: dict, *, timestamp: str | None = None) -> dict
         status["error"] = result.get("error") or "draft generation failed"
         return status
     ts = timestamp or datetime.now(timezone.utc).isoformat()
+    errors = []
+
+    # --- draft: update every existing thread in place (one bad thread does not
+    # block the others), or post a new draft if none exist ---
     try:
         tids = pipeline.find_draft_threads(session, cid)
-        if tids:
-            for tid in tids:
+    except Exception as e:
+        status["error"] = f"find_draft_threads: {e}"
+        return status
+
+    if tids:
+        status["draft_action"] = "updated"
+        for tid in tids:
+            try:
                 pipeline.update_draft(session, cid, tid, result["draft_reply"])
-            status["draft_action"] = "updated"
-            status["threads_updated"] = len(tids)
-        elif result.get("hs_customer_id"):
+                status["threads_updated"] += 1
+            except Exception as e:
+                errors.append(f"thread {tid}: {e}")
+    elif result.get("hs_customer_id"):
+        try:
             pipeline.post_draft(session, str(cid), result["hs_customer_id"], result["draft_reply"], ts)
             status["draft_action"] = "posted_new"
-        else:
-            status["draft_action"] = "skipped_no_customer"
+        except Exception as e:
+            errors.append(f"post_draft: {e}")
+    else:
+        status["draft_action"] = "skipped_no_customer"
 
+    # --- note: attempted regardless of partial thread failures above ---
+    try:
         parsed = result.get("parsed") or {}
         if pipeline.should_post_note(parsed):
             if pipeline.has_ai_note(session, cid):
@@ -95,7 +111,10 @@ def apply_result(session, result: dict, *, timestamp: str | None = None) -> dict
                 else:
                     status["note_skipped_reason"] = "no_note_user_id"
     except Exception as e:
-        status["error"] = str(e)
+        errors.append(f"note: {e}")
+
+    if errors:
+        status["error"] = "; ".join(errors)
     return status
 
 

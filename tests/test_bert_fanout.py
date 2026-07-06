@@ -92,6 +92,28 @@ def test_apply_result_skips_note_if_exists(monkeypatch):
     assert status["note_skipped_reason"] == "note_exists" and posted == []
 
 
+def test_apply_result_continues_when_one_thread_fails(monkeypatch):
+    monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [1, 2])
+    done = []
+
+    def flaky_update(s, cid, tid, txt):
+        if tid == 1:
+            raise RuntimeError("400 transient")
+        done.append(tid)
+
+    monkeypatch.setattr(fo.pipeline, "update_draft", flaky_update)
+    monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: True)
+    monkeypatch.setattr(fo.pipeline, "has_ai_note", lambda s, cid: False)
+    note = []
+    monkeypatch.setattr(fo.pipeline, "post_note", lambda *a, **k: note.append(1) or "n1")
+    result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "parsed": {"needs_action": True}}
+    status = fo.apply_result(object(), result, timestamp="t")
+    # thread 2 still updated, note still posted, and the failure is recorded
+    assert done == [2] and status["threads_updated"] == 1
+    assert note == [1] and status["note_posted"] is True
+    assert "thread 1" in status["error"]
+
+
 def test_apply_result_isolates_failure(monkeypatch):
     def boom(s, cid):
         raise RuntimeError("HS down")

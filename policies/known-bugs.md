@@ -35,9 +35,12 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 
 ## 1. Meditation Pausing / Freezing / Stopping During Playback (Android v2)
 
-- **Status:** Reopened — fix released, but reports are still coming in; actively re-investigating (as of 2026-07-06)
-- **Platforms:** Primarily Android (Hotwire Native v2 app). Confirm platform — because reports persist after the fix, do not assume Android-only.
-- **What to tell the customer:** Acknowledge and apologize that their meditation is pausing / stopping / freezing during playback. We released a fix for this, but we're aware that some users are still experiencing it, so our team is **actively investigating again**. Do NOT tell them it is already resolved. Do NOT promise a fix date. Ask them to confirm they're on the latest app version, and — to help the investigation — ask for their platform (iOS/Android), app version, and which meditation(s) it happens on. Reassure them we're on it.
+- **Status:** Reopened — fix released, but reports are still coming in; actively re-investigating. Additional cause identified 2026-07-06: Android battery optimization pausing the app in the background. New app release in progress.
+- **Platforms:** Android (Hotwire Native v2 app). **Assume Android for any pausing/stopping-during-playback report** — do not ask which platform, and do not include iOS/hedging language.
+- **What to tell the customer:** Acknowledge that their meditation is pausing / stopping / freezing during playback, and that we're actively working on it. Do NOT say it's already resolved. Do NOT promise a fix date. Give the battery-optimization workaround directly (see below), since we've identified Android battery settings as a contributing cause. Then ask for their app version (not platform) to help the investigation.
+  - **Battery workaround (give this in the reply):**
+    - **Pixel / stock Android:** Settings → Apps → Happier → Battery → set to **Unrestricted**.
+    - **Samsung (most reporters):** same **Unrestricted** setting, **plus** make sure Happier is **not** in Device Care's "Sleeping apps" / "Deep sleeping apps" list (Battery → Background usage limits). Samsung layers its own power saving on top of Android's, so both steps matter.
 - **Auto-send:** Do NOT auto-send. Cap confidence at medium and route to human review while the investigation is open.
 - **Linear ticket:** Reopened investigation in progress (add ticket ref once filed)
 - **Date added:** 2026-07-01
