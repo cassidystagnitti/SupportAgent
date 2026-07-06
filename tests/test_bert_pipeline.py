@@ -128,14 +128,42 @@ def test_should_post_note_reuses_orchestrator():
     assert pl.should_post_note({"needs_action": False, "escalate": False}) is False
 
 
-def test_build_note_html_includes_action(monkeypatch):
+def test_build_note_html_is_short_action_bullets(monkeypatch):
     parsed = {"needs_action": True, "action_description": "Refund via Google Play",
               "action_system": "other", "confidence": "high", "reasoning": "eligible",
               "referenced_policies": ["refund-policy.md"]}
-    html = pl.build_note_html(parsed, stripe_block="N/A — Google")
-    assert "Actions needed" in html
-    assert "Refund via Google Play" in html
-    assert pl.NOTE_MARKER in html
+    html = pl.build_note_html(parsed)
+    assert html == "<p><strong>Actions needed</strong></p><ul><li>Refund via Google Play</li></ul>"
+    # the long-form classification metadata must NOT be in the note anymore
+    assert "Confidence" not in html and "Reasoning" not in html and "Policies" not in html
+
+
+def test_action_items_prefers_list_then_description():
+    assert pl.action_items({"action_items": ["Refund Google sub", "Move history to X"]}) == \
+        ["Refund Google sub", "Move history to X"]
+    assert pl.action_items({"action_description": "Do the thing"}) == ["Do the thing"]
+    assert pl.action_items({"escalate": True, "escalate_reason": "VIP complaint"}) == ["VIP complaint"]
+    assert pl.action_items({"needs_action": False}) == []
+
+
+def test_build_note_html_multi_bullets_from_action_items():
+    html = pl.build_note_html({"action_items": ["Refund the Google Play subscription",
+                                                "Move meditation history to other-email"]})
+    assert html.count("<li>") == 2
+    assert "Refund the Google Play subscription" in html
+    assert "Move meditation history to other-email" in html
+
+
+def test_build_note_html_empty_when_no_action():
+    assert pl.build_note_html({"needs_action": False, "escalate": False}) == ""
+
+
+def test_post_note_noop_when_no_actions(monkeypatch):
+    monkeypatch.setenv("HELPSCOUT_NOTE_USER_ID", "875608")
+    called = []
+    monkeypatch.setattr(pl.orchestrator, "_helpscout_post", lambda *a, **k: called.append(a))
+    assert pl.post_note(object(), 5, {"needs_action": False}) is None
+    assert called == []
 
 
 def test_post_note_noop_without_user_id(monkeypatch):

@@ -52,8 +52,9 @@ IMPORTANT — your last reply was empty or not valid JSON for this pipeline.
 
 Reply with ONLY one JSON object (no markdown fences, no commentary before or after).
 Required keys: draft_reply, escalate, escalate_reason, needs_action, action_description,
-action_system, auto_sendable, do_not_send_reasons, referenced_policies, confidence, reasoning,
-open_question, needs_product_research, bug_report.
+action_items, action_system, auto_sendable, do_not_send_reasons, referenced_policies, confidence,
+reasoning, open_question, needs_product_research, bug_report.
+action_items must be an array of short action strings (empty array when needs_action is false).
 Use null for action_description and action_system when needs_action is false.
 Use null for escalate_reason when escalate is false.
 Use null for draft_reply when escalate is true.

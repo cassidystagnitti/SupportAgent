@@ -180,9 +180,11 @@ def update_draft(session, conversation_id, thread_id, text: str) -> bool:
     return r.status_code == 204
 
 
-# --- Internal action-note (same brain as the orchestrator) ---
+# --- Internal action-note: a short "Actions needed" bullet list, nothing else ---
 
-NOTE_MARKER = "AI Draft Classification"
+NOTE_MARKER = "Actions needed"
+# Older long-form notes used this marker; recognize both so we don't double-post.
+_LEGACY_NOTE_MARKER = "AI Draft Classification"
 
 
 def should_post_note(parsed: dict) -> bool:
@@ -193,32 +195,51 @@ def should_post_note(parsed: dict) -> bool:
 def has_ai_note(session, conversation_id) -> bool:
     """True if an AI-authored internal note already exists (idempotency guard)."""
     for t in triage_tickets._fetch_all_threads(session, int(conversation_id)):
-        if t.get("type") == "note" and NOTE_MARKER in (t.get("body") or ""):
-            return True
+        if t.get("type") == "note":
+            body = t.get("body") or ""
+            if NOTE_MARKER in body or _LEGACY_NOTE_MARKER in body:
+                return True
     return False
 
 
-def build_note_html(parsed: dict, stripe_block: str = "", stripe_ctx: dict | None = None,
-                    *, supersedes: bool = False) -> str:
-    """Render the internal note HTML via the orchestrator's shared formatter."""
-    return orchestrator._format_internal_note_html(
-        parsed=parsed,
-        stripe_lines_for_note=(stripe_block or "N/A").replace("\n", "<br/>"),
-        stripe_ctx=stripe_ctx,
-        research_ran=False,
-        research_sources=[],
-        supersedes_existing_draft=supersedes,
-    )
+def action_items(parsed: dict) -> list:
+    """The concrete actions a CS rep must take, as short strings.
+
+    Prefers an explicit ``action_items`` list from the draft JSON; falls back to
+    the single ``action_description``; for a bare escalation, the escalate reason.
+    """
+    items = []
+    raw = parsed.get("action_items")
+    if isinstance(raw, list):
+        items = [str(x).strip() for x in raw if str(x).strip()]
+    if not items:
+        desc = (parsed.get("action_description") or "").strip()
+        if desc:
+            items = [desc]
+    if not items and parsed.get("escalate"):
+        items = [(parsed.get("escalate_reason") or "Review and handle — escalated").strip()]
+    return items
 
 
-def post_note(session, conversation_id, parsed: dict, stripe_block: str = "",
-              stripe_ctx: dict | None = None, *, supersedes: bool = False) -> str | None:
-    """POST the internal action/classification note. No-op (returns None) when
-    HELPSCOUT_NOTE_USER_ID is unset — Help Scout requires a user to attribute it."""
+def build_note_html(parsed: dict, *_ignored, **_kw) -> str:
+    """Render the internal note as a short 'Actions needed' bullet list. Returns
+    '' when there are no actions (so no empty note is posted)."""
+    items = action_items(parsed)
+    if not items:
+        return ""
+    lis = "".join(f"<li>{orchestrator._html_escape(i)}</li>" for i in items)
+    return f"<p><strong>Actions needed</strong></p><ul>{lis}</ul>"
+
+
+def post_note(session, conversation_id, parsed: dict, *_ignored, **_kw) -> str | None:
+    """POST the short 'Actions needed' bullet note. No-op (returns None) when there
+    are no actions, or when HELPSCOUT_NOTE_USER_ID is unset (HS needs a user)."""
     note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
     if not note_user_id:
         return None
-    note_html = build_note_html(parsed, stripe_block, stripe_ctx, supersedes=supersedes)
+    note_html = build_note_html(parsed)
+    if not note_html:
+        return None
     url = f"{orchestrator.BASE_URL}/conversations/{int(conversation_id)}/notes"
     r = orchestrator._helpscout_post(session, url, {"text": note_html, "user": int(note_user_id)})
     r.raise_for_status()

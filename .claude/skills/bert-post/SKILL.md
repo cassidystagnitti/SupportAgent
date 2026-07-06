@@ -15,7 +15,7 @@ For each approved result (from the `ready` set plus any `review` items Cassidy s
 
 It does the whole apply step for one ticket:
 1. **Draft** — if the ticket already has Bert draft thread(s), it **updates them in place** via `pipeline.update_draft` (no duplicate drafts). If none exist and there's an `hs_customer_id`, it posts a new draft via `pipeline.post_draft`. A ticket with no customer id is skipped.
-2. **Note** — if the classification needs one (`pipeline.should_post_note` → escalation or needs_action), it posts the internal action-note via `pipeline.post_note`, which renders the "🔧 Actions needed" checklist + classification using the SAME formatter as the production pipeline. Idempotent: skips if an AI note already exists, and no-ops if `HELPSCOUT_NOTE_USER_ID` is unset.
+2. **Note** — if the classification needs one (`pipeline.should_post_note` → escalation or needs_action), it posts a SHORT internal note via `pipeline.post_note`: an "Actions needed" bullet list of the concrete steps a rep must take (from `action_items`, falling back to `action_description`) — nothing else, no classification metadata. Idempotent: skips if an AI note already exists, and no-ops if there are no actions or `HELPSCOUT_NOTE_USER_ID` is unset.
 
 `apply_result` never raises — it returns a status dict `{draft_action, threads_updated, note_posted, note_skipped_reason, error}`, so a batch keeps going on per-ticket failures.
 

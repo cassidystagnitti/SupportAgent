@@ -41,6 +41,7 @@ You must respond with a JSON object containing exactly these fields:
   "escalate_reason": "If escalate is true: one sentence explaining why this ticket cannot be handled with a standard reply. If false: null.",
   "needs_action": true/false,
   "action_description": "If needs_action is true: what specific action the agent needs to take (e.g., 'Process refund of $99.99 in Stripe', 'Apply 40% coupon to subscription'). If false: null.",
+  "action_items": ["SHORT imperative bullets for the internal note — one per concrete action a rep must take, terse (e.g. 'Refund the Google Play subscription', 'Move meditation history to other-email@x.com'). Empty array if needs_action is false. This is what appears in the internal note, so keep each item to a few words, not a sentence."],
   "action_system": "If needs_action is true: where the action happens — one of \"stripe\", \"happier_admin\", \"helpscout\", \"other\". If false: null.",
   "auto_sendable": true/false,
   "do_not_send_reasons": ["List of triggered Do Not Auto-Send conditions from the policy docs, if any. Empty array if none."],
