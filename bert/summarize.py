@@ -26,17 +26,46 @@ SUMMARY_MODEL = "claude-haiku-4-5"
 
 _RECORD_KEYS = ("category", "one_line", "urgent", "is_new", "matches_known_bug")
 
+_KNOWN_BUGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "policies", "known-bugs.md")
+_ENTRY_RE = re.compile(r"^##\s+\d+\.\s+(.+?)\s*$", re.MULTILINE)
 
-def build_summary_prompt(ticket: dict) -> str:
+
+def _slugify(text: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", (text or "").lower())
+    return slug.strip("-")
+
+
+def known_bug_catalog(path: str | None = None) -> list:
+    """Parse the canonical `## N. Title` entries from known-bugs.md → [(slug, title)]."""
+    doc_path = path or _KNOWN_BUGS_PATH
+    try:
+        with open(doc_path, encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return []
+    return [(_slugify(title), title) for title in _ENTRY_RE.findall(text)]
+
+
+def build_summary_prompt(ticket: dict, known_bugs: list | None = None) -> str:
     tags = ", ".join(ticket.get("tags") or []) or "(none)"
     body = (ticket.get("body") or "").strip()
+    if known_bugs:
+        bug_lines = "\n".join(f"  - {slug}: {title}" for slug, title in known_bugs)
+        bug_instruction = (
+            "  matches_known_bug (if this ticket matches one of the KNOWN BUGS below, use its EXACT slug; "
+            "otherwise null — do NOT invent a new slug).\n"
+            "KNOWN BUGS (slug: description):\n"
+            f"{bug_lines}\n"
+        )
+    else:
+        bug_instruction = "  matches_known_bug (short slug if it looks like a known product bug, else null).\n"
     return (
         "Summarize this support ticket into one JSON object with exactly these keys:\n"
         '  category (short lowercase noun, e.g. "billing", "bug", "account", "how-to"),\n'
         "  one_line (<=12 word plain summary of what the customer wants),\n"
         "  urgent (bool — cancellation threat, angry, payment failure, or time-sensitive),\n"
         "  is_new (bool — true unless the ticket references an ongoing/prior thread),\n"
-        "  matches_known_bug (short slug if it looks like a known product bug, else null).\n"
+        f"{bug_instruction}"
         "Reply with ONLY the JSON object, no fences, no commentary.\n\n"
         f"Subject: {ticket.get('subject') or '(no subject)'}\n"
         f"Tags: {tags}\n"
@@ -44,7 +73,7 @@ def build_summary_prompt(ticket: dict) -> str:
     )
 
 
-def parse_summary(text: str, conversation_id: int) -> dict:
+def parse_summary(text: str, conversation_id: int, valid_bug_slugs: set | None = None) -> dict:
     """Tolerant parse → record. On any failure, a fail-soft 'unavailable' record."""
     record = {
         "conversation_id": conversation_id,
@@ -73,28 +102,33 @@ def parse_summary(text: str, conversation_id: int) -> dict:
         if key in data:
             record[key] = data[key]
     record["conversation_id"] = conversation_id
+    # Enforce canonical bug slugs: anything off the catalog becomes null so the
+    # known-bug rollup actually clusters instead of fragmenting.
+    if valid_bug_slugs is not None and record["matches_known_bug"] not in valid_bug_slugs:
+        record["matches_known_bug"] = None
     return record
 
 
-def summarize_ticket(client, ticket: dict) -> dict:
+def summarize_ticket(client, ticket: dict, known_bugs: list | None = None) -> dict:
+    valid_slugs = {slug for slug, _ in known_bugs} if known_bugs else None
     msg = client.messages.create(
         model=SUMMARY_MODEL,
         max_tokens=300,
-        messages=[{"role": "user", "content": build_summary_prompt(ticket)}],
+        messages=[{"role": "user", "content": build_summary_prompt(ticket, known_bugs)}],
     )
-    record = parse_summary(claude_utils.extract_text(msg), ticket["conversation_id"])
+    record = parse_summary(claude_utils.extract_text(msg), ticket["conversation_id"], valid_slugs)
     # customer is deterministic conversation data, not something Haiku should guess
     record["customer"] = ticket.get("customer") or ""
     return record
 
 
-def summarize_mailbox(tickets: list[dict], client, *, max_workers: int = 8) -> list[dict]:
+def summarize_mailbox(tickets: list[dict], client, *, known_bugs: list | None = None, max_workers: int = 8) -> list[dict]:
     """Fan out one summary call per ticket; isolate failures; preserve input order."""
     results: list[Any] = [None] * len(tickets)
 
     def _one(index: int, ticket: dict) -> None:
         try:
-            results[index] = summarize_ticket(client, ticket)
+            results[index] = summarize_ticket(client, ticket, known_bugs)
         except Exception:
             fallback = parse_summary("", ticket["conversation_id"])
             fallback["customer"] = ticket.get("customer") or ""
@@ -177,7 +211,7 @@ def main() -> None:
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
     tickets = fetch_open_tickets(session)
-    records = summarize_mailbox(tickets, client)
+    records = summarize_mailbox(tickets, client, known_bugs=known_bug_catalog())
 
     today = date.today().isoformat()
     s = state.load(today)

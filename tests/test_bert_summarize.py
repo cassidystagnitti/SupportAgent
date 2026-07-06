@@ -12,6 +12,44 @@ def test_build_prompt_includes_fields():
     assert "Refund" in p and "double charged" in p
 
 
+def test_slugify():
+    assert sm._slugify("Streaks Broken or Reset") == "streaks-broken-or-reset"
+    assert sm._slugify("Do Not Disturb Toggle Missing or Broken (Android v2)") == "do-not-disturb-toggle-missing-or-broken-android-v2"
+
+
+def test_known_bug_catalog_parses(tmp_path):
+    doc = tmp_path / "known-bugs.md"
+    doc.write_text(
+        "# Known Bugs\n\n## 1. Streaks Broken or Reset\nstuff\n\n## 2. Milestones Broken (New App)\nmore\n"
+    )
+    cat = sm.known_bug_catalog(str(doc))
+    assert cat == [
+        ("streaks-broken-or-reset", "Streaks Broken or Reset"),
+        ("milestones-broken-new-app", "Milestones Broken (New App)"),
+    ]
+
+
+def test_build_prompt_lists_known_bug_slugs():
+    p = sm.build_summary_prompt(
+        {"conversation_id": 1, "subject": "s", "body": "b", "tags": []},
+        known_bugs=[("streaks-broken-or-reset", "Streaks Broken or Reset")],
+    )
+    assert "streaks-broken-or-reset" in p
+    assert "Streaks Broken or Reset" in p
+
+
+def test_parse_coerces_unknown_slug_to_null():
+    raw = '{"category":"bug","one_line":"x","urgent":false,"is_new":true,"matches_known_bug":"made-up-slug"}'
+    rec = sm.parse_summary(raw, 3, valid_bug_slugs={"streaks-broken-or-reset"})
+    assert rec["matches_known_bug"] is None
+
+
+def test_parse_keeps_valid_slug():
+    raw = '{"category":"bug","one_line":"x","urgent":false,"is_new":true,"matches_known_bug":"streaks-broken-or-reset"}'
+    rec = sm.parse_summary(raw, 3, valid_bug_slugs={"streaks-broken-or-reset"})
+    assert rec["matches_known_bug"] == "streaks-broken-or-reset"
+
+
 def test_parse_good_json():
     raw = json.dumps(
         {"category": "billing", "one_line": "refund req", "urgent": True,
