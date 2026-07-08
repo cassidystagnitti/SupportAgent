@@ -35,16 +35,17 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 
 ## 1. Meditation Pausing / Freezing / Stopping During Playback (Android v2)
 
-- **Status:** Reopened — fix released, but reports are still coming in; actively re-investigating. Additional cause identified 2026-07-06: Android battery optimization pausing the app in the background. New app release in progress.
+- **Status:** FIXED — fix released 2026-07-08. Rollout on the Google Play Store can take a few hours to reach everyone.
 - **Platforms:** Android (Hotwire Native v2 app). **Assume Android for any pausing/stopping-during-playback report** — do not ask which platform, and do not include iOS/hedging language.
-- **What to tell the customer:** Acknowledge that their meditation is pausing / stopping / freezing during playback, and that we're actively working on it. Do NOT say it's already resolved. Do NOT promise a fix date. Give the battery-optimization workaround directly (see below), since we've identified Android battery settings as a contributing cause. Then ask for their app version (not platform) to help the investigation.
-  - **Battery workaround (give this in the reply):**
+- **What to tell the customer:** Give the good news: this was a known issue causing meditations to pause / stop / freeze during playback, and **the fix is now released**. Tell them to **update the Happier app to the latest version from the Google Play Store** — once updated, playback stays steady the whole way through, even with the screen off. Note that the rollout is gradual, so if they don't see the update yet, they should **check back in a few hours**. Add a light safety net: if they still see pausing after updating, ask them to reply so we can dig in. Do NOT proactively offer compensation.
+  - **Do NOT give the battery-optimization workaround anymore.** The fix supersedes it — just tell them it's fixed. (If a customer already applied the workaround, they can leave it as-is or revert it; it's harmless either way.)
+  - **Battery workaround (FOR REFERENCE ONLY — do not send unless a customer explicitly can't update yet):**
     - **Pixel / stock Android:** Settings → Apps → Happier → Battery → set to **Unrestricted**.
     - **Samsung (most reporters):** same **Unrestricted** setting, **plus** make sure Happier is **not** in Device Care's "Sleeping apps" / "Deep sleeping apps" list (Battery → Background usage limits). Samsung layers its own power saving on top of Android's, so both steps matter.
-- **Auto-send:** Do NOT auto-send. Cap confidence at medium and route to human review while the investigation is open.
-- **Linear ticket:** Reopened investigation in progress (add ticket ref once filed)
+- **Auto-send:** Do NOT auto-send yet — everything still drafts for human review.
+- **Linear ticket:** Fix released 2026-07-08 (add ticket ref once filed)
 - **Date added:** 2026-07-01
-- **Date resolved:** — (marked Fixed 2026-07-01; **reopened 2026-07-06** after continued reports)
+- **Date resolved:** 2026-07-08 (marked Fixed 2026-07-01; reopened 2026-07-06 after continued reports; **fix released 2026-07-08**)
 
 ## 2. Milestones Broken (New App)
 
@@ -162,8 +163,8 @@ No saved reply currently exists that matches the specific v2-launch bug scripts 
 | Milestones broken/feedback (entry 2) | `Feedback FeatureRequestMilestonesConfettiIssues` | Written for feature feedback, not bug status — personalize before use |
 | Android-specific milestone/stat bug (entry 2) | `TechSupport AndroidMilestones` | Check wording still matches current status before sending |
 | General stats/streak bug (entry 3) | `TechSupport med_stats_bug` | Generic bug acknowledgment; personalize to streak-specific wording |
-| Customer hasn't updated the app (any entry where update might help) | `TechSupport AndroidUpdateApp` / `TechSupport AppleAndAndroidUpdateApp SNIPPET` | Use only where relevant to the platform. NOTE for entry 1: updating is worth confirming but is no longer a guaranteed fix — do not frame it as "this will resolve it." |
-| Meditation pausing/stopping still occurring (entry 1, reopened) | `TechSupport med_stats_bug` / `TechSupport SendUsScreenshot` | Personalize to playback-pausing wording; use to gather platform/app version/meditation for the reopened investigation. Do not claim it's fixed. |
+| Customer hasn't updated the app (any entry where update might help) | `TechSupport AndroidUpdateApp` / `TechSupport AppleAndAndroidUpdateApp SNIPPET` | Use only where relevant to the platform. NOTE for entry 1: the fix is now released (2026-07-08) — updating to the latest Play Store version IS the resolution, so it's fine to frame it as the fix. |
+| Meditation pausing/stopping (entry 1, FIXED 2026-07-08) | `TechSupport AndroidUpdateApp` / `TechSupport AppleAndAndroidUpdateApp SNIPPET` | Personalize to playback-pausing wording; tell them the fix is released and to update from the Play Store (rollout may take a few hours). Do not send the battery workaround. |
 | Android home tab / general Android v2 bug context (entries 2, 5, 6, 7, 8) | `Bug android home tab not fixed` | Reference for tone only; confirm it doesn't overstate status |
 | Android feature parity framing (entry 9, if customer compares to old app) | `Feedback LaunchNotOnAndroidYet` | Not a direct match — only useful if the ticket also raises a parity question |
 | Need more detail before responding (entries 7, 8) | `TechSupport SendUsScreenshot` | Useful when asking for platform/app version plus a screenshot |
