@@ -157,6 +157,18 @@ def post_draft(session, conversation_id: str, hs_customer_id: int, draft_reply: 
     return draft_rid
 
 
+def conversation_status(session, conversation_id) -> str | None:
+    """Return the live Help Scout status of a conversation.
+
+    One of ``active`` / ``pending`` / ``closed`` / ``spam``, or ``None`` if the
+    field is absent. Used to avoid stacking a fresh draft on a ticket a human
+    has already answered and closed since the morning draft snapshot.
+    """
+    url = f"{orchestrator.BASE_URL}/conversations/{int(conversation_id)}"
+    data = triage_tickets.api_get(session, url)
+    return (data or {}).get("status")
+
+
 def find_draft_threads(session, conversation_id) -> list:
     """Return the ids of all live draft message threads on a conversation."""
     threads = triage_tickets._fetch_all_threads(session, int(conversation_id))

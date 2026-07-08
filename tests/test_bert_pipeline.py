@@ -101,6 +101,11 @@ def test_find_draft_threads_filters(monkeypatch):
     assert pl.find_draft_threads(object(), 99) == [2, 4]
 
 
+def test_conversation_status_returns_live_status(monkeypatch):
+    monkeypatch.setattr(pl.triage_tickets, "api_get", lambda s, url, params=None: {"id": 99, "status": "closed"})
+    assert pl.conversation_status(object(), 99) == "closed"
+
+
 def test_update_draft_patches_single_object(monkeypatch):
     captured = {}
 

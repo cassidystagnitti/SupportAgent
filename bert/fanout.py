@@ -89,11 +89,23 @@ def apply_result(session, result: dict, *, timestamp: str | None = None) -> dict
             except Exception as e:
                 errors.append(f"thread {tid}: {e}")
     elif result.get("hs_customer_id"):
+        # No existing draft to update. Only post a NEW draft if the conversation
+        # is still open — a ticket a human has already answered and closed since
+        # the draft snapshot must not get a fresh (never-to-be-sent) draft
+        # stacked on it. Fail soft toward posting if the status can't be read.
+        conv_status = None
         try:
-            pipeline.post_draft(session, str(cid), result["hs_customer_id"], result["draft_reply"], ts)
-            status["draft_action"] = "posted_new"
-        except Exception as e:
-            errors.append(f"post_draft: {e}")
+            conv_status = pipeline.conversation_status(session, cid)
+        except Exception:
+            conv_status = None
+        if conv_status in ("closed", "spam"):
+            status["draft_action"] = "skipped_closed"
+        else:
+            try:
+                pipeline.post_draft(session, str(cid), result["hs_customer_id"], result["draft_reply"], ts)
+                status["draft_action"] = "posted_new"
+            except Exception as e:
+                errors.append(f"post_draft: {e}")
     else:
         status["draft_action"] = "skipped_no_customer"
 
@@ -133,6 +145,29 @@ def _needs_review(result: dict) -> bool:
     if isinstance(bug, dict) and bug.get("is_bug"):
         return True
     return False
+
+
+def stale_drafts_matching(results: list[dict], *, include: list[str],
+                          exclude: list[str] | None = None) -> list[dict]:
+    """Select drafts by CONTENT, not by classifier tag.
+
+    Returns every result whose ``draft_reply`` contains at least one of the
+    ``include`` signals (case-insensitive) and none of the ``exclude`` signals.
+    Use this to sweep for drafts affected by a standing-brief change (e.g. a
+    bug fix) without trusting ``matches_known_bug`` — the summarizer under-tags,
+    so a tag-based sweep misses stragglers.
+    """
+    exclude = exclude or []
+    inc = [s.lower() for s in include]
+    exc = [s.lower() for s in exclude]
+    hits = []
+    for r in results:
+        text = (r.get("draft_reply") or "").lower()
+        if not text:
+            continue
+        if any(s in text for s in inc) and not any(s in text for s in exc):
+            hits.append(r)
+    return hits
 
 
 def partition(results: list[dict]) -> dict:

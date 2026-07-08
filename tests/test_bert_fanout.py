@@ -70,6 +70,7 @@ def test_apply_result_updates_and_posts_note(monkeypatch):
 
 def test_apply_result_posts_new_when_no_draft(monkeypatch):
     monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [])
+    monkeypatch.setattr(fo.pipeline, "conversation_status", lambda s, cid: "active")
     posted = {}
     monkeypatch.setattr(fo.pipeline, "post_draft", lambda s, cid, hcid, txt, ts: posted.update(cid=cid))
     monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: False)
@@ -78,6 +79,65 @@ def test_apply_result_posts_new_when_no_draft(monkeypatch):
     status = fo.apply_result(object(), result, timestamp="t")
     assert status["draft_action"] == "posted_new" and posted == {"cid": "5"}
     assert status["note_posted"] is False
+
+
+def test_apply_result_skips_new_draft_on_closed_conversation(monkeypatch):
+    # A ticket a human has already answered + closed since the draft snapshot
+    # must NOT get a fresh (never-to-be-sent) draft stacked on it.
+    monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [])
+    monkeypatch.setattr(fo.pipeline, "conversation_status", lambda s, cid: "closed")
+    posted = []
+    monkeypatch.setattr(fo.pipeline, "post_draft", lambda *a, **k: posted.append(1))
+    monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: False)
+    result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "hs_customer_id": 9,
+              "parsed": {"needs_action": False}}
+    status = fo.apply_result(object(), result, timestamp="t")
+    assert status["draft_action"] == "skipped_closed"
+    assert posted == []
+
+
+def test_apply_result_posts_new_when_status_unknown(monkeypatch):
+    # If the live status check fails, fail soft toward posting (active is the
+    # common case for a ticket with no draft yet).
+    monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [])
+
+    def boom_status(s, cid):
+        raise RuntimeError("HS status down")
+
+    monkeypatch.setattr(fo.pipeline, "conversation_status", boom_status)
+    posted = {}
+    monkeypatch.setattr(fo.pipeline, "post_draft", lambda s, cid, hcid, txt, ts: posted.update(cid=cid))
+    monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: False)
+    result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "hs_customer_id": 9,
+              "parsed": {"needs_action": False}}
+    status = fo.apply_result(object(), result, timestamp="t")
+    assert status["draft_action"] == "posted_new" and posted == {"cid": "5"}
+
+
+def test_apply_result_updates_existing_draft_even_if_closed(monkeypatch):
+    # Updating an existing draft in place is harmless (never auto-sends); only
+    # CREATING a new draft on a closed convo is the noise we guard against.
+    monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [11])
+    updated = []
+    monkeypatch.setattr(fo.pipeline, "update_draft", lambda s, cid, tid, txt: updated.append(tid))
+    monkeypatch.setattr(fo.pipeline, "conversation_status", lambda s, cid: "closed")
+    monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: False)
+    result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "hs_customer_id": 9,
+              "parsed": {"needs_action": False}}
+    status = fo.apply_result(object(), result, timestamp="t")
+    assert status["draft_action"] == "updated" and updated == [11]
+
+
+def test_stale_drafts_matching_selects_by_content_not_tag():
+    results = [
+        {"conversation_id": 1, "draft_reply": "<p>Set Happier to Unrestricted and check Sleeping apps.</p>"},
+        {"conversation_id": 2, "draft_reply": "<p>The fix is released — update from the Play Store.</p>"},
+        {"conversation_id": 3, "draft_reply": "<p>Your meditation keeps pausing; try the battery setting.</p>"},
+        {"conversation_id": 4, "ok": False, "draft_reply": ""},
+    ]
+    hits = fo.stale_drafts_matching(results, include=["battery", "unrestricted", "pausing"],
+                                    exclude=["fix is released", "play store"])
+    assert {r["conversation_id"] for r in hits} == {1, 3}
 
 
 def test_apply_result_skips_note_if_exists(monkeypatch):
