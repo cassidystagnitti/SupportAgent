@@ -19,13 +19,20 @@
   }
   #draft-label { flex: 1; color: #555; }
   #btn-send {
-    padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer;
-    background: #2e7d32; color: #fff; font-size: 12px; font-weight: 500;
+    padding: 6px 10px; border: 1px solid #1e5c22; border-radius: 4px; cursor: pointer;
+    background: #2e7d32; color: #fff; font-size: 12px; font-weight: 600;
   }
   #btn-send:disabled { opacity: 0.5; cursor: default; }
-  #send-confirm { display: none; gap: 6px; align-items: center; }
-  #send-confirm button { padding: 6px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
-  #btn-send-yes { background: #2e7d32; color: #fff; }
+  #send-confirm {
+    display: none; flex-direction: column; gap: 8px;
+    border: 2px solid #2e7d32; border-radius: 6px; background: #f0faf0;
+    padding: 10px; font-size: 12px; line-height: 1.5;
+  }
+  #send-confirm .warn { color: #1e5c22; }
+  #send-confirm .warn b { word-break: break-all; }
+  #send-confirm .row { display: flex; gap: 6px; }
+  #send-confirm button { padding: 7px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+  #btn-send-yes { background: #2e7d32; color: #fff; flex: 1; }
   #btn-send-no  { background: #e0e0e0; color: #333; }
   #chat {
     flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
@@ -77,17 +84,19 @@
 <div id="ui" style="display:none; flex-direction:column; flex:1; gap:8px; min-height:0;">
   <div id="draft-card">
     <span id="draft-label">Checking for a draft…</span>
-    <button id="btn-send" onclick="askSend()" style="display:none">Send &amp; close</button>
-    <span id="send-confirm">
-      Send reply &amp; close?
-      <button id="btn-send-yes" onclick="doSend(false)">Send</button>
+    <button id="btn-send" onclick="askSend()" style="display:none">&#9993; Send to customer&hellip;</button>
+  </div>
+  <div id="send-confirm">
+    <span class="warn">&#9993; This will <b>email the draft reply to <span id="send-recipient">the customer</span></b> and close the conversation. Chat messages never reach the customer — this button does.</span>
+    <div class="row">
+      <button id="btn-send-yes" onclick="doSend(false)">Email customer &amp; close</button>
       <button id="btn-send-no" onclick="hideSendConfirm()">Cancel</button>
-    </span>
+    </div>
   </div>
   <div id="chat"></div>
   <div id="input-row">
-    <textarea id="input" placeholder="Ask Bert about this ticket…"></textarea>
-    <button id="btn-chat" onclick="sendMessage()">Send</button>
+    <textarea id="input" placeholder="Ask Bert about this ticket… (never sent to the customer)"></textarea>
+    <button id="btn-chat" onclick="sendMessage()">Ask</button>
   </div>
 </div>
 <script>
@@ -296,6 +305,7 @@ function addChip(text, isError) {
 }
 
 function askSend() {
+  document.getElementById('send-recipient').textContent = EMAIL || 'the customer';
   document.getElementById('btn-send').style.display = 'none';
   document.getElementById('send-confirm').style.display = 'flex';
 }
@@ -316,7 +326,7 @@ async function doSend(force) {
     });
     var data = await resp.json().catch(function() { return {}; });
     if (resp.status === 409) {
-      if (window.confirm('The draft was edited outside this chat. Send it anyway?')) {
+      if (window.confirm('The draft was edited outside this chat. Email the CURRENT draft to the customer and close anyway?')) {
         btn.disabled = false;
         return doSend(true);
       }
