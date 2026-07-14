@@ -293,3 +293,12 @@ def test_sidebar_post_form_context(client):
 def test_sidebar_post_rejects_missing_cid(client):
     resp = client.post("/sidebar", data={})
     assert resp.status_code == 400
+
+
+def test_root_aliases_serve_sidebar(client):
+    resp = client.get("/", params={"id": "123"})
+    assert resp.status_code == 200
+    assert "GET_APP_CONTEXT" in resp.text
+    resp = client.post("/", data={"conversation[id]": "456", "customer[email]": "c@d.com"})
+    assert resp.status_code == 200
+    assert '"456"' in resp.text

@@ -272,6 +272,18 @@ async def sidebar_get(request: Request):
     return _render_sidebar(cid, email)
 
 
+# Root aliases: a Help Scout app configured with the bare host (no /sidebar
+# path) used to get FastAPI's JSON 404 in the iframe. Serve the sidebar there too.
+@app.post("/", response_class=HTMLResponse, include_in_schema=False)
+async def sidebar_post_root(request: Request):
+    return await sidebar_post(request)
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def sidebar_get_root(request: Request):
+    return await sidebar_get(request)
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
