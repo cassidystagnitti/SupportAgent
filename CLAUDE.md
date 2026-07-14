@@ -11,7 +11,10 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | File | Status | Purpose |
 |---|---|---|
 | `orchestrator.py` | Built | Main pipeline: sequences all steps, creates HS draft + note |
-| `webhook_server.py` | Live | FastAPI webhook receiver; triggers the orchestrator |
+| `sidebar_server.py` | Live | FastAPI app for the HS sidebar: serves the chat UI, chat endpoints, policy confirm, send-and-close |
+| `sidebar_chat.py` | Live | Per-ticket chat sessions with Bert: hydration via bert/pipeline, Anthropic tool loop (update_draft, propose_policy_update) |
+| `policy_updater.py` | Live | Confirmed policy updates: live apply + GitHub commit (`[skip render]`) + fail-soft Notion sync |
+| `static/sidebar.html` | Live | Sidebar chat frontend (vanilla JS; postMessage context handshake) |
 | `triage_tickets.py` | Live | Tags, team, priority, tier classification via Claude |
 | `account_context.py` | Built, not connected | Fetches customer/account data from Happier Maven API |
 | `maven_customer_context.py` | Built | HTTP client for Maven API (user lookup, subscription, normalization) |
@@ -43,12 +46,26 @@ The saved-reply embedding tools (`pull_saved_replies.py`, `build_saved_reply_emb
 
 ---
 
-## Pipeline Flow
+## Interfaces
+
+There are exactly two ways tickets get worked:
+
+1. **Bert via Claude Chat** (local) — the bert-morning-review skill family: summarize the
+   mailbox, batch-draft with the standing brief, review, post drafts.
+2. **Help Scout sidebar chat** (Render) — `sidebar_server.py` + `sidebar_chat.py`. An agent
+   opens a conversation, chats with Bert (context rehydrated on demand via
+   `bert/pipeline.hydrate_ticket`), Bert updates the HS draft in place via tool calls,
+   proposes policy-doc updates as diff cards (Confirm → live apply + GitHub commit with
+   `[skip render]` + Notion sync), and the agent can Send & close (publish draft thread →
+   close conversation) as the Support Automations user.
+
+The webhook auto-trigger (`webhook_server.py`) and the MavenAGI draft engine were sunset
+2026-07-14 (see docs/superpowers/specs/2026-07-14-hs-sidebar-chat-design.md).
+
+## Pipeline Flow (draft brain, shared by both interfaces)
 
 ```
-Help Scout webhook
-  → webhook_server.py (signature verification)
-    → orchestrator.py
+orchestrator.py (invoked per ticket by Bert skills / sidebar chat hydration)
         0. detect_reply_mode()         — is there already a published agent thread? changes which
                                           message the draft addresses (latest reply vs. original)
         1. triage_tickets.py          — tags / team / priority / tier (skipped in reply mode)
@@ -139,11 +156,13 @@ HELPSCOUT_NOTE_USER_ID        # HS user id AI-authored notes are attributed to. 
 # Anthropic
 ANTHROPIC_API_KEY
 
-# MavenAGI (draft engine alternative to Claude)
-MAVEN_ORG_ID          # MavenAGI organization ID
-MAVEN_AGENT_ID        # MavenAGI agent ID
-MAVEN_APP_ID          # MavenAGI app ID
-MAVEN_APP_SECRET      # MavenAGI app secret
+# Sidebar chat (sidebar_server.py / sidebar_chat.py / policy_updater.py)
+SIDEBAR_SECRET                # random string; gates every sidebar chat endpoint
+HELPSCOUT_AGENT_USER_ID       # HS user id for chat-created drafts + send attribution;
+                              # falls back to HELPSCOUT_NOTE_USER_ID
+GITHUB_TOKEN                  # fine-grained PAT (contents:write, this repo only) for policy commits
+GITHUB_REPO                   # default: cassidystagnitti/SupportAgent
+GITHUB_BRANCH                 # default: main
 
 # Maven / Happier API
 MAVEN_API_BASE_URL
@@ -178,7 +197,8 @@ ACTION_EXECUTION_ENABLED      # "true" to allow action_executor.execute() to run
                                # STRIPE_WRITE_API_KEY must be set before any real Stripe write happens.
 
 # Future
-AUTO_SEND_ENABLED=false       # gate for auto-send; currently always false
+AUTO_SEND_ENABLED=false       # gate for UNATTENDED auto-send; currently always false. (Human-clicked
+                              # sends happen via the sidebar's Send & close button — that's not auto-send.)
 ```
 
 ---
