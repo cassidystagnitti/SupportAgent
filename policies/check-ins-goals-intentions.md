@@ -33,6 +33,7 @@ Covers tickets about the check-ins, monthly practice goals, and intention-settin
 
 ## Variations
 
+- **"How do I change / update my goal?" (edit request, not opt-out):** Check-ins currently run on a **monthly** cadence. There is **no way to edit or update a practice goal mid-cycle** right now. Tell the customer plainly: we run check-ins monthly at the moment, we're working on making it so goals can be updated anytime, and for now they'll get another chance to set their goal at the **end of the month** when the next check-in comes around. Do not invent an in-app "edit goal" path — one does not exist today. (This is a reply-only answer, not a bug.)
 - **General question ("what is this feature?"):** Briefly explain what check-ins/goals/intentions are and how they fit into the Practice Plan experience. No feedback logging needed unless they also express a preference to change it.
 - **Frustrated "get rid of this" ticket:** Lead with empathy — acknowledge that the prompts can feel like friction for some users. Then give the honest "no option today" answer, log as feedback, reply-only. Do not over-apologize or imply the team already knows this is a problem beyond what's documented.
 - **Bug report — intention text box unresponsive:** Cross-reference `known-bugs.md` Entry 6 (Intention-Setting Text Box Unresponsive, Status: Investigating). Use that entry's script: acknowledge, confirm we're looking into it, no workaround to offer.

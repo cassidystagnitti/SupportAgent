@@ -45,6 +45,7 @@ Covers inbound messages to the support mailbox that are not support requests at 
 - **Ambiguous message — unclear if it's a partnership pitch or a support question:** If genuinely ambiguous, err toward treating it as a real inquiry and ask a clarifying question rather than assuming spam and going silent.
 - **Sender pushes back after receiving a decline** (follow-up email insisting or escalating): A second polite decline is acceptable once. Repeated follow-ups after two declines should be flagged for human review rather than auto-replied to again.
 - **Job inquiries or "how do I become a teacher on the app" messages:** These are not covered by this policy — see the existing `Other JobInquiryCheckTheWebsite` and `Other BecomeAMeditationTeacher` saved replies, which point to dedicated channels rather than a decline.
+- **Customer wants to speak / correspond directly with a specific teacher or instructor** (e.g., a question about a teacher's guidance or content): We do **not** facilitate direct conversation between customers and teachers. Politely decline the direct-contact ask, and offer support-side help instead (answer what we can, or route genuine content feedback per *Feedback Policy*). Do not promise to pass a personal message to the teacher or arrange any 1:1 contact.
 
 # Action Classification
 

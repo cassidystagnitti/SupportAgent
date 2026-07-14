@@ -37,6 +37,13 @@ Before applying provider-specific guidance, the AI must determine:
 - Renewals revert to **standard $99.99/year** unless a renewal-discount policy applies (see *Renewal Discount Requests*).
 - **No discounts are offered on monthly subscriptions.** Counter-offer is 50% off annual; see *Monthly Discount Requests*.
 
+### What a subscription includes (product scope)
+
+- A subscription unlocks **full, ad-free access to the Happier Meditation in-app library** — guided meditations, courses, the Getting Started course, the Dalai Lama's Guide to Happiness, and the rest of the app content.
+- **Happier Meditation is a separate product from 10% Happier and from Dan Harris's podcast.** A subscription does **not** include the podcast (ad-free or otherwise), and the app should not be described as "formerly 10% Happier" or as bundling Dan Harris podcast content. If a customer asks whether their subscription covers the podcast or Dan Harris content, the answer is **no — that is a different product.**
+- When a customer writes in believing they subscribed to 10% Happier, redirect them (we are not affiliated); see the `10%HappierSub` row in *Cancellation Policy*.
+- **Sharon Salzberg series with Dan Harris (current):** Dan Harris (our former partner) is currently running a series with Sharon Salzberg. **It is not on the Happier Meditation app and is not coming to it.** Customers have written in confused, expecting to find it here. If a customer asks about the new Sharon Salzberg / Dan Harris series, do **not** imply it is or will be available on Happier — point them exclusively to the **Ten Percent Happier with Dan Harris** app, which is where that series lives.
+
 ### Free trial
 
 - **7-day free trial**, **annual plan only**, available on all providers.

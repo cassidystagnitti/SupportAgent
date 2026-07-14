@@ -121,6 +121,24 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 - **Date added:** 2026-07-02
 - **Date resolved:** —
 
+## 10. Missing Checkmarks on Completed Meditations (Android)
+
+- **Status:** Known issue — fix planned
+- **Platforms:** Android (Hotwire Native v2 app)
+- **What to tell the customer:** Acknowledge that the checkmarks that normally show on completed meditations are missing, that this is a known issue on our end (not something they're doing wrong), and that we have a fix planned. Do not promise a specific date.
+- **Linear ticket:** Not yet filed
+- **Date added:** 2026-07-10
+- **Date resolved:** —
+
+## 11. "Last 4 Weeks" / Weekly Time-Tracking View Missing
+
+- **Status:** Known issue — fix planned
+- **Platforms:** New app (Hotwire Native v2)
+- **What to tell the customer:** Acknowledge that the weekly time-tracking view (the "Last 4 Weeks" swipe view of meditation stats) is currently missing, that this is a known issue we're aware of, and that we have a fix planned. It wasn't an intentional removal. Do not promise a specific date.
+- **Linear ticket:** Not yet filed
+- **Date added:** 2026-07-10
+- **Date resolved:** —
+
 # Action Classification
 
 ## No Action Required (reply only)
