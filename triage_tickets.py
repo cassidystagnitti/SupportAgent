@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -10,6 +12,8 @@ from html import unescape
 import anthropic
 import requests
 from dotenv import load_dotenv
+
+from claude_utils import extract_text
 
 _SUPPORT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(_SUPPORT_DIR)
@@ -231,23 +235,51 @@ def _fetch_all_threads(session, conversation_id):
     return threads
 
 
-def get_conversation_text(session, conversation_id):
-    threads = _fetch_all_threads(session, conversation_id)
-    customer_threads = [t for t in threads if t.get("type") == "customer"]
-    if not customer_threads:
-        return None
-    body = customer_threads[-1].get("body", "")
-    return strip_html(body) if body else None
+def get_conversation_text(session, conversation_id, threads: list | None = None):
+    """Return the customer message(s) awaiting a reply.
+
+    Threads come back newest-first. We collect every customer message newer than
+    our most recent published reply (i.e. everything the customer has said that we
+    haven't answered yet); if we've never replied, that's all of their messages.
+    They're joined oldest-first so the draft prompt sees full context ending on the
+    latest ask — the previous implementation returned only the OLDEST message, so a
+    customer who sent a follow-up before we replied got answered on their first
+    message (e.g. missing a later "…I want a refund").
+    """
+    if threads is None:
+        threads = _fetch_all_threads(session, conversation_id)
+
+    unanswered = []
+    for t in threads:  # newest-first
+        if t.get("type") == "message" and t.get("state") == "published":
+            break  # reached our last sent reply; earlier messages are already answered
+        if t.get("type") == "customer":
+            unanswered.append(t)
+
+    if not unanswered:
+        customer_threads = [t for t in threads if t.get("type") == "customer"]
+        if not customer_threads:
+            return None
+        unanswered = [customer_threads[0]]  # fall back to the newest customer message
+
+    parts = [strip_html(t.get("body", "") or "").strip() for t in reversed(unanswered)]
+    parts = [p for p in parts if p]
+    return "\n\n".join(parts) if parts else None
 
 
-def get_conversation_history(session, conversation_id):
+def get_conversation_history(session, conversation_id, threads: list | None = None):
     """Return (history_text, latest_customer_message) for reply processing.
 
     history_text is a chronological transcript of all prior turns (customer +
     support), excluding the most recent customer message. latest_customer_message
     is the stripped body of that most recent customer thread.
+
+    If `threads` is provided, it is used as-is instead of re-fetching via
+    `_fetch_all_threads` (avoids a duplicate GET /conversations/{id}/threads
+    call when the caller already has the threads, e.g. from orchestrator.py).
     """
-    threads = _fetch_all_threads(session, conversation_id)
+    if threads is None:
+        threads = _fetch_all_threads(session, conversation_id)
 
     customer_threads = [t for t in threads if t.get("type") == "customer"]
     if not customer_threads:
@@ -308,7 +340,7 @@ def triage_batch(client, tickets, tag_names, team_names, strict=False):
         messages=[{"role": "user", "content": prompt}],
     )
 
-    response_text = message.content[0].text.strip()
+    response_text = extract_text(message).strip()
     if response_text.startswith("```"):
         response_text = re.sub(r"^```(?:json)?\s*", "", response_text)
         response_text = re.sub(r"\s*```$", "", response_text)

@@ -3,6 +3,8 @@ requests
 python-dotenv
 fastapi
 uvicorn[standard]
+python-multipart
 openai
 numpy
 stripe>=10.0.0
+markdown

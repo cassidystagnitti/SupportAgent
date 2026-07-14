@@ -209,6 +209,20 @@ These are the links the AI sends when migrating Apple/Google customers to Stripe
 - Complimentary annual: https://my.meditatehappier.com/redeem?promo_code=NEEDBASED12MONTHS
 - Other links as applicable: `[PASTE LINKS]`
 
+**Link formatting rule (applies to EVERY reply that includes any of these links):** Always present a link as a hyperlink with short, descriptive anchor text — **never paste the raw URL into the reply.** Use HTML: `<a href="URL">descriptive text</a>`. The anchor text describes the offer, not the address. Examples:
+
+| Link | Anchor text to use |
+|---|---|
+| 40% off annual INTRO | `40% off your first year` |
+| 50% off annual INTRO | `50% off your first year` |
+| 40% off annual FOREVER | `40% off, every year` |
+| 50% off annual FOREVER | `50% off, every year` |
+| Standard annual ($99.99) | `start your annual subscription` |
+| Standard monthly ($14.99) | `start your monthly subscription` |
+| Complimentary annual | `claim your complimentary year` |
+
+This keeps replies clean and stops customers from seeing (or distrusting) long coupon URLs. The **same rule applies to the gift links in `gift-subscriptions.md`** (e.g. `<a href="...">40% off an annual gift</a>`).
+
 # Confidence Notes
 
 - **High confidence areas:** The field definitions and derivation logic (directly from the API spec). The action-classification decision tree (confirmed by support lead). Past-Stripe-users get the link, not admin modification (they need to re-enter card info).
