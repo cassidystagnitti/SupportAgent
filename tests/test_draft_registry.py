@@ -88,3 +88,14 @@ def test_should_not_skip_when_no_existing_reply_mode_and_force_combinations():
     assert draft_registry.should_skip_draft(None, True, False) is False
     assert draft_registry.should_skip_draft(None, False, True) is False
     assert draft_registry.should_skip_draft(None, True, True) is False
+
+
+def test_should_not_skip_when_draft_is_stale():
+    """A newer customer message (draft_is_stale=True) overrides the skip even with
+    an existing draft and neither reply_mode nor force set — so the stale draft
+    gets refreshed against the latest message instead of frozen."""
+    assert draft_registry.should_skip_draft({"thread_id": "1"}, False, False, draft_is_stale=True) is False
+
+
+def test_draft_is_stale_defaults_false_preserving_skip():
+    assert draft_registry.should_skip_draft({"thread_id": "1"}, False, False) is True

@@ -113,11 +113,22 @@ def set(cid: str, thread_id: str, drafted_at: str) -> None:
         log.exception("draft_registry.set failed for conversation %s — continuing without recording", cid)
 
 
-def should_skip_draft(existing: dict[str, Any] | None, reply_mode: bool, force: bool) -> bool:
-    """True only when there's an existing draft and neither reply_mode nor force applies.
+def should_skip_draft(
+    existing: dict[str, Any] | None,
+    reply_mode: bool,
+    force: bool,
+    draft_is_stale: bool = False,
+) -> bool:
+    """True only when there's an existing draft that is still current and neither
+    reply_mode nor force applies.
 
     In that case the pipeline should skip drafting entirely rather than
     stack a duplicate. When reply_mode or force is set, the caller instead
-    takes the supersede (or future update-in-place) path.
+    takes the supersede (or update-in-place) path.
+
+    `draft_is_stale` — set when a customer has replied since we drafted, so the
+    existing draft no longer addresses the latest message. A stale draft must
+    never be skipped: the caller refreshes it in place against the newest
+    message instead. Defaults False (existing draft assumed current).
     """
-    return bool(existing) and not reply_mode and not force
+    return bool(existing) and not reply_mode and not force and not draft_is_stale

@@ -220,6 +220,50 @@ def _helpscout_post(session: requests.Session, url: str, json_body: dict, *, ret
         return resp
 
 
+def _helpscout_patch_thread_text(session: requests.Session, cid: str, thread_id: str, text: str):
+    """Edit an existing draft thread's text IN PLACE via Help Scout PATCH.
+
+    The working request body is a SINGLE JSON-Patch object (not an array):
+    {"op": "replace", "path": "/text", "value": "..."} → HTTP 204. Mirrors
+    ``bert.pipeline.update_draft``; implemented here (rather than imported) to
+    avoid a circular import, since ``bert`` imports ``orchestrator``. Used to
+    refresh a stale draft against the newest customer message without stacking
+    a duplicate (Help Scout has no DELETE for draft threads).
+    """
+    url = f"{BASE_URL}/conversations/{int(cid)}/threads/{int(thread_id)}"
+    body = {"op": "replace", "path": "/text", "value": text}
+    resp = session.patch(url, json=body)
+    resp.raise_for_status()
+    return resp
+
+
+def _customer_replied_after_draft(threads: list, draft_thread_id: str) -> bool | None:
+    """Has the customer replied since we recorded draft `draft_thread_id`?
+
+    Returns True if any customer thread is newer (by `createdAt`) than the draft
+    thread, False if the draft is still the latest customer-facing activity, and
+    None if the recorded draft thread is not present in the conversation (a stale
+    registry entry — the caller preserves today's skip behavior in that case).
+
+    `createdAt` values are ISO-8601 UTC strings, which sort lexicographically;
+    threads missing `createdAt` are ignored rather than crashing the comparison.
+    """
+    draft_created_at = None
+    for t in threads or []:
+        if str(t.get("id")) == str(draft_thread_id):
+            draft_created_at = t.get("createdAt")
+            break
+    if draft_created_at is None:
+        return None
+    for t in threads or []:
+        if t.get("type") != "customer":
+            continue
+        created = t.get("createdAt")
+        if created and created > draft_created_at:
+            return True
+    return False
+
+
 def _assistant_text_from_message(message: Any) -> str:
     """Concatenate all text blocks (handles multi-block responses and empty first blocks)."""
     parts: list[str] = []
@@ -668,6 +712,7 @@ def process_ticket_sync(
         "research_ran": False,
         "research_sources": [],
         "draft_created": False,
+        "draft_updated_in_place": False,
         "skipped_existing_draft": False,
         "supersedes_existing_draft": False,
         "note_created": False,
@@ -711,17 +756,36 @@ def process_ticket_sync(
         out["reply_mode"] = reply_mode
 
         existing_draft = draft_registry.get(cid)
-        if draft_registry.should_skip_draft(existing_draft, reply_mode, force):
+        existing_draft_thread_id = (existing_draft or {}).get("thread_id")
+        # A customer follow-up before any agent reply leaves reply_mode False; without
+        # this staleness check the pipeline would skip and freeze the draft on the
+        # earlier message. Scoped to the pure follow-up case (not reply_mode, not
+        # force) so it never diverts those from their existing supersede path.
+        stale_redraft = (
+            bool(existing_draft)
+            and not reply_mode
+            and not force
+            and _customer_replied_after_draft(threads, existing_draft_thread_id) is True
+        )
+        if draft_registry.should_skip_draft(existing_draft, reply_mode, force, draft_is_stale=stale_redraft):
             log.info(
                 "Skipping draft for conversation %s — existing draft thread %s already recorded "
-                "(not reply_mode, not forced)",
+                "(not reply_mode, not forced, no newer customer reply)",
                 cid,
-                (existing_draft or {}).get("thread_id"),
+                existing_draft_thread_id,
             )
             out["skipped_existing_draft"] = True
             out["latency_ms"] = int((time.monotonic() - t0) * 1000)
             log.info("%s", json.dumps({k: out[k] for k in out if k != "draft_text"}, default=str))
             return out
+
+        if stale_redraft:
+            log.info(
+                "Refreshing stale draft for conversation %s — customer replied after draft thread %s; "
+                "updating it in place against the latest message",
+                cid,
+                existing_draft_thread_id,
+            )
 
         supersedes_existing_draft = bool(existing_draft) and (reply_mode or force)
 
@@ -961,6 +1025,22 @@ def process_ticket_sync(
                 cid,
                 len(draft_reply),
             )
+        elif stale_redraft and existing_draft_thread_id:
+            # Customer replied after our draft: refresh the SAME thread in place so
+            # it answers the newest message, without stacking a duplicate draft
+            # (Help Scout has no DELETE for draft threads).
+            try:
+                _helpscout_patch_thread_text(session, cid, existing_draft_thread_id, draft_reply)
+                out["helpscout_draft_id"] = existing_draft_thread_id
+                out["draft_created"] = True
+                out["draft_updated_in_place"] = True
+                draft_registry.set(cid, existing_draft_thread_id, out["timestamp"])
+            except requests.RequestException as e:
+                log.exception(
+                    "Help Scout draft in-place update failed — preserving draft in logs. Error: %s\nDraft:\n%s",
+                    e,
+                    draft_reply[:8000],
+                )
         else:
             reply_url = f"{BASE_URL}/conversations/{cid}/reply"
             payload = {
