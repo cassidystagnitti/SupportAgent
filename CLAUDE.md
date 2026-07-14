@@ -158,9 +158,11 @@ GITHUB_TOKEN                  # fine-grained PAT (contents:write, this repo only
 GITHUB_REPO                   # default: cassidystagnitti/SupportAgent
 GITHUB_BRANCH                 # default: main
 
-# Maven / Happier API
-MAVEN_API_BASE_URL
-MAVEN_API_KEY                 # or equivalent auth
+# Happier backend ("Maven" API — account/subscription lookup; account_context.py)
+HAPPIER_BEARER_TOKEN          # REQUIRED for account lookup (fallback name: ACCOUNT_CONTEXT_BEARER_TOKEN).
+                              # Without it, lookup fails soft: drafts still generate but with
+                              # "Account lookup failed" context and no Stripe enrichment.
+HAPPIER_MAVEN_BASE_URL        # optional — defaults to https://my.happierapp.com/api/maven/v1
 
 # Stripe (optional enrichment)
 STRIPE_READ_API_KEY           # read-only restricted key
