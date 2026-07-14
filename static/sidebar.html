@@ -135,7 +135,16 @@ function ready(cid, email) {
   document.getElementById('input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
+  fetchDraftState();
   schedulePoll(0);
+}
+
+async function fetchDraftState() {
+  try {
+    var resp = await fetch('/chat/draft-state/' + encodeURIComponent(CID) +
+      '?secret=' + encodeURIComponent(SECRET));
+    if (resp.ok) updateDraftCard(await resp.json());
+  } catch (e) { /* card stays in its default state */ }
 }
 
 function esc(s) {
@@ -182,7 +191,7 @@ async function poll() {
     if (resp.ok) {
       var data = await resp.json();
       (data.messages || []).forEach(renderMessage);
-      updateDraftCard(data.draft || {});
+      if (data.draft) updateDraftCard(data.draft);
       setBusy(!!data.busy);
     }
   } catch (e) { /* network hiccup — keep polling */ }

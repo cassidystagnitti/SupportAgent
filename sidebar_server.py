@@ -96,7 +96,9 @@ async def chat_messages(cid: str, after: int = 0, secret: str = ""):
     cid = _require_cid(cid)
     sess = sidebar_chat.STORE.peek(cid)
     if sess is None:
-        return {"messages": [], "busy": False, "draft": {"exists": False, "thread_id": None}}
+        # No session yet — draft state unknown here; the frontend does a one-time
+        # live check via /chat/draft-state instead (poll must stay HS-API-free).
+        return {"messages": [], "busy": False, "draft": None}
     messages = sidebar_chat.STORE.ui_messages_after(cid, after)
     for m in messages:  # overlay live proposal status so reloads render correctly
         if m["kind"] == "proposal" and m.get("payload"):
@@ -109,6 +111,17 @@ async def chat_messages(cid: str, after: int = 0, secret: str = ""):
         "busy": bool(sess.get("busy")),
         "draft": {"exists": thread_id is not None, "thread_id": thread_id},
     }
+
+
+@app.get("/chat/draft-state/{cid}")
+async def draft_state(cid: str, secret: str = ""):
+    """One-time live draft check for a freshly opened sidebar (no chat session yet)."""
+    _check_secret(secret)
+    cid = _require_cid(cid)
+    hs = sidebar_chat._hs_session()
+    draft_ids = bert_pipeline.find_draft_threads(hs, cid)
+    thread_id = draft_ids[-1] if draft_ids else None
+    return {"exists": thread_id is not None, "thread_id": thread_id}
 
 
 def _find_proposal(cid: str, proposal_id: str) -> dict:

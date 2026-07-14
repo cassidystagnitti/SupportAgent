@@ -70,7 +70,21 @@ def test_poll_requires_secret(client):
 
 def test_poll_unknown_conversation_empty(client):
     resp = client.get("/chat/messages/999", params={"after": 0, "secret": "testsecret"})
-    assert resp.json() == {"messages": [], "busy": False, "draft": {"exists": False, "thread_id": None}}
+    assert resp.json() == {"messages": [], "busy": False, "draft": None}
+
+
+def test_draft_state_live_check(client):
+    hs = MagicMock()
+    with patch("sidebar_server.sidebar_chat._hs_session", return_value=hs), \
+         patch("sidebar_server.bert_pipeline") as bp:
+        bp.find_draft_threads.return_value = [901]
+        resp = client.get("/chat/draft-state/555", params={"secret": "testsecret"})
+    assert resp.status_code == 200
+    assert resp.json() == {"exists": True, "thread_id": 901}
+
+
+def test_draft_state_requires_secret(client):
+    assert client.get("/chat/draft-state/555").status_code == 401
 
 
 def test_poll_overlays_current_proposal_status(client):
