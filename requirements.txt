@@ -8,4 +8,3 @@ openai
 numpy
 stripe>=10.0.0
 markdown
-mavenagi>=1.2.13
