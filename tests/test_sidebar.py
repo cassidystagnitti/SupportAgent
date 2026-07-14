@@ -268,3 +268,28 @@ def test_send_mismatch_check_skipped_when_no_session_draft(client):
         bp.conversation_status.return_value = "active"
         resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
     assert resp.status_code == 200
+
+
+# --- Task 8: static sidebar serving ---
+
+
+def test_sidebar_get_serves_static_html_with_injection(client):
+    resp = client.get("/sidebar", params={"id": "123", "customer_email": "a@b.com"})
+    assert resp.status_code == 200
+    html = resp.text
+    assert '"123"' in html
+    assert "GET_APP_CONTEXT" in html          # handshake preserved
+    assert "secure.helpscout.net" in html     # origin allowlist preserved
+    assert "/chat/message" in html            # chat wiring present
+    assert "__CID__" not in html              # injection happened
+
+
+def test_sidebar_post_form_context(client):
+    resp = client.post("/sidebar", data={"conversation[id]": "456", "customer[email]": "c@d.com"})
+    assert resp.status_code == 200
+    assert '"456"' in resp.text
+
+
+def test_sidebar_post_rejects_missing_cid(client):
+    resp = client.post("/sidebar", data={})
+    assert resp.status_code == 400
