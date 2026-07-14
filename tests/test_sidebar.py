@@ -1,77 +1,270 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
+from fastapi.testclient import TestClient
+
+import sidebar_chat
+import sidebar_server
 
 
-def test_set_status_running_clears_logs():
-    """Setting status to 'running' resets the logs list."""
-    import sidebar_server
-    sidebar_server._status.clear()
-    sidebar_server._set_status("cid1", "running")
-    sidebar_server._append_log("cid1", "first log")
-    sidebar_server._set_status("cid1", "running")  # second run
-    s = sidebar_server._get_status("cid1")
-    assert s["logs"] == []
+@pytest.fixture()
+def client(monkeypatch):
+    monkeypatch.setattr(sidebar_server, "SIDEBAR_SECRET", "testsecret")
+    monkeypatch.setattr(sidebar_chat, "STORE", sidebar_chat.SessionStore())
+    return TestClient(sidebar_server.app)
 
 
-def test_append_log_accumulates_entries():
-    """_append_log adds timestamped entries to the logs list."""
-    import sidebar_server
-    sidebar_server._status.clear()
-    sidebar_server._set_status("cid2", "running")
-    sidebar_server._append_log("cid2", "step one")
-    sidebar_server._append_log("cid2", "step two")
-    s = sidebar_server._get_status("cid2")
-    assert len(s["logs"]) == 2
-    assert "step one" in s["logs"][0]
-    assert "step two" in s["logs"][1]
-
-
-def test_set_status_done_preserves_logs():
-    """Transitioning to 'done' keeps the accumulated logs."""
-    import sidebar_server
-    sidebar_server._status.clear()
-    sidebar_server._set_status("cid3", "running")
-    sidebar_server._append_log("cid3", "Maven: asking...")
-    sidebar_server._set_status("cid3", "done", "Draft created")
-    s = sidebar_server._get_status("cid3")
-    assert s["status"] == "done"
-    assert any("Maven: asking..." in entry for entry in s["logs"])
-
-
-def test_get_status_returns_idle_for_unknown():
-    """_get_status returns idle for unknown conversation IDs."""
-    import sidebar_server
-    sidebar_server._status.clear()
-    s = sidebar_server._get_status("unknown-cid")
-    assert s["status"] == "idle"
-    assert s.get("logs", []) == []
-
-
-def test_trigger_draft_accepts_engine_param():
-    """
-    /trigger-draft with engine=maven routes to maven pipeline (smoke test via mock).
-    This exercises the dispatch logic without hitting any external services.
-    """
-    from fastapi.testclient import TestClient
-    from unittest.mock import patch, MagicMock
-    import sidebar_server
-
-    sidebar_server.SIDEBAR_SECRET = "testsecret"
-    client = TestClient(sidebar_server.app)
-
-    with patch("sidebar_server.threading.Thread") as mock_thread:
-        resp = client.post("/trigger-draft", json={
-            "conversation_id": "999",
-            "customer_email": "a@b.com",
-            "secret": "testsecret",
-            "engine": "maven",
+def test_chat_message_starts_turn(client):
+    with patch("sidebar_server.threading.Thread") as t:
+        resp = client.post("/chat/message", json={
+            "conversation_id": "555", "text": "hi", "secret": "testsecret",
         })
+    assert resp.status_code == 202
+    t.assert_called_once()
+    sess = sidebar_chat.STORE.peek("555")
+    assert sess["busy"] is True  # acquired before the thread starts
 
+
+def test_chat_message_bad_secret_401(client):
+    resp = client.post("/chat/message", json={
+        "conversation_id": "555", "text": "hi", "secret": "wrong",
+    })
+    assert resp.status_code == 401
+
+
+def test_chat_message_busy_409(client):
+    sidebar_chat.STORE.try_acquire("555")
+    resp = client.post("/chat/message", json={
+        "conversation_id": "555", "text": "hi", "secret": "testsecret",
+    })
+    assert resp.status_code == 409
+
+
+def test_chat_message_validates_input(client):
+    assert client.post("/chat/message", json={
+        "conversation_id": "abc", "text": "hi", "secret": "testsecret",
+    }).status_code == 400
+    assert client.post("/chat/message", json={
+        "conversation_id": "555", "text": "   ", "secret": "testsecret",
+    }).status_code == 400
+
+
+def test_poll_returns_messages_and_draft_state(client):
+    sidebar_chat.STORE.get_or_create("555")
+    sidebar_chat.STORE.add_ui_message("555", "user", "hi")
+    sidebar_chat.STORE.add_ui_message("555", "bert", "hello")
+    sess = sidebar_chat.STORE.peek("555")
+    sess["draft_thread_id"] = 900
+
+    resp = client.get("/chat/messages/555", params={"after": 1, "secret": "testsecret"})
     assert resp.status_code == 200
     data = resp.json()
-    assert data["ok"] is True
-    assert data["engine"] == "maven"
-    # Thread was started
-    mock_thread.assert_called_once()
-    # engine kwarg passed to thread target
-    _, kwargs = mock_thread.call_args
-    assert kwargs.get("kwargs", {}).get("engine") == "maven"
+    assert [m["seq"] for m in data["messages"]] == [2]
+    assert data["busy"] is False
+    assert data["draft"] == {"exists": True, "thread_id": 900}
+
+
+def test_poll_requires_secret(client):
+    assert client.get("/chat/messages/555", params={"after": 0}).status_code == 401
+
+
+def test_poll_unknown_conversation_empty(client):
+    resp = client.get("/chat/messages/999", params={"after": 0, "secret": "testsecret"})
+    assert resp.json() == {"messages": [], "busy": False, "draft": {"exists": False, "thread_id": None}}
+
+
+def test_poll_overlays_current_proposal_status(client):
+    sidebar_chat.STORE.get_or_create("555")
+    sess = sidebar_chat.STORE.peek("555")
+    sess["proposals"]["p1"] = {"id": "p1", "status": "confirmed"}
+    sidebar_chat.STORE.add_ui_message("555", "proposal", payload={
+        "proposal_id": "p1", "diff": "+x", "rationale": "r", "status": "pending",
+    })
+    resp = client.get("/chat/messages/555", params={"after": 0, "secret": "testsecret"})
+    msg = resp.json()["messages"][0]
+    assert msg["payload"]["status"] == "confirmed"
+
+
+def test_confirm_policy_happy_path(client):
+    sidebar_chat.STORE.get_or_create("555")
+    sess = sidebar_chat.STORE.peek("555")
+    sess["proposals"]["p1"] = {"id": "p1", "policy_file": "refunds.md", "status": "pending"}
+    with patch("sidebar_server.policy_updater.confirm_proposal",
+               return_value={"commit_sha": "abcdef1234", "notion_warning": None}) as c:
+        resp = client.post("/chat/confirm-policy", json={
+            "conversation_id": "555", "proposal_id": "p1", "secret": "testsecret",
+        })
+    assert resp.status_code == 200
+    assert resp.json()["commit_sha"] == "abcdef1234"
+    c.assert_called_once()
+    events = [m for m in sidebar_chat.STORE.ui_messages_after("555", 0) if m["kind"] == "event"]
+    assert any("abcdef1" in m["text"] for m in events)
+
+
+def test_confirm_policy_notion_warning_surfaces(client):
+    sidebar_chat.STORE.get_or_create("555")
+    sess = sidebar_chat.STORE.peek("555")
+    sess["proposals"]["p1"] = {"id": "p1", "policy_file": "refunds.md", "status": "pending"}
+    with patch("sidebar_server.policy_updater.confirm_proposal",
+               return_value={"commit_sha": "abc", "notion_warning": "Notion sync failed"}):
+        resp = client.post("/chat/confirm-policy", json={
+            "conversation_id": "555", "proposal_id": "p1", "secret": "testsecret",
+        })
+    assert resp.status_code == 200
+    errors = [m for m in sidebar_chat.STORE.ui_messages_after("555", 0) if m["kind"] == "error"]
+    assert any("Notion" in m["text"] for m in errors)
+
+
+def test_confirm_policy_failure_returns_502_and_keeps_pending(client):
+    sidebar_chat.STORE.get_or_create("555")
+    sess = sidebar_chat.STORE.peek("555")
+    sess["proposals"]["p1"] = {"id": "p1", "policy_file": "refunds.md", "status": "pending"}
+    with patch("sidebar_server.policy_updater.confirm_proposal",
+               side_effect=RuntimeError("gh down")):
+        resp = client.post("/chat/confirm-policy", json={
+            "conversation_id": "555", "proposal_id": "p1", "secret": "testsecret",
+        })
+    assert resp.status_code == 502
+    assert sess["proposals"]["p1"]["status"] == "pending"
+
+
+def test_confirm_policy_unknown_proposal_404(client):
+    resp = client.post("/chat/confirm-policy", json={
+        "conversation_id": "555", "proposal_id": "nope", "secret": "testsecret",
+    })
+    assert resp.status_code == 404
+
+
+def test_confirm_policy_already_confirmed_409(client):
+    sidebar_chat.STORE.get_or_create("555")
+    sess = sidebar_chat.STORE.peek("555")
+    sess["proposals"]["p1"] = {"id": "p1", "policy_file": "r.md", "status": "confirmed"}
+    resp = client.post("/chat/confirm-policy", json={
+        "conversation_id": "555", "proposal_id": "p1", "secret": "testsecret",
+    })
+    assert resp.status_code == 409
+
+
+def test_dismiss_policy(client):
+    sidebar_chat.STORE.get_or_create("555")
+    sess = sidebar_chat.STORE.peek("555")
+    sess["proposals"]["p1"] = {"id": "p1", "policy_file": "r.md", "status": "pending"}
+    resp = client.post("/chat/dismiss-policy", json={
+        "conversation_id": "555", "proposal_id": "p1", "secret": "testsecret",
+    })
+    assert resp.status_code == 200
+    assert sess["proposals"]["p1"]["status"] == "dismissed"
+
+
+def test_trigger_endpoints_are_gone(client):
+    assert client.post("/trigger-draft", json={}).status_code == 404
+    assert client.get("/trigger-status/1").status_code == 404
+
+
+def test_health(client):
+    assert client.get("/health").json() == {"status": "ok"}
+
+
+# --- Task 7: send & close ---
+
+
+def _send_setup(sess_draft="<p>d</p>"):
+    """Common context for /chat/send tests: mocked HS session + chat session."""
+    hs = MagicMock()
+    hs.patch.return_value = MagicMock(status_code=204, raise_for_status=MagicMock())
+    sess = sidebar_chat.STORE.get_or_create("555")
+    sess["draft_text"] = sess_draft
+    p1 = patch("sidebar_server.sidebar_chat._hs_session", return_value=hs)
+    p2 = patch("sidebar_server.bert_pipeline")
+    return hs, p1, p2
+
+
+def test_send_happy_path_publishes_then_closes(client):
+    hs, p1, p2 = _send_setup()
+    with p1, p2 as bp, patch("sidebar_server.sidebar_chat._thread_body", return_value="<p>d</p>"):
+        bp.find_draft_threads.return_value = [900]
+        bp.conversation_status.return_value = "active"
+        resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == {"ok": True, "sent": True, "closed": True}
+    urls = [c[0][0] for c in hs.patch.call_args_list]
+    assert urls[0].endswith("/conversations/555/threads/900/schedule")
+    assert urls[1].endswith("/conversations/555")
+    assert hs.patch.call_args_list[0][1]["json"] == {"op": "replace", "path": "/state", "value": "published"}
+    assert hs.patch.call_args_list[1][1]["json"] == {"op": "replace", "path": "/status", "value": "closed"}
+    events = [m["text"] for m in sidebar_chat.STORE.ui_messages_after("555", 0) if m["kind"] == "event"]
+    assert any("sent" in t.lower() for t in events)
+
+
+def test_send_no_draft_400(client):
+    hs, p1, p2 = _send_setup()
+    with p1, p2 as bp:
+        bp.find_draft_threads.return_value = []
+        bp.conversation_status.return_value = "active"
+        resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
+    assert resp.status_code == 400
+    assert "draft" in resp.json()["detail"].lower()
+
+
+def test_send_already_closed_400(client):
+    hs, p1, p2 = _send_setup()
+    with p1, p2 as bp:
+        bp.find_draft_threads.return_value = [900]
+        bp.conversation_status.return_value = "closed"
+        resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
+    assert resp.status_code == 400
+    assert "closed" in resp.json()["detail"].lower()
+
+
+def test_send_draft_mismatch_409_and_force_overrides(client):
+    hs, p1, p2 = _send_setup(sess_draft="<p>chat version</p>")
+    with p1, p2 as bp, patch("sidebar_server.sidebar_chat._thread_body",
+                             return_value="<p>edited by human</p>"):
+        bp.find_draft_threads.return_value = [900]
+        bp.conversation_status.return_value = "active"
+        resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
+        assert resp.status_code == 409
+        resp2 = client.post("/chat/send", json={
+            "conversation_id": "555", "secret": "testsecret", "force": True,
+        })
+        assert resp2.status_code == 200
+
+
+def test_send_close_failure_reports_partial(client):
+    hs, p1, p2 = _send_setup()
+    publish_ok = MagicMock(status_code=204, raise_for_status=MagicMock())
+    close_fail = MagicMock()
+    close_fail.raise_for_status.side_effect = RuntimeError("HS 500")
+    hs.patch.side_effect = [publish_ok, close_fail]
+    with p1, p2 as bp, patch("sidebar_server.sidebar_chat._thread_body", return_value="<p>d</p>"):
+        bp.find_draft_threads.return_value = [900]
+        bp.conversation_status.return_value = "active"
+        resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["sent"] is True and data["closed"] is False
+    assert "error" in data
+
+
+def test_send_close_only_retry(client):
+    hs, p1, p2 = _send_setup()
+    with p1, p2 as bp:
+        bp.find_draft_threads.return_value = []      # draft already published
+        bp.conversation_status.return_value = "active"
+        resp = client.post("/chat/send", json={
+            "conversation_id": "555", "secret": "testsecret", "close_only": True,
+        })
+    assert resp.status_code == 200
+    assert resp.json()["closed"] is True
+    urls = [c[0][0] for c in hs.patch.call_args_list]
+    assert len(urls) == 1 and urls[0].endswith("/conversations/555")
+
+
+def test_send_mismatch_check_skipped_when_no_session_draft(client):
+    hs, p1, p2 = _send_setup(sess_draft="")
+    with p1, p2 as bp:
+        bp.find_draft_threads.return_value = [900]
+        bp.conversation_status.return_value = "active"
+        resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
+    assert resp.status_code == 200
