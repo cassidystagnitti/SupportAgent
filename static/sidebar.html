@@ -258,7 +258,7 @@ function setProposalState(el, id, status) {
   var actions = el.querySelector('.actions');
   if (status === 'pending') {
     actions.innerHTML =
-      '<button class="btn-confirm" onclick="confirmProposal(\'' + id + '\')">Confirm — commit &amp; sync</button>' +
+      '<button class="btn-confirm" onclick="confirmProposal(\'' + id + '\')">Confirm — commit to policies</button>' +
       '<button class="btn-dismiss" onclick="dismissProposal(\'' + id + '\')">Dismiss</button>';
   } else {
     actions.innerHTML = '<span class="final ' + esc(status) + '">' +

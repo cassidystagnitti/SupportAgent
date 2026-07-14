@@ -8,8 +8,9 @@ Help Scout loads https://<render-host>/sidebar in the conversation-view iframe
 (postMessage handshake supplies the conversation id). The page is a chat UI:
 Bert answers with fully hydrated ticket context, edits the HS draft in place
 via tool calls, proposes policy-doc updates as diff cards (Confirm commits to
-GitHub + syncs Notion), and a Send & close button publishes the draft and
-closes the conversation as the Support Automations agent user.
+GitHub — the single source of truth for policies), and a Send & close button
+publishes the draft and closes the conversation as the Support Automations
+agent user.
 
 Environment:
   SIDEBAR_SECRET             — random string; required on every chat endpoint call
@@ -151,10 +152,7 @@ async def confirm_policy(request: Request):
     sidebar_chat.STORE.add_ui_message(
         cid, "event",
         f"Policy updated: {proposal['policy_file']} committed ({outcome['commit_sha'][:7]}).")
-    if outcome.get("notion_warning"):
-        sidebar_chat.STORE.add_ui_message(cid, "error", outcome["notion_warning"])
-    return {"ok": True, "commit_sha": outcome["commit_sha"],
-            "notion_warning": outcome.get("notion_warning")}
+    return {"ok": True, "commit_sha": outcome["commit_sha"]}
 
 
 @app.post("/chat/dismiss-policy")

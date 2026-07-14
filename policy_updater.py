@@ -2,10 +2,10 @@
 
 Bert proposes an edit to a policies/*.md doc via the propose_policy_update
 tool; the support agent confirms it in the sidebar. On confirm this module
-applies the edit to the LIVE policy copy (atomic write), commits the file to
-the GitHub repo (path-restricted, "[skip render]" so Render doesn't redeploy),
-and syncs the Notion page. Notion failure is warn-only; GitHub failure rolls
-the live file back.
+applies the edit to the LIVE policy copy (atomic write) and commits the file
+to the GitHub repo (path-restricted, "[skip render]" so Render doesn't
+redeploy). GitHub failure rolls the live file back. The git repo is the single
+source of truth for policy docs — the old Notion sync was abandoned 2026-07-14.
 
 See docs/superpowers/specs/2026-07-14-hs-sidebar-chat-design.md §2.
 """
@@ -142,27 +142,12 @@ def commit_policy_file(policy_file: str, content: str, message: str) -> str:
     raise RuntimeError(f"unable to commit policies/{base} after retry")
 
 
-def sync_policy_to_notion(path: str) -> None:
-    """Sync one policy file to its Notion child page. Raises on any failure —
-    the caller (confirm_proposal) treats Notion as fail-soft."""
-    if not (os.getenv("NOTION_TOKEN") or "").strip():
-        raise RuntimeError("NOTION_TOKEN not configured")
-    from scripts.sync_new_policy_docs import (
-        SUPPORT_POLICY_DOCS_PAGE_ID,
-        _notion_headers,
-        sync_doc,
-    )
-    s = requests.Session()
-    s.headers.update(_notion_headers())
-    sync_doc(s, SUPPORT_POLICY_DOCS_PAGE_ID, path)
-
-
 def confirm_proposal(proposal: dict, *, conversation_id: str) -> dict:
-    """Apply a pending proposal: live apply -> GitHub commit -> Notion sync.
+    """Apply a pending proposal: live apply -> GitHub commit.
 
     Re-validates the edit against the CURRENT file (drift fails loudly).
     GitHub failure rolls the live file back and re-raises (proposal stays
-    pending / retryable). Notion failure only produces a warning string.
+    pending / retryable).
     """
     path = _policy_path(proposal["policy_file"])
     with open(path, encoding="utf-8") as f:
@@ -187,15 +172,5 @@ def confirm_proposal(proposal: dict, *, conversation_id: str) -> dict:
         _atomic_write(path, current)  # roll back the live copy
         raise
 
-    notion_warning = None
-    try:
-        sync_policy_to_notion(path)
-    except Exception as e:
-        notion_warning = (
-            f"Committed ({sha[:7]}), but Notion sync failed: {str(e)[:200]} — "
-            f"sync policies/{proposal['policy_file']} to Notion manually."
-        )
-        log.warning("Notion sync failed for %s: %s", path, e)
-
     proposal["status"] = "confirmed"
-    return {"commit_sha": sha, "notion_warning": notion_warning}
+    return {"commit_sha": sha}
