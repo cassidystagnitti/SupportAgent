@@ -151,18 +151,15 @@ def test_confirm_proposal_applies_and_commits(policies_dir, github_env):
         target_text="We refund within 30 days.", new_text="We refund within 45 days.",
         rationale="changed",
     )
-    with patch("policy_updater.commit_policy_file", return_value="abc1234def") as c, \
-         patch("policy_updater.sync_policy_to_notion") as n:
+    with patch("policy_updater.commit_policy_file", return_value="abc1234def") as c:
         out = policy_updater.confirm_proposal(p, conversation_id="123")
     assert out["commit_sha"] == "abc1234def"
-    assert out["notion_warning"] is None
     assert p["status"] == "confirmed"
     live = (policies_dir / "refunds.md").read_text(encoding="utf-8")
     assert "45 days" in live
     msg = c.call_args[0][2]
     assert "[skip render]" in msg
     assert "conversation/123" in msg
-    n.assert_called_once()
 
 
 def test_confirm_rolls_back_live_file_when_commit_fails(policies_dir, github_env):
@@ -177,18 +174,6 @@ def test_confirm_rolls_back_live_file_when_commit_fails(policies_dir, github_env
     live = (policies_dir / "refunds.md").read_text(encoding="utf-8")
     assert "30 days" in live          # rolled back
     assert p["status"] == "pending"   # still confirmable
-
-
-def test_confirm_notion_failure_is_warn_only(policies_dir, github_env):
-    p = policy_updater.build_proposal(
-        policy_file="refunds.md", edit_type="append",
-        target_text="", new_text="tail", rationale="r",
-    )
-    with patch("policy_updater.commit_policy_file", return_value="sha"), \
-         patch("policy_updater.sync_policy_to_notion", side_effect=RuntimeError("no token")):
-        out = policy_updater.confirm_proposal(p, conversation_id="1")
-    assert p["status"] == "confirmed"
-    assert "Notion sync failed" in out["notion_warning"]
 
 
 def test_confirm_fails_loudly_on_drift(policies_dir, github_env):

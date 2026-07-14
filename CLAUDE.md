@@ -13,13 +13,13 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `orchestrator.py` | Built | Main pipeline: sequences all steps, creates HS draft + note |
 | `sidebar_server.py` | Live | FastAPI app for the HS sidebar: serves the chat UI, chat endpoints, policy confirm, send-and-close |
 | `sidebar_chat.py` | Live | Per-ticket chat sessions with Bert: hydration via bert/pipeline, Anthropic tool loop (update_draft, propose_policy_update) |
-| `policy_updater.py` | Live | Confirmed policy updates: live apply + GitHub commit (`[skip render]`) + fail-soft Notion sync |
+| `policy_updater.py` | Live | Confirmed policy updates: live apply + GitHub commit (`[skip render]`); git is the single source of truth |
 | `static/sidebar.html` | Live | Sidebar chat frontend (vanilla JS; postMessage context handshake) |
 | `triage_tickets.py` | Live | Tags, team, priority, tier classification via Claude |
 | `account_context.py` | Built, not connected | Fetches customer/account data from Happier Maven API |
 | `maven_customer_context.py` | Built | HTTP client for Maven API (user lookup, subscription, normalization) |
 | `stripe_context.py` | Built | Stripe subscription, pricing, discount, upcoming invoice enrichment |
-| `pull_policy_docs.py` | Built | Syncs policy docs from Notion into `policies/` |
+| `pull_policy_docs.py` | Vestigial | (Notion policy sync abandoned 2026-07-14) formerly synced policy docs from Notion into `policies/` |
 | `pull_saved_replies.py` | Standalone CLI | Fetches Help Scout saved replies |
 | `build_saved_reply_embeddings.py` | Standalone CLI | Embeds saved replies for semantic search |
 | `search_saved_replies.py` | Standalone CLI | Searches embedded saved replies |
@@ -35,8 +35,8 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `eval_run.py` | Standalone CLI | Repeatable eval harness: batch-runs the draft pipeline over active tickets, writes `eval/<date>/results.json` |
 | `eval_draft_accuracy.py` | Standalone CLI | Compares Bert's draft against the reply a human agent actually sent, per eval run |
 | `eval_reports.py` | Built | Shared report generators (action log, policy gaps, new bugs, scorecard) used by `eval_run.py` |
-| `process_answered_gaps.py` | Standalone CLI | Writes answered Bert Gap Queue rows (from Notion) back into `policies/*.md` |
-| `scripts/sync_new_policy_docs.py` | Standalone CLI | Syncs specific `policies/*.md` files to Notion as child pages under Support Policy Docs |
+| `process_answered_gaps.py` | Vestigial | (Notion policy sync abandoned 2026-07-14) formerly wrote answered Gap Queue rows back into `policies/*.md` |
+| `scripts/sync_new_policy_docs.py` | Vestigial | (Notion policy sync abandoned 2026-07-14) formerly pushed `policies/*.md` to Notion child pages |
 | `scripts/list_stale_drafts.py` | Standalone CLI | Seeds the draft registry from a past eval run and lists conversations with duplicate live drafts to clean up manually |
 | `policies/` | Live | 21 markdown policy docs, loaded wholesale into every draft prompt |
 | `prompts/draft_system_prompt.txt` | Live | System prompt for draft generation (edit here, not in Python) |
@@ -56,7 +56,7 @@ There are exactly two ways tickets get worked:
    opens a conversation, chats with Bert (context rehydrated on demand via
    `bert/pipeline.hydrate_ticket`), Bert updates the HS draft in place via tool calls,
    proposes policy-doc updates as diff cards (Confirm → live apply + GitHub commit with
-   `[skip render]` + Notion sync), and the agent can Send & close (publish draft thread →
+   `[skip render]`; git is the single source of truth), and the agent can Send & close (publish draft thread →
    close conversation) as the Support Automations user.
 
 The webhook auto-trigger (`webhook_server.py`) and the MavenAGI draft engine were sunset
@@ -99,15 +99,9 @@ orchestrator.py (invoked per ticket by Bert skills / sidebar chat hydration)
 
 ---
 
-## Notion Sync
+## Policy Doc Source of Truth
 
-Policy docs live in two places: the `policies/` directory in this repo (used by the AI pipeline) and the **Support Policy Docs** page in Notion (used by the human team). **Both must be kept in sync.** Whenever a policy doc is updated in either place, update the other immediately. The repo is the source of truth for structure and AI-facing content; Notion is the source of truth for human readability and team review.
-
-**This is a hard requirement every time a policy doc is created or updated:**
-1. Add/update the `.md` file in `policies/`
-2. Add/update the corresponding page in the **Support Policy Docs** Notion page (ID: `356cffdf-527f-808d-a4fc-f7d05499523f`)
-
-Never consider a policy doc task complete until both locations are updated.
+**The `policies/` directory in this git repo is the single source of truth for policy docs.** The old two-way Notion sync (Support Policy Docs page) was abandoned on 2026-07-14 — do NOT sync policy docs to Notion, and do not treat Notion as a policy source. The team reads policies via GitHub; the sidebar chat's Confirm flow commits policy updates directly to the repo. The Notion-sync CLIs (`pull_policy_docs.py`, `scripts/sync_new_policy_docs.py`, `process_answered_gaps.py`) are vestigial.
 
 ## Creating Policy Documents
 
@@ -126,7 +120,7 @@ When asked to create a new policy document, follow these steps in order:
    - `# Confidence Notes` — high confidence areas, judgment call areas, gaps
    - `# Saved Reply Mapping` — a table (or set of tables by platform/condition) mapping user state + use case → specific saved reply title. Every row must reference an exact saved reply name from `data/saved_replies.json`.
    - `# Related Policies` — cross-references to other policy docs
-5. **Sync to Notion** — follow the Notion Sync requirement: add the corresponding page under the **Support Policy Docs** Notion page (ID: `356cffdf-527f-808d-a4fc-f7d05499523f`).
+5. **Commit it** — the git repo is the single source of truth; no Notion step.
 
 Never create a policy doc without a Saved Reply Mapping section. If no saved replies exist yet for the area, note that and flag it as a gap.
 
@@ -164,9 +158,11 @@ GITHUB_TOKEN                  # fine-grained PAT (contents:write, this repo only
 GITHUB_REPO                   # default: cassidystagnitti/SupportAgent
 GITHUB_BRANCH                 # default: main
 
-# Maven / Happier API
-MAVEN_API_BASE_URL
-MAVEN_API_KEY                 # or equivalent auth
+# Happier backend ("Maven" API — account/subscription lookup; account_context.py)
+HAPPIER_BEARER_TOKEN          # REQUIRED for account lookup (fallback name: ACCOUNT_CONTEXT_BEARER_TOKEN).
+                              # Without it, lookup fails soft: drafts still generate but with
+                              # "Account lookup failed" context and no Stripe enrichment.
+HAPPIER_MAVEN_BASE_URL        # optional — defaults to https://my.happierapp.com/api/maven/v1
 
 # Stripe (optional enrichment)
 STRIPE_READ_API_KEY           # read-only restricted key

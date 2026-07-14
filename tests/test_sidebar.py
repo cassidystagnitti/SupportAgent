@@ -104,7 +104,7 @@ def test_confirm_policy_happy_path(client):
     sess = sidebar_chat.STORE.peek("555")
     sess["proposals"]["p1"] = {"id": "p1", "policy_file": "refunds.md", "status": "pending"}
     with patch("sidebar_server.policy_updater.confirm_proposal",
-               return_value={"commit_sha": "abcdef1234", "notion_warning": None}) as c:
+               return_value={"commit_sha": "abcdef1234"}) as c:
         resp = client.post("/chat/confirm-policy", json={
             "conversation_id": "555", "proposal_id": "p1", "secret": "testsecret",
         })
@@ -113,20 +113,6 @@ def test_confirm_policy_happy_path(client):
     c.assert_called_once()
     events = [m for m in sidebar_chat.STORE.ui_messages_after("555", 0) if m["kind"] == "event"]
     assert any("abcdef1" in m["text"] for m in events)
-
-
-def test_confirm_policy_notion_warning_surfaces(client):
-    sidebar_chat.STORE.get_or_create("555")
-    sess = sidebar_chat.STORE.peek("555")
-    sess["proposals"]["p1"] = {"id": "p1", "policy_file": "refunds.md", "status": "pending"}
-    with patch("sidebar_server.policy_updater.confirm_proposal",
-               return_value={"commit_sha": "abc", "notion_warning": "Notion sync failed"}):
-        resp = client.post("/chat/confirm-policy", json={
-            "conversation_id": "555", "proposal_id": "p1", "secret": "testsecret",
-        })
-    assert resp.status_code == 200
-    errors = [m for m in sidebar_chat.STORE.ui_messages_after("555", 0) if m["kind"] == "error"]
-    assert any("Notion" in m["text"] for m in errors)
 
 
 def test_confirm_policy_failure_returns_502_and_keeps_pending(client):
@@ -307,3 +293,12 @@ def test_sidebar_post_form_context(client):
 def test_sidebar_post_rejects_missing_cid(client):
     resp = client.post("/sidebar", data={})
     assert resp.status_code == 400
+
+
+def test_root_aliases_serve_sidebar(client):
+    resp = client.get("/", params={"id": "123"})
+    assert resp.status_code == 200
+    assert "GET_APP_CONTEXT" in resp.text
+    resp = client.post("/", data={"conversation[id]": "456", "customer[email]": "c@d.com"})
+    assert resp.status_code == 200
+    assert '"456"' in resp.text
