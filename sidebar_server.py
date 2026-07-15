@@ -46,7 +46,26 @@ log = logging.getLogger("helpscout_sidebar")
 
 SIDEBAR_SECRET = os.getenv("SIDEBAR_SECRET", "")
 
-app = FastAPI(title="Help Scout sidebar app")
+# Mount the Bert MCP server onto this same service so `/mcp` is served on the
+# existing supportagent host (no separate Render service). Fully guarded: if the
+# MCP SDK is missing (e.g. Python < 3.10 on the dev box) or the wiring fails, the
+# sidebar keeps serving normally and `/mcp` simply 404s.
+try:
+    import mcp_server  # noqa: E402
+    _mcp_lifespan = mcp_server.session_lifespan
+    log.info("Bert MCP server available — mounting at /mcp")
+except Exception as e:  # pragma: no cover - depends on runtime Python / deps
+    mcp_server = None
+    _mcp_lifespan = None
+    log.warning("Bert MCP server unavailable, /mcp disabled: %s", e)
+
+app = FastAPI(title="Help Scout sidebar app", lifespan=_mcp_lifespan)
+
+if mcp_server is not None:
+    try:
+        mcp_server.mount_into(app, "/mcp")
+    except Exception as e:  # pragma: no cover
+        log.warning("Failed to mount Bert MCP server at /mcp: %s", e)
 
 
 def _check_secret(supplied: str) -> None:
