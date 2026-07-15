@@ -37,7 +37,7 @@
   #btn-send-yes { background: #2e7d32; color: #fff; flex: 1; }
   #btn-send-no  { background: #e0e0e0; color: #333; }
   #chat {
-    height: 230px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+    height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
     padding: 4px 0;
   }
   .msg { max-width: 92%; padding: 7px 10px; border-radius: 10px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
@@ -62,11 +62,12 @@
   .proposal .final { font-weight: 600; }
   .proposal .final.confirmed { color: #2e7d32; }
   .proposal .final.dismissed { color: #999; }
-  #input-row { display: flex; gap: 6px; }
+  #input-row { display: flex; gap: 6px; align-items: flex-end; }
   #input-row textarea {
-    flex: 1; resize: none; height: 42px; padding: 6px 8px; font: inherit;
-    border: 1px solid #ccc; border-radius: 6px;
+    flex: 1; resize: none; height: 42px; max-height: 140px; padding: 6px 8px; font: inherit;
+    border: 1px solid #ccc; border-radius: 6px; overflow-y: auto;
   }
+  #btn-chat { height: 42px; }
   #btn-chat {
     padding: 0 14px; border: none; border-radius: 6px; cursor: pointer;
     background: #1f73b7; color: #fff; font-size: 12px; font-weight: 500;
@@ -143,11 +144,41 @@ function ready(cid, email) {
   document.getElementById('loading').style.display = 'none';
   var ui = document.getElementById('ui');
   ui.style.display = 'flex';
-  document.getElementById('input').addEventListener('keydown', function(e) {
+  var input = document.getElementById('input');
+  input.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
+  input.addEventListener('input', function() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight + 2, 140) + 'px';
+  });
+  watchAppHeight();
   fetchDraftState();
   schedulePoll(0);
+}
+
+// Ask Help Scout to size the app card to our content (SDK setAppHeight protocol:
+// same postMessage envelope as GET_APP_CONTEXT, type SET_APP_HEIGHT).
+function sendAppHeight() {
+  var h = Math.ceil(document.body.scrollHeight) + 2;
+  try {
+    window.parent.postMessage(
+      {
+        type: 'SET_APP_HEIGHT',
+        value: h,
+        appId: (window.name || '').replace(/app-side-panel-|app-/, ''),
+        iframeId: window.name || ''
+      },
+      document.referrer || '*'
+    );
+  } catch (e) { /* not inside Help Scout — standalone testing */ }
+}
+
+function watchAppHeight() {
+  if (window.ResizeObserver) {
+    new ResizeObserver(function() { sendAppHeight(); }).observe(document.body);
+  }
+  sendAppHeight();
 }
 
 async function fetchDraftState() {
@@ -183,6 +214,7 @@ async function sendMessage() {
     if (resp.status === 409) { setBusy(true); schedulePoll(800); return; }
     if (!resp.ok) { addChip('Send failed: HTTP ' + resp.status, true); setBusy(false); return; }
     input.value = '';
+    input.style.height = '';
     schedulePoll(400);
   } catch (e) {
     addChip('Network error: ' + e.message, true);
