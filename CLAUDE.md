@@ -14,6 +14,8 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `sidebar_server.py` | Live | FastAPI app for the HS sidebar: serves the chat UI, chat endpoints, policy confirm, send-and-close |
 | `sidebar_chat.py` | Live | Per-ticket chat sessions with Bert: hydration via bert/pipeline, Anthropic tool loop (update_draft, propose_policy_update) |
 | `policy_updater.py` | Live | Confirmed policy updates: live apply + GitHub commit (`[skip render]`); git is the single source of truth |
+| `mcp_server.py` | Live | Bert MCP server (FastMCP, streamable HTTP): exposes the morning-review pipeline as MCP tools for the `support` marketplace plugin; Bearer-token auth (`SUPPORT_MCP_TOKEN`). Deployed on Render alongside the sidebar. Requires Python ≥3.10. |
+| `bert/mcp_tools.py` | Live | Adapter behind `mcp_server.py`: thin wrappers over `bert.summarize`/`pipeline`/`fanout`, `research_agent`, `policy_updater`; keeps heavy draft results in an ephemeral server-side run store, returns compact views. No MCP import (unit-testable on any Python). |
 | `static/sidebar.html` | Live | Sidebar chat frontend (vanilla JS; postMessage context handshake) |
 | `triage_tickets.py` | Live | Tags, team, priority, tier classification via Claude |
 | `account_context.py` | Built, not connected | Fetches customer/account data from Happier Maven API |
@@ -48,11 +50,17 @@ The saved-reply embedding tools (`pull_saved_replies.py`, `build_saved_reply_emb
 
 ## Interfaces
 
-There are exactly two ways tickets get worked:
+There are three ways tickets get worked:
 
-1. **Bert via Claude Chat** (local) — the bert-morning-review skill family: summarize the
-   mailbox, batch-draft with the standing brief, review, post drafts.
-2. **Help Scout sidebar chat** (Render) — `sidebar_server.py` + `sidebar_chat.py`. An agent
+1. **Bert via Claude Chat** (local) — the bert-morning-review skill family in `.claude/skills/`:
+   summarize the mailbox, batch-draft with the standing brief, review, post drafts. Runs the
+   pipeline directly against this repo (Cassidy's local dev loop).
+2. **`support` marketplace plugin → Bert MCP server** (the shareable morning review) —
+   teammates install `support@happier` from `TenPercentHappier/claude-marketplace`, and its
+   `support-review` / `support-resolve` skills drive `mcp_server.py` (deployed on Render) over
+   MCP. Same conversational loop as #1, but no local secrets/Python — the server holds them.
+   The standing brief lives in the coworker's Claude session and is passed into `draft_all`.
+3. **Help Scout sidebar chat** (Render) — `sidebar_server.py` + `sidebar_chat.py`. An agent
    opens a conversation, chats with Bert (context rehydrated on demand via
    `bert/pipeline.hydrate_ticket`), Bert updates the HS draft in place via tool calls,
    proposes policy-doc updates as diff cards (Confirm → live apply + GitHub commit with
@@ -157,6 +165,12 @@ HELPSCOUT_AGENT_USER_ID       # HS user id for chat-created drafts + send attrib
 GITHUB_TOKEN                  # fine-grained PAT (contents:write, this repo only) for policy commits
 GITHUB_REPO                   # default: cassidystagnitti/SupportAgent
 GITHUB_BRANCH                 # default: main
+
+# Bert MCP server (mcp_server.py — the `support` marketplace plugin's backend)
+SUPPORT_MCP_TOKEN             # shared bearer token that gates every MCP tool call. Self-issued
+                              # (openssl rand -hex 32); set here AND in each teammate's env. Without
+                              # it the server fails closed (500). Same pattern as SIDEBAR_SECRET.
+BERT_DRAFT_MODEL              # optional — draft model for the MCP draft tools (default: claude-sonnet-5)
 
 # Happier backend ("Maven" API — account/subscription lookup; account_context.py)
 HAPPIER_BEARER_TOKEN          # REQUIRED for account lookup (fallback name: ACCOUNT_CONTEXT_BEARER_TOKEN).

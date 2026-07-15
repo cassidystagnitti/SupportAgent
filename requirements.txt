@@ -8,3 +8,4 @@ openai
 numpy
 stripe>=10.0.0
 markdown
+mcp>=1.2.0
