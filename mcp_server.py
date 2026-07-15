@@ -17,6 +17,7 @@ See docs/superpowers/specs/2026-07-15-support-plugin-mcp-design.md.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import hmac
 import logging
@@ -30,6 +31,7 @@ _ROOT_DIR = os.path.dirname(_SUPPORT_DIR)
 load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
 load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
+from fastapi import FastAPI  # noqa: E402
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 from starlette.responses import JSONResponse, PlainTextResponse  # noqa: E402
@@ -156,8 +158,47 @@ class _BearerAuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-app = mcp.streamable_http_app()
-app.add_middleware(_BearerAuthMiddleware)
+# Serve the MCP endpoint at the sub-app root so it lands at exactly `/mcp`
+# once mounted at that prefix (rather than the default `/mcp/mcp`).
+mcp.settings.streamable_http_path = "/"
+
+# The MCP ASGI sub-app, gated by the bearer-token middleware. Both deployment
+# modes reuse this same instance:
+#   1. mounted into sidebar_server.app at /mcp (the live supportagent host), and
+#   2. served standalone via `uvicorn mcp_server:app`.
+mcp_asgi = mcp.streamable_http_app()
+mcp_asgi.add_middleware(_BearerAuthMiddleware)
+
+
+@contextlib.asynccontextmanager
+async def session_lifespan(_app):
+    """Run the MCP streamable-HTTP session manager for the host app's lifetime.
+
+    A mounted sub-app's lifespan does NOT run automatically, so whichever
+    FastAPI/Starlette app hosts `mcp_asgi` must install this as its lifespan.
+    """
+    async with mcp.session_manager.run():
+        yield
+
+
+def mount_into(host_app, path: str = "/mcp") -> None:
+    """Mount the MCP endpoint onto an existing app at `path` (e.g. /mcp).
+
+    The host app must also use `session_lifespan` as (part of) its lifespan.
+    """
+    host_app.mount(path, mcp_asgi)
+
+
+# Standalone app (for `uvicorn mcp_server:app`), equivalent to the mounted form.
+app = FastAPI(title="Bert MCP server", lifespan=session_lifespan)
+
+
+@app.get("/health")
+async def _health():
+    return {"status": "ok"}
+
+
+mount_into(app)
 
 
 if __name__ == "__main__":
