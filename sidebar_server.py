@@ -189,6 +189,30 @@ def _normalize_html(s: str) -> str:
     return re.sub(r"<[^>]+>|\s+|&nbsp;", "", s or "")
 
 
+def _hs_error_detail(resp) -> str:
+    """Best-effort human-readable reason from a Help Scout error response.
+
+    HS error bodies look like
+      {"message": "...", "_embedded": {"errors": [{"path": "...", "message": "..."}]}}.
+    Falls back to the raw (truncated) body, then the bare status code.
+    """
+    try:
+        data = resp.json()
+    except Exception:
+        return (getattr(resp, "text", "") or "").strip()[:300] or f"HTTP {resp.status_code}"
+    msg = (data.get("message") or "").strip()
+    field_errs = [
+        "; ".join(str(e.get(k)) for k in ("path", "message") if e.get(k))
+        for e in ((data.get("_embedded") or {}).get("errors") or [])
+    ]
+    field_errs = [p for p in field_errs if p]
+    if msg and field_errs:
+        detail = f"{msg} ({'; '.join(field_errs)})"
+    else:
+        detail = msg or "; ".join(field_errs)
+    return (detail or f"HTTP {resp.status_code}").strip()[:400]
+
+
 @app.post("/chat/send")
 async def chat_send(request: Request):
     body = await _json_body(request)
@@ -223,7 +247,19 @@ async def chat_send(request: Request):
             f"{orchestrator.BASE_URL}/conversations/{cid}/threads/{thread_id}/schedule",
             json={"op": "replace", "path": "/state", "value": "published"},
         )
-        r_pub.raise_for_status()
+        if not r_pub.ok:
+            reason = _hs_error_detail(r_pub)
+            # Surface the real Help Scout reason instead of an opaque 500, and log
+            # the full response body so the underlying cause is diagnosable. The
+            # conversation stays open — nothing was sent.
+            log.error(
+                "publish failed for cid=%s thread=%s: HTTP %s — %s",
+                cid, thread_id, r_pub.status_code, (getattr(r_pub, "text", "") or "")[:1000],
+            )
+            raise HTTPException(
+                status_code=502,
+                detail=f"Help Scout rejected the send (HTTP {r_pub.status_code}): {reason}",
+            )
         sent = True
 
     try:

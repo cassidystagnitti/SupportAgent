@@ -247,6 +247,28 @@ def test_send_close_failure_reports_partial(client):
     assert "error" in data
 
 
+def test_send_publish_failure_surfaces_hs_error_not_500(client):
+    """A rejected publish must surface Help Scout's reason as a clean 502,
+    never an opaque 500, and must NOT close the conversation."""
+    hs, p1, p2 = _send_setup()
+    publish_fail = MagicMock(status_code=400, ok=False)
+    publish_fail.json.return_value = {
+        "message": "The thread is not in a publishable state",
+        "_embedded": {"errors": [{"path": "/state", "message": "invalid transition"}]},
+    }
+    publish_fail.text = '{"message": "The thread is not in a publishable state"}'
+    hs.patch.return_value = publish_fail
+    with p1, p2 as bp, patch("sidebar_server.sidebar_chat._thread_body", return_value="<p>d</p>"):
+        bp.find_draft_threads.return_value = [900]
+        bp.conversation_status.return_value = "active"
+        resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
+    assert resp.status_code == 502
+    assert "publishable" in resp.json()["detail"].lower()
+    # publish attempted once; close must NOT run when the send failed
+    assert hs.patch.call_count == 1
+    assert hs.patch.call_args_list[0][0][0].endswith("/threads/900/schedule")
+
+
 def test_send_close_only_retry(client):
     hs, p1, p2 = _send_setup()
     with p1, p2 as bp:
