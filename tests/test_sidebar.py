@@ -171,7 +171,8 @@ def test_health(client):
 def _send_setup(sess_draft="<p>d</p>"):
     """Common context for /chat/send tests: mocked HS session + chat session."""
     hs = MagicMock()
-    hs.patch.return_value = MagicMock(status_code=204, raise_for_status=MagicMock())
+    hs.patch.return_value = MagicMock(status_code=204, ok=True, raise_for_status=MagicMock())
+    hs.put.return_value = MagicMock(status_code=204, ok=True, raise_for_status=MagicMock())
     sess = sidebar_chat.STORE.get_or_create("555")
     sess["draft_text"] = sess_draft
     p1 = patch("sidebar_server.sidebar_chat._hs_session", return_value=hs)
@@ -188,6 +189,12 @@ def test_send_happy_path_publishes_then_closes(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data == {"ok": True, "sent": True, "closed": True}
+    # Send is a two-step schedule dance: PUT a schedule, then PATCH publish.
+    assert hs.put.call_count == 1
+    put_url = hs.put.call_args_list[0][0][0]
+    put_body = hs.put.call_args_list[0][1]["json"]
+    assert put_url.endswith("/conversations/555/threads/900/schedule")
+    assert put_body["scheduledFor"] and put_body["sendAsCreator"] is True
     urls = [c[0][0] for c in hs.patch.call_args_list]
     assert urls[0].endswith("/conversations/555/threads/900/schedule")
     assert urls[1].endswith("/conversations/555")
@@ -249,7 +256,7 @@ def test_send_close_failure_reports_partial(client):
 
 def test_send_publish_failure_surfaces_hs_error_not_500(client):
     """A rejected publish must surface Help Scout's reason as a clean 502,
-    never an opaque 500, and must NOT close the conversation."""
+    never an opaque 500, must cancel the schedule, and must NOT close."""
     hs, p1, p2 = _send_setup()
     publish_fail = MagicMock(status_code=400, ok=False)
     publish_fail.json.return_value = {
@@ -264,9 +271,30 @@ def test_send_publish_failure_surfaces_hs_error_not_500(client):
         resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
     assert resp.status_code == 502
     assert "publishable" in resp.json()["detail"].lower()
-    # publish attempted once; close must NOT run when the send failed
+    # schedule created, publish attempted once, schedule cancelled, close skipped
+    assert hs.put.call_count == 1
     assert hs.patch.call_count == 1
     assert hs.patch.call_args_list[0][0][0].endswith("/threads/900/schedule")
+    assert hs.delete.call_count == 1
+    assert hs.delete.call_args_list[0][0][0].endswith("/threads/900/schedule")
+
+
+def test_send_schedule_failure_surfaces_hs_error_not_500(client):
+    """If the scheduling PUT is rejected, surface it as a 502 and never attempt
+    to publish or close."""
+    hs, p1, p2 = _send_setup()
+    sched_fail = MagicMock(status_code=400, ok=False)
+    sched_fail.json.return_value = {"message": "scheduledFor must be in the future"}
+    sched_fail.text = '{"message": "scheduledFor must be in the future"}'
+    hs.put.return_value = sched_fail
+    with p1, p2 as bp, patch("sidebar_server.sidebar_chat._thread_body", return_value="<p>d</p>"):
+        bp.find_draft_threads.return_value = [900]
+        bp.conversation_status.return_value = "active"
+        resp = client.post("/chat/send", json={"conversation_id": "555", "secret": "testsecret"})
+    assert resp.status_code == 502
+    assert "future" in resp.json()["detail"].lower()
+    assert hs.put.call_count == 1
+    assert hs.patch.call_count == 0  # publish + close never attempted
 
 
 def test_send_close_only_retry(client):
