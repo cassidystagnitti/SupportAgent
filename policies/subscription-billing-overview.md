@@ -128,3 +128,7 @@ This doc is reference material, not a ticket-resolution policy. Action classific
 - *Monthly Discount Requests*
 - *Renewal Discount Requests*
 - *Need-Based Complimentary Subscriptions*
+
+### Weekly newsletter / blog
+
+The weekly newsletter (sometimes referred to as "the blog") is **free content available to anyone on our website** — it is not gated behind a subscription and is not a subscriber perk. If a customer asks whether their subscription includes the weekly newsletter/blog, clarify that it's free to everyone regardless of subscription status.
