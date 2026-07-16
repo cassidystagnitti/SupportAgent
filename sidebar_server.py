@@ -20,6 +20,7 @@ Environment:
   (all other pipeline env vars apply as documented in CLAUDE.md)
 """
 
+import datetime
 import hmac
 import json
 import logging
@@ -243,19 +244,58 @@ async def chat_send(request: Request):
                     detail="draft was edited outside this chat — review it, then Send anyway",
                 )
 
+        # Help Scout has no "publish this draft" endpoint. Sending a draft is a
+        # two-step dance on its schedule sub-resource: first PUT a schedule
+        # (scheduledFor is a required future timestamp), then PATCH it to
+        # `published`, which sends immediately and overrides the scheduled time.
+        # Publishing a draft that has no schedule yet 404s — that was the send
+        # 500. The existing draft thread becomes the sent reply (no duplicate).
+        schedule_url = (
+            f"{orchestrator.BASE_URL}/conversations/{cid}/threads/{thread_id}/schedule"
+        )
+        scheduled_for = (
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=5)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        r_sched = hs.put(
+            schedule_url,
+            json={
+                "scheduledFor": scheduled_for,
+                "unscheduleOnCustomerReply": False,
+                "sendAsCreator": True,
+            },
+        )
+        if not r_sched.ok:
+            reason = _hs_error_detail(r_sched)
+            log.error(
+                "schedule (PUT) failed for cid=%s thread=%s: HTTP %s — %s",
+                cid, thread_id, r_sched.status_code, (getattr(r_sched, "text", "") or "")[:1000],
+            )
+            raise HTTPException(
+                status_code=502,
+                detail=f"Help Scout rejected the send (scheduling step, HTTP {r_sched.status_code}): {reason}",
+            )
+
         r_pub = hs.patch(
-            f"{orchestrator.BASE_URL}/conversations/{cid}/threads/{thread_id}/schedule",
+            schedule_url,
             json={"op": "replace", "path": "/state", "value": "published"},
         )
         if not r_pub.ok:
             reason = _hs_error_detail(r_pub)
             # Surface the real Help Scout reason instead of an opaque 500, and log
-            # the full response body so the underlying cause is diagnosable. The
-            # conversation stays open — nothing was sent.
+            # the full response body so the underlying cause is diagnosable. Cancel
+            # the schedule we just created so the message doesn't auto-send later;
+            # the conversation stays open — nothing was sent.
             log.error(
                 "publish failed for cid=%s thread=%s: HTTP %s — %s",
                 cid, thread_id, r_pub.status_code, (getattr(r_pub, "text", "") or "")[:1000],
             )
+            try:
+                hs.delete(schedule_url)
+            except Exception:
+                log.exception(
+                    "failed to cancel schedule after publish failure cid=%s thread=%s",
+                    cid, thread_id,
+                )
             raise HTTPException(
                 status_code=502,
                 detail=f"Help Scout rejected the send (HTTP {r_pub.status_code}): {reason}",
