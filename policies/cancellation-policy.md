@@ -33,7 +33,7 @@ If account data shows auto-renew is already disabled: reply-only confirming they
 
 **Stripe**
 - Support turns off auto-renew directly in the admin. Self-service cancellation in the app is also available — offer this as an alternative if helpful.
-- If the customer is set to renew at **full price** (no active discount): offer a 40% retention discount before canceling. If they decline, process the cancellation.
+- If the customer is set to renew at **full price** (no active discount): process the cancellation as requested, and include a 40% retention discount offer in the same reply in case they'd like to stay instead. Do not gate the cancellation on their response to the offer — always do what the customer asked.
 - If the customer has an **active discount**: cancel without a retention offer.
 - Always confirm the cancellation and include the expiration date in the reply.
 
