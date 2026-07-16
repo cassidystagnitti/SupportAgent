@@ -48,7 +48,7 @@ If account data shows auto-renew is already disabled: reply-only confirming they
 ## Variations
 
 - **Auto-renew already off:** Confirm they're set + expiration date. No action needed. True for all platforms.
-- **Stripe, full price:** Lead with retention offer. If declined or not desired, cancel.
+- **Stripe, full price:** Process the cancellation and include the 40% retention offer in the same reply, in case they'd like to stay instead.
 - **Stripe, discounted:** Cancel directly, no retention offer.
 - **Apple:** Redirect only. No direct action available to support.
 - **Google Play:** Cancel directly or redirect to self-service.
