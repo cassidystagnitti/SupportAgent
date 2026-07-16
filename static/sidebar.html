@@ -25,17 +25,17 @@
     background: #2e7d32; color: #fff; font-size: 12px; font-weight: 600;
   }
   #btn-send:disabled { opacity: 0.5; cursor: default; }
-  #send-confirm {
-    display: none; flex-direction: column; gap: 8px;
+  #send-undo {
+    display: none; align-items: center; gap: 8px;
     border: 2px solid #2e7d32; border-radius: 6px; background: #f0faf0;
-    padding: 10px; font-size: 12px; line-height: 1.5;
+    padding: 8px 10px; font-size: 12px; line-height: 1.4;
   }
-  #send-confirm .warn { color: #1e5c22; }
-  #send-confirm .warn b { word-break: break-all; }
-  #send-confirm .row { display: flex; gap: 6px; }
-  #send-confirm button { padding: 7px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
-  #btn-send-yes { background: #2e7d32; color: #fff; flex: 1; }
-  #btn-send-no  { background: #e0e0e0; color: #333; }
+  #send-undo .warn { flex: 1; color: #1e5c22; }
+  #send-undo .warn b { word-break: break-all; }
+  #btn-undo {
+    padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;
+    background: #2e7d32; color: #fff; font-size: 12px; font-weight: 600;
+  }
   #chat {
     height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
     padding: 4px 0;
@@ -87,14 +87,11 @@
 <div id="ui" style="display:none; flex-direction:column; gap:6px;">
   <div id="draft-card">
     <span id="draft-label">Checking for a draft…</span>
-    <button id="btn-send" onclick="askSend()" style="display:none">&#9993; Send to customer&hellip;</button>
+    <button id="btn-send" onclick="startSend()" style="display:none">&#9993; Send to customer</button>
   </div>
-  <div id="send-confirm">
-    <span class="warn">&#9993; This will <b>email the draft reply to <span id="send-recipient">the customer</span></b> and close the conversation. Chat messages never reach the customer — this button does.</span>
-    <div class="row">
-      <button id="btn-send-yes" onclick="doSend(false)">Email customer &amp; close</button>
-      <button id="btn-send-no" onclick="hideSendConfirm()">Cancel</button>
-    </div>
+  <div id="send-undo">
+    <span class="warn">&#9993; Emailing <b id="send-recipient">the customer</b> &amp; closing in <b id="send-count">3</b>s…</span>
+    <button id="btn-undo" onclick="cancelSend()">Undo</button>
   </div>
   <div id="chat"></div>
   <div id="input-row">
@@ -110,6 +107,9 @@ var lastSeq = 0;
 var busy = false;
 var pollTimer = null;
 var draftExists = false;
+var SEND_DELAY_MS = 3000;
+var sendTimer = null;
+var sendCountdown = null;
 
 if (CID) {
   ready(CID, EMAIL);
@@ -181,6 +181,23 @@ function watchAppHeight() {
   sendAppHeight();
 }
 
+// Fire a NATIVE Help Scout toast — same postMessage envelope the HS JS SDK's
+// showNotification() uses (SHOW_NOTIFICATION). type is one of
+// SUCCESS / MESSAGE / WARNING / ERROR.
+function hsNotify(type, message) {
+  try {
+    window.parent.postMessage(
+      {
+        type: 'SHOW_NOTIFICATION',
+        value: { type: type, message: message, options: { id: 'bert-' + Date.now() } },
+        appId: (window.name || '').replace(/app-side-panel-|app-/, ''),
+        iframeId: window.name || ''
+      },
+      document.referrer || '*'
+    );
+  } catch (e) { /* not inside Help Scout — standalone testing */ }
+}
+
 async function fetchDraftState() {
   try {
     var resp = await fetch('/chat/draft-state/' + encodeURIComponent(CID) +
@@ -245,8 +262,8 @@ function updateDraftCard(draft) {
   draftExists = !!draft.exists;
   document.getElementById('draft-label').textContent =
     draftExists ? 'Draft ready' : 'No draft yet';
-  var confirming = document.getElementById('send-confirm').style.display === 'flex';
-  if (!confirming) {
+  var counting = document.getElementById('send-undo').style.display === 'flex';
+  if (!counting) {
     document.getElementById('btn-send').style.display = draftExists ? '' : 'none';
   }
 }
@@ -338,19 +355,36 @@ function addChip(text, isError) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-function askSend() {
+function startSend() {
+  if (!draftExists || sendTimer) return;
   document.getElementById('send-recipient').textContent = EMAIL || 'the customer';
   document.getElementById('btn-send').style.display = 'none';
-  document.getElementById('send-confirm').style.display = 'flex';
+  var countEl = document.getElementById('send-count');
+  var remaining = Math.ceil(SEND_DELAY_MS / 1000);
+  countEl.textContent = remaining;
+  document.getElementById('send-undo').style.display = 'flex';
+  sendCountdown = setInterval(function() {
+    remaining -= 1;
+    if (remaining > 0) countEl.textContent = remaining;
+  }, 1000);
+  // Hold the API call until the countdown elapses. Undo before then aborts —
+  // nothing is sent, because the request never fired.
+  sendTimer = setTimeout(function() {
+    clearInterval(sendCountdown); sendCountdown = null; sendTimer = null;
+    document.getElementById('send-undo').style.display = 'none';
+    doSend(false);
+  }, SEND_DELAY_MS);
 }
 
-function hideSendConfirm() {
-  document.getElementById('send-confirm').style.display = 'none';
+function cancelSend() {
+  if (sendTimer) { clearTimeout(sendTimer); sendTimer = null; }
+  if (sendCountdown) { clearInterval(sendCountdown); sendCountdown = null; }
+  document.getElementById('send-undo').style.display = 'none';
   document.getElementById('btn-send').style.display = draftExists ? '' : 'none';
+  addChip('Send canceled — nothing was sent.', false);
 }
 
 async function doSend(force) {
-  hideSendConfirm();
   var btn = document.getElementById('btn-send');
   btn.disabled = true;
   try {
@@ -367,11 +401,14 @@ async function doSend(force) {
     } else if (!resp.ok) {
       addChip('Send failed: ' + (data.detail || ('HTTP ' + resp.status)), true);
     } else if (data.ok === false && data.sent) {
+      hsNotify('SUCCESS', 'Reply sent');
       addChip('Reply sent, but closing failed — retrying close…', true);
       await fetch('/chat/send', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conversation_id: CID, secret: SECRET, close_only: true })
       });
+    } else if (data.ok) {
+      hsNotify('SUCCESS', 'Reply sent');
     }
   } catch (e) {
     addChip('Network error: ' + e.message, true);
