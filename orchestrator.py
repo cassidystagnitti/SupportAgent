@@ -74,7 +74,15 @@ def needs_action_retry(parsed: dict) -> bool:
 
 
 def should_post_note(is_escalation: bool, parsed: dict) -> bool:
-    """Internal note posts for escalations and for any ticket needing manual action."""
+    """Post an internal "Actions needed" note only when the drafted reply is BLOCKED on a
+    human action (needs_action) or is an escalation.
+
+    needs_action is the send-precondition flag (see prompts/draft_system_prompt.txt): it is
+    true only when a human must complete an action to make THIS draft true before it can be
+    sent. A self-contained reply a reviewer would simply send — even one whose conversation
+    will need follow-up work on a later turn — is needs_action=false and gets no note, so it
+    stays a clean auto-send candidate as we move toward automation.
+    """
     return bool(is_escalation or parsed.get("needs_action"))
 
 
@@ -972,7 +980,17 @@ def process_ticket_sync(
         out["escalated"] = is_escalation
         out["escalate_reason"] = parsed.get("escalate_reason")
         out["needs_action"] = True if (is_escalation or out["multiple_subscribed"]) else bool(parsed.get("needs_action"))
-        out["auto_sendable"] = False if (is_escalation or out["multiple_subscribed"]) else bool(parsed.get("auto_sendable"))
+        # A draft can only be auto-sent when it is true and complete exactly as written. If a
+        # human must complete an action first to make it true (needs_action) — or this is an
+        # escalation / ambiguous-account case — the draft is NOT auto-sendable, regardless of
+        # what the model returned. Auto-send is reserved for self-contained, sendable-as-is
+        # replies; anything blocked on a human action gets the "Actions needed" note instead.
+        # See "THE SEND-PRECONDITION TEST" in prompts/draft_system_prompt.txt.
+        out["auto_sendable"] = (
+            False
+            if (is_escalation or out["multiple_subscribed"] or out["needs_action"])
+            else bool(parsed.get("auto_sendable"))
+        )
         out["confidence"] = parsed.get("confidence")
         out["referenced_policies"] = parsed.get("referenced_policies") or []
         out["do_not_send_reasons"] = parsed.get("do_not_send_reasons") or []
