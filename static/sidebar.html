@@ -25,17 +25,38 @@
     background: #2e7d32; color: #fff; font-size: 12px; font-weight: 600;
   }
   #btn-send:disabled { opacity: 0.5; cursor: default; }
+  /* Sent-confirmation state reuses the draft card so the result lands in the
+     same spot the Send button was. */
+  #draft-card.sent { border-color: #2e7d32; background: #f0faf0; }
+  #draft-card.sent #draft-label { color: #1e5c22; font-weight: 600; }
   #send-undo {
-    display: none; align-items: center; gap: 8px;
-    border: 2px solid #2e7d32; border-radius: 6px; background: #f0faf0;
-    padding: 8px 10px; font-size: 12px; line-height: 1.4;
+    display: none; flex-direction: column; gap: 9px;
+    border: 2px solid #2e7d32; border-radius: 8px; background: #f0faf0;
+    padding: 10px 12px; font-size: 12px; line-height: 1.4;
   }
-  #send-undo .warn { flex: 1; color: #1e5c22; }
-  #send-undo .warn b { word-break: break-all; }
+  #send-undo .su-head { display: flex; align-items: baseline; gap: 8px; }
+  #send-undo .su-msg { flex: 1; color: #1e5c22; }
+  #send-undo .su-msg b { word-break: break-all; }
+  #send-undo .su-count {
+    flex: none; font-variant-numeric: tabular-nums; font-weight: 700;
+    color: #1e5c22; font-size: 13px;
+  }
+  #su-track { height: 4px; border-radius: 2px; background: #cfe8cf; overflow: hidden; }
+  #su-bar { height: 100%; width: 100%; background: #2e7d32; border-radius: 2px; }
+  #send-undo .su-actions { display: flex; gap: 8px; }
+  /* "Send now" is the primary action and sits on the right, where the original
+     Send button was — click, then click again to fire immediately. */
   #btn-undo {
-    padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer;
-    background: #2e7d32; color: #fff; font-size: 12px; font-weight: 600;
+    flex: 1; padding: 9px 12px; border: 1px solid #bcd8bc; border-radius: 6px;
+    cursor: pointer; background: #fff; color: #1e5c22; font-size: 12px; font-weight: 600;
   }
+  #btn-undo:hover { background: #eef7ee; }
+  #btn-send-now {
+    flex: 2; padding: 9px 12px; border: 1px solid #1e5c22; border-radius: 6px;
+    cursor: pointer; background: #2e7d32; color: #fff; font-size: 12px; font-weight: 700;
+  }
+  #btn-send-now:hover { background: #276b2b; }
+  #btn-undo:disabled, #btn-send-now:disabled { opacity: 0.6; cursor: default; }
   #chat {
     height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
     padding: 4px 0;
@@ -121,8 +142,15 @@
     <button id="btn-send" onclick="startSend()" style="display:none">&#9993; Send to customer</button>
   </div>
   <div id="send-undo">
-    <span class="warn">&#9993; Emailing <b id="send-recipient">the customer</b> &amp; closing in <b id="send-count">3</b>s…</span>
-    <button id="btn-undo" onclick="cancelSend()">Undo</button>
+    <div class="su-head">
+      <span class="su-msg">&#9993; Emailing <b id="send-recipient">the customer</b> &amp; closing…</span>
+      <span class="su-count"><b id="send-count">3</b>s</span>
+    </div>
+    <div id="su-track"><div id="su-bar"></div></div>
+    <div class="su-actions">
+      <button id="btn-undo" onclick="cancelSend()">&#8630; Undo</button>
+      <button id="btn-send-now" onclick="sendNow()">&#9993; Send now</button>
+    </div>
   </div>
   <div id="chat"></div>
   <div id="input-row">
@@ -150,6 +178,9 @@ var draftExists = false;
 var SEND_DELAY_MS = 3000;
 var sendTimer = null;
 var sendCountdown = null;
+var sendPending = false;   // true while the undo window is counting down
+var sending = false;       // true while the send request is in flight
+var sentDone = false;      // true once the reply has actually gone out
 
 // --- Dictation (browser Web Speech API + Web Audio waveform) ---
 var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -318,12 +349,13 @@ async function poll() {
 
 function updateDraftCard(draft) {
   draftExists = !!draft.exists;
+  // While the undo window is counting down, while the send is in flight, or
+  // after the reply has gone out, those states own the card — don't let a
+  // background poll reset the label or bring the Send button back.
+  if (sendPending || sending || sentDone) return;
   document.getElementById('draft-label').textContent =
     draftExists ? 'Draft ready' : 'No draft yet';
-  var counting = document.getElementById('send-undo').style.display === 'flex';
-  if (!counting) {
-    document.getElementById('btn-send').style.display = draftExists ? '' : 'none';
-  }
+  document.getElementById('btn-send').style.display = draftExists ? '' : 'none';
 }
 
 function renderMessage(m) {
@@ -414,64 +446,147 @@ function addChip(text, isError) {
 }
 
 function startSend() {
-  if (!draftExists || sendTimer) return;
+  if (!draftExists || sendPending || sending || sentDone) return;
+  sendPending = true;
   document.getElementById('send-recipient').textContent = EMAIL || 'the customer';
-  document.getElementById('btn-send').style.display = 'none';
+  document.getElementById('btn-send-now').disabled = false;
+  document.getElementById('btn-undo').disabled = false;
+  document.getElementById('draft-card').style.display = 'none';
   var countEl = document.getElementById('send-count');
   var remaining = Math.ceil(SEND_DELAY_MS / 1000);
   countEl.textContent = remaining;
   document.getElementById('send-undo').style.display = 'flex';
+  // Deplete the progress bar over the full delay so the window is visible.
+  var bar = document.getElementById('su-bar');
+  bar.style.transition = 'none';
+  bar.style.width = '100%';
+  void bar.offsetWidth;  // force reflow so the next change animates
+  bar.style.transition = 'width ' + SEND_DELAY_MS + 'ms linear';
+  bar.style.width = '0%';
   sendCountdown = setInterval(function() {
     remaining -= 1;
     if (remaining > 0) countEl.textContent = remaining;
   }, 1000);
-  // Hold the API call until the countdown elapses. Undo before then aborts —
-  // nothing is sent, because the request never fired.
-  sendTimer = setTimeout(function() {
-    clearInterval(sendCountdown); sendCountdown = null; sendTimer = null;
-    document.getElementById('send-undo').style.display = 'none';
-    doSend(false);
-  }, SEND_DELAY_MS);
+  // The undo window holds the send client-side; auto-fire when it elapses.
+  sendTimer = setTimeout(function() { fireSend(false); }, SEND_DELAY_MS);
 }
 
-function cancelSend() {
+// "Send now" — skip the rest of the countdown and fire immediately.
+function sendNow() {
+  if (!sendPending) return;
+  document.getElementById('btn-send-now').disabled = true;
+  document.getElementById('btn-undo').disabled = true;
+  fireSend(false);
+}
+
+// Single guarded transition from "pending" to "actually sending". Whichever of
+// the countdown, Send now, or the page-teardown flush wins, only one send fires.
+function fireSend(force) {
+  if (!sendPending) return;
+  sendPending = false;
   if (sendTimer) { clearTimeout(sendTimer); sendTimer = null; }
   if (sendCountdown) { clearInterval(sendCountdown); sendCountdown = null; }
   document.getElementById('send-undo').style.display = 'none';
-  document.getElementById('btn-send').style.display = draftExists ? '' : 'none';
+  showSendingState();
+  doSend(force);
+}
+
+function cancelSend() {
+  if (!sendPending) return;
+  sendPending = false;
+  if (sendTimer) { clearTimeout(sendTimer); sendTimer = null; }
+  if (sendCountdown) { clearInterval(sendCountdown); sendCountdown = null; }
+  document.getElementById('send-undo').style.display = 'none';
+  revertToDraft();
   addChip('Send canceled — nothing was sent.', false);
 }
 
+// If the sidebar iframe is torn down (agent moves to the next conversation)
+// while a send is still pending, complete it here instead of dropping it.
+// keepalive lets the request outlive the page. pagehide is the reliable
+// "this page is going away" signal — it does NOT fire on a mere tab switch,
+// so the undo window is preserved in the normal case.
+function flushPendingSend() {
+  if (!sendPending) return;
+  sendPending = false;
+  if (sendTimer) { clearTimeout(sendTimer); sendTimer = null; }
+  if (sendCountdown) { clearInterval(sendCountdown); sendCountdown = null; }
+  try {
+    fetch('/chat/send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: CID, secret: SECRET, force: false }),
+      keepalive: true
+    });
+  } catch (e) { /* best effort during teardown */ }
+}
+window.addEventListener('pagehide', flushPendingSend);
+
+function showSendingState() {
+  sending = true;
+  sentDone = false;
+  var card = document.getElementById('draft-card');
+  card.style.display = 'flex';
+  card.classList.remove('sent');
+  document.getElementById('btn-send').style.display = 'none';
+  document.getElementById('draft-label').innerHTML =
+    '<span class="spinner"></span>Sending &amp; closing…';
+}
+
+function showSentState() {
+  sending = false;
+  sentDone = true;
+  var card = document.getElementById('draft-card');
+  card.style.display = 'flex';
+  card.classList.add('sent');
+  document.getElementById('btn-send').style.display = 'none';
+  document.getElementById('draft-label').textContent = '✓ Sent to customer & closed';
+}
+
+function revertToDraft() {
+  sending = false;
+  sentDone = false;
+  var card = document.getElementById('draft-card');
+  card.style.display = 'flex';
+  card.classList.remove('sent');
+  document.getElementById('draft-label').textContent = draftExists ? 'Draft ready' : 'No draft yet';
+  document.getElementById('btn-send').style.display = draftExists ? '' : 'none';
+  document.getElementById('btn-send-now').disabled = false;
+  document.getElementById('btn-undo').disabled = false;
+}
+
 async function doSend(force) {
-  var btn = document.getElementById('btn-send');
-  btn.disabled = true;
   try {
     var resp = await fetch('/chat/send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversation_id: CID, secret: SECRET, force: !!force })
+      body: JSON.stringify({ conversation_id: CID, secret: SECRET, force: !!force }),
+      keepalive: true
     });
     var data = await resp.json().catch(function() { return {}; });
     if (resp.status === 409) {
       if (window.confirm('The draft was edited outside this chat. Email the CURRENT draft to the customer and close anyway?')) {
-        btn.disabled = false;
         return doSend(true);
       }
+      revertToDraft();  // declined — leave the draft as-is
     } else if (!resp.ok) {
       addChip('Send failed: ' + (data.detail || ('HTTP ' + resp.status)), true);
+      revertToDraft();
     } else if (data.ok === false && data.sent) {
       hsNotify('SUCCESS', 'Reply sent');
       addChip('Reply sent, but closing failed — retrying close…', true);
       await fetch('/chat/send', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation_id: CID, secret: SECRET, close_only: true })
+        body: JSON.stringify({ conversation_id: CID, secret: SECRET, close_only: true }),
+        keepalive: true
       });
+      showSentState();
     } else if (data.ok) {
       hsNotify('SUCCESS', 'Reply sent');
+      showSentState();
     }
   } catch (e) {
     addChip('Network error: ' + e.message, true);
+    revertToDraft();
   }
-  btn.disabled = false;
   schedulePoll(300);
 }
 
