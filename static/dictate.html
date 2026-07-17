@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dictate to Bert</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px; color: #333; background: #fff;
+    display: flex; flex-direction: column; padding: 14px; gap: 12px;
+  }
+  #status { font-size: 12px; color: #b03a3a; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  #status .dot {
+    width: 9px; height: 9px; border-radius: 50%; background: #d94a4a;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  #status.idle { color: #777; }
+  #status.idle .dot { background: #bbb; animation: none; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  #wave-row { display: flex; align-items: center; gap: 10px; }
+  #waveform {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 2px;
+    height: 40px; overflow: hidden;
+  }
+  #waveform .bar { flex: 1; max-width: 4px; height: 3px; border-radius: 2px; background: #d94a4a; }
+  #rec-timer { font-variant-numeric: tabular-nums; font-size: 13px; color: #b03a3a; min-width: 34px; text-align: right; }
+  #transcript {
+    flex: 1; min-height: 90px; max-height: 220px; overflow-y: auto;
+    border: 1px solid #e3e3e3; border-radius: 6px; padding: 8px 10px;
+    line-height: 1.5; white-space: pre-wrap; word-break: break-word; background: #fafafa;
+  }
+  #transcript.empty::before { content: attr(data-placeholder); color: #aaa; }
+  #controls { display: flex; gap: 8px; }
+  #controls button {
+    padding: 9px 14px; border: none; border-radius: 6px; cursor: pointer;
+    font-size: 13px; font-weight: 600; line-height: 1;
+  }
+  #btn-cancel { background: #ececec; color: #444; }
+  #btn-done { background: #2e7d32; color: #fff; flex: 1; }
+  #btn-done:disabled { opacity: 0.5; cursor: default; }
+  #btn-start {
+    align-self: stretch; padding: 12px; border: none; border-radius: 6px; cursor: pointer;
+    background: #d94a4a; color: #fff; font-size: 14px; font-weight: 600;
+  }
+  #notice { font-size: 12px; color: #c62828; background: #fff4f4; border: 1px solid #f5c0c0;
+            border-radius: 6px; padding: 8px 10px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div id="status"><span class="dot"></span><span id="status-text">Listening…</span></div>
+  <div id="wave-row">
+    <div id="waveform"></div>
+    <span id="rec-timer">0:00</span>
+  </div>
+  <div id="transcript" class="empty" data-placeholder="Your words will appear here…"></div>
+  <div id="notice" class="hidden"></div>
+  <button id="btn-start" class="hidden">Start dictation</button>
+  <div id="controls">
+    <button id="btn-cancel">Cancel</button>
+    <button id="btn-done" disabled>&#10003; Insert into chat</button>
+  </div>
+<script>
+var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+var recognition = null;
+var active = false;
+var committed = '';       // finalized transcript
+var interimText = '';     // in-progress (not yet final)
+var restartCount = 0;
+var micStream = null, audioCtx = null, analyser = null, freqData = null, waveRAF = null;
+var recSeconds = 0, recTimerId = null;
+
+// Where to hand the transcript back. The sidebar passes its own origin so we
+// never postMessage to an unexpected target.
+var OPENER_ORIGIN = new URLSearchParams(location.search).get('opener') || '';
+
+var statusEl = document.getElementById('status');
+var statusText = document.getElementById('status-text');
+var transcriptEl = document.getElementById('transcript');
+var doneBtn = document.getElementById('btn-done');
+var startBtn = document.getElementById('btn-start');
+var noticeEl = document.getElementById('notice');
+
+buildWaveBars();
+document.getElementById('btn-cancel').addEventListener('click', function() { finish(false); });
+doneBtn.addEventListener('click', function() { finish(true); });
+startBtn.addEventListener('click', function() { hide(startBtn); hide(noticeEl); startRec(); });
+
+if (!Rec) {
+  showNotice('Voice input isn’t supported in this browser. Use Chrome, Edge, or Safari.');
+  setIdle('Not supported');
+  hide(document.getElementById('wave-row'));
+} else {
+  startRec();   // opened from a click in the sidebar; begin immediately
+}
+
+function buildWaveBars() {
+  var wf = document.getElementById('waveform');
+  for (var i = 0; i < 24; i++) {
+    var b = document.createElement('div');
+    b.className = 'bar';
+    wf.appendChild(b);
+  }
+}
+
+function startRec() {
+  if (active || !Rec) return;
+  recognition = new Rec();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  recognition.onresult = onResult;
+  recognition.onerror = onError;
+  recognition.onend = onEnd;
+  restartCount = 0;
+  try { recognition.start(); }
+  catch (e) { offerRetry('Could not start the microphone. Tap to try again.'); return; }
+  active = true;
+  setListening();
+  startTimer();
+  waveRAF = requestAnimationFrame(drawWave);
+  startWaveform();
+}
+
+function onResult(e) {
+  interimText = '';
+  for (var i = e.resultIndex; i < e.results.length; i++) {
+    var t = e.results[i][0].transcript;
+    if (e.results[i].isFinal) committed += t;
+    else interimText += t;
+  }
+  renderTranscript();
+}
+
+function onError(e) {
+  var err = e && e.error;
+  if (err === 'no-speech' || err === 'aborted') return;   // benign; onend handles it
+  if (err === 'not-allowed' || err === 'service-not-allowed') {
+    teardown();
+    offerRetry('Microphone blocked — allow mic access for this page, then tap to try again.');
+  } else {
+    // keep whatever we have; let the user Insert or retry
+    teardown();
+    offerRetry('Dictation error (' + (err || 'unknown') + '). Tap to try again.');
+  }
+}
+
+function onEnd() {
+  if (!active) return;   // torn down deliberately
+  // Chrome ends after a silence even with continuous=true — restart to keep going.
+  if (++restartCount > 40) { stopListening(); return; }
+  try { recognition.start(); } catch (e) { stopListening(); }
+}
+
+function renderTranscript() {
+  var full = currentText();
+  transcriptEl.textContent = full;
+  transcriptEl.classList.toggle('empty', !full);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  doneBtn.disabled = !full;
+}
+
+function currentText() { return (committed + interimText).trim(); }
+
+// finish(true) hands the transcript back to the sidebar; finish(false) discards.
+function finish(keep) {
+  var text = currentText();
+  teardown();
+  if (keep && text && window.opener && !window.opener.closed) {
+    window.opener.postMessage(
+      { type: 'BERT_DICTATION', action: 'transcript', text: text },
+      OPENER_ORIGIN || '*'
+    );
+  }
+  window.close();
+}
+
+function teardown() {
+  active = false;
+  if (recognition) {
+    recognition.onend = null;
+    try { recognition.stop(); } catch (e) { /* already stopped */ }
+    recognition = null;
+  }
+  stopTimer();
+  if (waveRAF) { cancelAnimationFrame(waveRAF); waveRAF = null; }
+  stopWaveform();
+}
+
+function stopListening() {   // natural end without user action; keep text for review
+  teardown();
+  setIdle('Stopped — Insert or Cancel');
+}
+
+function offerRetry(msg) {
+  showNotice(msg);
+  startBtn.textContent = 'Start dictation';
+  show(startBtn);
+  setIdle('Paused');
+}
+
+// ---- status + timer + waveform ----
+
+function setListening() { statusEl.classList.remove('idle'); statusText.textContent = 'Listening…'; }
+function setIdle(text) { statusEl.classList.add('idle'); statusText.textContent = text; }
+
+function startTimer() {
+  recSeconds = 0; updateTimer();
+  recTimerId = setInterval(function() {
+    recSeconds += 1; updateTimer();
+    if (recSeconds >= 120) stopListening();   // 2-min safety cap
+  }, 1000);
+}
+function stopTimer() { if (recTimerId) { clearInterval(recTimerId); recTimerId = null; } }
+function updateTimer() {
+  var m = Math.floor(recSeconds / 60), s = recSeconds % 60;
+  document.getElementById('rec-timer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+async function startWaveform() {
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch (e) {} }
+    var src = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+    src.connect(analyser);
+  } catch (e) {
+    analyser = null;   // fall back to the animated idle bars
+  }
+}
+
+function stopWaveform() {
+  try {
+    if (micStream) { micStream.getTracks().forEach(function(t) { t.stop(); }); micStream = null; }
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  } catch (e) { /* ignore */ }
+  analyser = null; freqData = null;
+}
+
+function drawWave() {
+  var bars = document.getElementById('waveform').children;
+  var n = bars.length;
+  if (analyser) {
+    analyser.getByteFrequencyData(freqData);
+    var step = Math.max(1, Math.floor(freqData.length / n));
+    for (var i = 0; i < n; i++) {
+      var v = freqData[i * step] / 255;
+      bars[i].style.height = (3 + v * 34).toFixed(1) + 'px';
+    }
+  } else {
+    var t = Date.now() / 180;
+    for (var j = 0; j < n; j++) {
+      var w = (Math.sin(t + j * 0.6) + 1) / 2;
+      bars[j].style.height = (3 + w * 14).toFixed(1) + 'px';
+    }
+  }
+  if (active) waveRAF = requestAnimationFrame(drawWave);
+}
+
+// ---- tiny DOM helpers ----
+function show(el) { el.classList.remove('hidden'); }
+function hide(el) { el.classList.add('hidden'); }
+function showNotice(msg) { noticeEl.textContent = msg; show(noticeEl); }
+</script>
+</body>
+</html>

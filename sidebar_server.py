@@ -322,6 +322,7 @@ async def chat_send(request: Request):
 
 
 _SIDEBAR_HTML_PATH = os.path.join(_SUPPORT_DIR, "static", "sidebar.html")
+_DICTATE_HTML_PATH = os.path.join(_SUPPORT_DIR, "static", "dictate.html")
 
 
 def _render_sidebar(cid: str, email: str) -> HTMLResponse:
@@ -365,6 +366,19 @@ async def sidebar_get(request: Request):
     cid = str(request.query_params.get("id") or "").strip()
     email = str(request.query_params.get("customer_email") or "").strip()
     return _render_sidebar(cid, email)
+
+
+@app.get("/dictate", response_class=HTMLResponse)
+async def dictate_get():
+    """
+    Standalone dictation popup, opened by the sidebar via window.open. It runs at
+    our own origin as a top-level window, so the browser allows microphone access
+    here even though the Help Scout app iframe does not. It does no server calls —
+    Web Speech transcribes locally, and the result is posted back to the sidebar
+    (the opener) via postMessage. No secret required.
+    """
+    with open(_DICTATE_HTML_PATH, encoding="utf-8") as f:
+        return HTMLResponse(f.read())
 
 
 # Root aliases: a Help Scout app configured with the bare host (no /sidebar
