@@ -12,7 +12,10 @@ import concurrent.futures
 from datetime import datetime, timezone
 from typing import Any
 
+import orchestrator
 import bert.pipeline as pipeline
+
+AUTO_SEND_TAG = "auto_send"
 
 
 def draft_all(records, session, client, brief, *, model, max_workers: int = 6) -> list[dict]:
@@ -55,17 +58,62 @@ def draft_all(records, session, client, brief, *, model, max_workers: int = 6) -
     return results
 
 
+def should_auto_send(result: dict) -> bool:
+    """True when a drafted result qualifies for the ``auto_send`` review tag.
+
+    Bert passes Claude's raw ``auto_sendable`` through (unlike the orchestrator,
+    which forces it false for escalations / multi-subscriber tickets), so the
+    gate is reconstructed explicitly: only high/medium-confidence, genuinely
+    auto-sendable drafts that need no human action and aren't escalated.
+    """
+    if not result.get("ok"):
+        return False
+    parsed = result.get("parsed") or {}
+    if not parsed.get("auto_sendable"):
+        return False
+    confidence = (result.get("confidence") or parsed.get("confidence") or "").strip().lower()
+    if confidence not in ("high", "medium"):
+        return False
+    if result.get("escalate") or parsed.get("escalate"):
+        return False
+    if result.get("needs_action") or parsed.get("needs_action"):
+        return False
+    return True
+
+
+def apply_auto_send_tag(session, result: dict) -> str | None:
+    """Add the ``auto_send`` tag to a qualifying conversation (fail-soft).
+
+    Returns ``"tagged"`` if the tag was added, ``"already"`` if it was present,
+    or ``None`` when the result does not qualify or the tag call soft-failed.
+    Never raises — a tagging error must not break the post that already landed.
+    """
+    if not should_auto_send(result):
+        return None
+    cid = result.get("conversation_id")
+    try:
+        convo = orchestrator.fetch_conversation(session, int(cid))
+        existing = orchestrator._extract_tag_names(convo.get("tags", []))
+        if AUTO_SEND_TAG in existing:
+            return "already"
+        orchestrator._update_conversation_tags(session, str(cid), existing, [AUTO_SEND_TAG])
+        return "tagged"
+    except Exception:
+        return None
+
+
 def apply_result(session, result: dict, *, timestamp: str | None = None) -> dict:
     """Apply one drafted result to Help Scout: update existing draft(s) in place
     (or post a new one), then post the internal action-note when needed.
 
     Returns a status dict: {conversation_id, draft_action, threads_updated,
-    note_posted, note_skipped_reason, error}. Never raises — per-ticket failures
-    are captured so a batch can continue.
+    note_posted, note_skipped_reason, auto_send_tagged, error}. Never raises —
+    per-ticket failures are captured so a batch can continue.
     """
     cid = result.get("conversation_id")
     status = {"conversation_id": cid, "draft_action": None, "threads_updated": 0,
-              "note_posted": False, "note_skipped_reason": None, "error": None}
+              "note_posted": False, "note_skipped_reason": None,
+              "auto_send_tagged": None, "error": None}
     if not result.get("ok"):
         status["error"] = result.get("error") or "draft generation failed"
         return status
@@ -108,6 +156,10 @@ def apply_result(session, result: dict, *, timestamp: str | None = None) -> dict
                 errors.append(f"post_draft: {e}")
     else:
         status["draft_action"] = "skipped_no_customer"
+
+    # --- auto_send review tag: only on conversations we actually drafted on ---
+    if status["draft_action"] in ("posted_new", "updated"):
+        status["auto_send_tagged"] = apply_auto_send_tag(session, result)
 
     # --- note: attempted regardless of partial thread failures above ---
     try:
