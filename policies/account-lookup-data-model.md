@@ -172,6 +172,29 @@ Variants:
 
 **Usage:** Determines whether customer is currently in their 7-day free trial. See *Free Trial Policy* for handling.
 
+# Stripe Enrichment: Last-Invoice (Actual Charge) Fields
+
+For **Stripe** subscribers, the Stripe enrichment block includes two kinds of data, and it is critical not to confuse them:
+
+**Current / forward-looking fields** (describe the subscription *as configured now* and what it *will* do next renewal):
+
+- `Base Plan` — the list/full price of the plan.
+- `Active Coupon` — a coupon attached to the subscription *going forward*. A one-time coupon that has already been applied and consumed on a past invoice does **not** appear here.
+- `Effective Price` — base price minus any *currently active* coupon.
+- `Next Renewal Amount` — the amount Stripe will charge at the *upcoming* renewal.
+
+**Historical fields** (describe what was **actually charged** on the most recent paid invoice):
+
+- `Last Charge Date` — when the most recent paid invoice was charged.
+- `Last Invoice Amount Charged` — the actual dollar amount that hit the customer's card on that invoice.
+- `Last Invoice Coupon Applied` — whether a discount was applied to that specific invoice (e.g. `40% off — $40.00 off $99.99 list price`), or `None — paid full list price`.
+
+**Usage — this is the rule that prevents wrong refund decisions:** To determine what a customer was actually billed on a past renewal, read the **Last Invoice** fields. **Never infer a past charge from `Base Plan`, `Active Coupon`, `Effective Price`, or `Next Renewal Amount`** — those are current/forward-looking and will read as "full price / no coupon" even when the last renewal was in fact discounted by a one-time coupon that has since fallen off the active-coupon field.
+
+> **Regression this closes (HS #3377107792):** an agent concluded a customer was charged full price (based on `Active Coupon: None` + `Effective Price: $99.99`) and drafted a $40 "difference" refund — but the last invoice had already renewed at 40% off via a one-time coupon. With the Last Invoice fields present, that renewal now reads `Last Invoice Amount Charged: $59.99` / `Last Invoice Coupon Applied: 40% off`, and no refund is warranted. Before issuing any "difference" or retroactive refund, confirm the discount from `Last Invoice Coupon Applied`.
+>
+> If the Last Invoice fields are absent for a Stripe subscriber (older data, or the fetch failed), do not assume the last charge amount — check Stripe's invoice history directly before concluding a customer was over- or under-charged.
+
 # Action Classification Decision Tree
 
 This is the universal decision tree that all policy docs reference for provider-based routing:

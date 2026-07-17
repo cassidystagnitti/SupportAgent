@@ -34,6 +34,112 @@ def _format_timestamp(ts: int | None) -> str:
         return str(ts)
 
 
+def _format_date(ts: int | None) -> str:
+    if ts is None:
+        return ""
+    try:
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+    except (OSError, ValueError, OverflowError):
+        return ""
+
+
+def _g(obj: Any, key: str, default: Any = None) -> Any:
+    """Read a field from a Stripe object (dict subclass) or a plain namespace."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
+def _extract_invoice_coupon(inv: Any) -> Any:
+    """Best-effort: pull a coupon object off an invoice, tolerating unexpanded ids."""
+    coupon = _g(_g(inv, "discount"), "coupon")
+    if coupon:
+        return coupon
+    for d in (_g(inv, "discounts") or []):
+        if isinstance(d, str):
+            continue
+        coupon = _g(d, "coupon")
+        if coupon:
+            return coupon
+    for a in (_g(inv, "total_discount_amounts") or []):
+        d = _g(a, "discount")
+        if d and not isinstance(d, str):
+            coupon = _g(d, "coupon")
+            if coupon:
+                return coupon
+    return None
+
+
+def _parse_last_invoice(inv: Any) -> dict[str, Any] | None:
+    """Interpret the most recent paid invoice into flat 'what was actually charged' fields.
+
+    Relies only on inline invoice fields (amount_paid / subtotal / total /
+    total_discount_amounts), so it needs no expand and can't fail on a bad
+    expand path. Coupon name is best-effort; the discount amount/percent are
+    derived from amounts even when the coupon itself isn't expanded.
+    """
+    if inv is None:
+        return None
+
+    amount_paid = _g(inv, "amount_paid")
+    subtotal = _g(inv, "subtotal")
+    total = _g(inv, "total")
+    currency = _g(inv, "currency") or ""
+    date = _g(_g(inv, "status_transitions"), "paid_at") or _g(inv, "created")
+
+    discount_amount = 0
+    tda = _g(inv, "total_discount_amounts") or []
+    if tda:
+        for a in tda:
+            discount_amount += (_g(a, "amount") or 0)
+    elif subtotal is not None and total is not None and subtotal > total:
+        discount_amount = subtotal - total
+
+    coupon = _extract_invoice_coupon(inv)
+    coupon_name = _g(coupon, "name") or _g(coupon, "id")
+    percent_off = _g(coupon, "percent_off")
+    if not percent_off and subtotal and discount_amount:
+        percent_off = round(discount_amount / subtotal * 100)
+
+    return {
+        "amount_paid": amount_paid,
+        "subtotal": subtotal,
+        "total": total,
+        "currency": currency,
+        "date": date,
+        "discount_amount": discount_amount,
+        "percent_off": percent_off,
+        "coupon_name": coupon_name,
+    }
+
+
+def _fetch_last_invoice(customer_id: str, subscription_id: str) -> dict[str, Any] | None:
+    """Most recent PAID invoice for the subscription — the actual last charge.
+
+    Non-fatal: any Stripe error returns None (drafts still generate without it).
+    """
+    def _list():
+        return stripe.Invoice.list(
+            customer=customer_id,
+            subscription=subscription_id,
+            status="paid",
+            limit=1,
+        )
+
+    try:
+        result = _stripe_retry(_list)
+    except stripe.error.StripeError as e:
+        log.warning("Stripe Invoice.list (last invoice) failed (non-fatal): %s", e)
+        return None
+
+    data = getattr(result, "data", None) or []
+    if not data:
+        return None
+    return _parse_last_invoice(data[0])
+
+
 def _stripe_retry(callable_fn, max_attempts: int = 2):
     last_exc: Exception | None = None
     for attempt in range(max_attempts):
@@ -177,6 +283,15 @@ def fetch_stripe_context(customer_email: str) -> dict[str, Any] | None:
     except stripe.error.StripeError as e:
         log.warning("Stripe invoice preview/upcoming failed (non-fatal): %s", e)
 
+    # Most recent ACTUAL charge (historical) — distinct from the forward-looking
+    # fields above. A one-time coupon already consumed on the last renewal shows
+    # up here even though it has fallen off `discount`/Active Coupon.
+    ctx["last_invoice"] = None
+    try:
+        ctx["last_invoice"] = _fetch_last_invoice(customer.id, sub.id)
+    except stripe.error.StripeError as e:
+        log.warning("Stripe last-invoice fetch failed (non-fatal): %s", e)
+
     return ctx
 
 
@@ -238,5 +353,40 @@ def format_stripe_context(ctx: dict[str, Any] | None) -> str:
     upcoming = ctx.get("upcoming_invoice_amount")
     if upcoming is not None:
         lines.append(f"  Next Renewal Amount (from Stripe): ${upcoming / 100:.2f} {currency} — use this as their renewal price")
+
+    li = ctx.get("last_invoice")
+    if li:
+        li_ccy = (li.get("currency") or ctx.get("plan_currency") or "usd").upper()
+        date_str = _format_date(li.get("date"))
+        if date_str:
+            lines.append(f"  Last Charge Date: {date_str}")
+        paid = li.get("amount_paid")
+        if paid is not None:
+            lines.append(f"  Last Invoice Amount Charged: ${paid / 100:.2f} {li_ccy}")
+        disc_amt = li.get("discount_amount") or 0
+        li_subtotal = li.get("subtotal")
+        if disc_amt and disc_amt > 0:
+            pct = li.get("percent_off")
+            pct_desc = f"{pct}% off" if pct else "discount applied"
+            if li_subtotal:
+                detail = f" — ${disc_amt / 100:.2f} off ${li_subtotal / 100:.2f} list price"
+            else:
+                detail = f" — ${disc_amt / 100:.2f} off list price"
+            coupon_name = li.get("coupon_name")
+            name_desc = f" (coupon: {coupon_name})" if coupon_name else ""
+            lines.append(f"  Last Invoice Coupon Applied: {pct_desc}{detail}{name_desc}")
+        elif li_subtotal:
+            lines.append(
+                f"  Last Invoice Coupon Applied: None — paid full list price (${li_subtotal / 100:.2f})"
+            )
+        else:
+            lines.append("  Last Invoice Coupon Applied: None — paid full list price")
+        lines.append(
+            "  (Last Charge Date / Amount Charged / Coupon Applied reflect the MOST RECENT ACTUAL "
+            "invoice. Use these to determine what the customer was really billed on their last "
+            "renewal — NOT Base Plan / Active Coupon / Effective Price / Next Renewal, which are "
+            "current/forward-looking only and can miss a one-time coupon that already discounted "
+            "the last charge.)"
+        )
 
     return "\n".join(lines)
