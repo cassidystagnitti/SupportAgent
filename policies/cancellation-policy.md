@@ -90,7 +90,7 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 ## Escalation Triggers
 
 - **Two or more subscribed accounts found across any email in the ticket** → escalate immediately to support leadership. Do not send any reply.
-- **Subscription is in a billing retry period** → escalate to senior support. Do not process the cancellation or send a reply until the billing state is resolved.
+- **Subscription is in a billing retry period (Stripe unpaid/past_due, dunning in progress)** → do NOT escalate. Cancel the subscription immediately (not at period end) — a sub stuck in retry/unpaid status has already failed to renew, so there is no remaining paid period to preserve access through. Confirm to the customer that the cancellation is effective immediately and that no further charges will be attempted.
 - **Customer claims to have canceled but was still charged** → investigate before replying; may be a billing or system error.
 - **Customer insists on immediate access termination and is escalating** → senior support.
 
