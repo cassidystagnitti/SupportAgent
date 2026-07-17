@@ -235,6 +235,54 @@ def test_run_turn_creates_draft_with_agent_user(monkeypatch):
     assert sess["draft_thread_id"] == "1234"
 
 
+def test_send_status_line_reflects_decision():
+    ready = sidebar_chat._send_status_line(False, "")
+    blocked = sidebar_chat._send_status_line(True, "Process refund of $99.99")
+    assert "Sendable as written" in ready
+    assert "Not sendable as-is" in blocked and "Process refund of $99.99" in blocked
+
+
+def test_update_draft_records_send_decision_and_it_flips_per_draft():
+    """The send-precondition decision is a property of each draft: a self-contained
+    reply is sendable as-is, and re-editing into an action-asserting draft flips it."""
+    store, sess = _store_with_hydrated_session()
+    client = FakeClient([
+        # Draft 1: ask for the account email — sendable as-is.
+        SimpleNamespace(content=[_tool_block(
+            "update_draft",
+            {"html": "<p>What email is on your account?</p>", "needs_action": False},
+        )]),
+        SimpleNamespace(content=[_text_block("Asked for their email.")]),
+    ])
+    with patch("sidebar_chat.orchestrator") as o, \
+         patch("sidebar_chat.bert_pipeline"), \
+         patch("sidebar_chat._hs_session", return_value=MagicMock()):
+        o.load_policy_docs.return_value = "P"
+        sidebar_chat.run_turn(store, "555", "ask for their account email", client=client)
+    assert sess["needs_action"] is False
+    assert sess["action_description"] == ""
+
+    # Draft 2 on the SAME ticket: now confirm the refund — blocked on a human action.
+    client2 = FakeClient([
+        SimpleNamespace(content=[_tool_block(
+            "update_draft",
+            {"html": "<p>I've refunded $99.99.</p>", "needs_action": True,
+             "action_description": "Process refund of $99.99 on sub_ABC123"},
+            block_id="tu_2",
+        )]),
+        SimpleNamespace(content=[_text_block("Drafted the refund confirmation.")]),
+    ])
+    with patch("sidebar_chat.orchestrator") as o, \
+         patch("sidebar_chat.bert_pipeline"), \
+         patch("sidebar_chat._hs_session", return_value=MagicMock()):
+        o.load_policy_docs.return_value = "P"
+        sidebar_chat.run_turn(store, "555", "they sent the email, confirm the refund", client=client2)
+    assert sess["needs_action"] is True
+    assert sess["action_description"] == "Process refund of $99.99 on sub_ABC123"
+    events = [m["text"] for m in store.ui_messages_after("555", 0) if m["kind"] == "event"]
+    assert any("Not sendable as-is" in t for t in events)
+
+
 def test_run_turn_proposal_registered_not_applied():
     store, sess = _store_with_hydrated_session()
     client = FakeClient([

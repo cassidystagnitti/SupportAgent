@@ -54,6 +54,8 @@ class SessionStore:
             "ctx": None,
             "draft_thread_id": None,
             "draft_text": "",
+            "needs_action": None,        # send-precondition for the CURRENT draft; re-made every update_draft
+            "action_description": "",
             "proposals": {},
             "busy": False,
             "created_at": _now_iso(),
@@ -178,15 +180,37 @@ TOOLS = [
         "description": (
             "Replace the Help Scout draft reply for this ticket with new HTML "
             "(clean <p> paragraphs). Creates the draft if none exists. Use this for "
-            "ANY change to the customer reply — never paste a draft into chat."
+            "ANY change to the customer reply — never paste a draft into chat. "
+            "Re-make the send decision (needs_action) for THIS draft on every call — "
+            "it is a property of the draft you're posting, not the ticket, and can flip "
+            "each time you edit the reply."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "html": {"type": "string",
                          "description": "The complete draft reply as clean <p> HTML paragraphs."},
+                "needs_action": {
+                    "type": "boolean",
+                    "description": (
+                        "Apply the send-precondition test to THIS draft: false if a teammate "
+                        "could send it exactly as written (asking for info, self-serve steps, "
+                        "quoting policy) — true if the draft asserts something a human must make "
+                        "true first (refund processed, coupon applied, cancellation/account "
+                        "change done). Re-decide on every call; never carry the previous draft's "
+                        "value forward."
+                    ),
+                },
+                "action_description": {
+                    "type": "string",
+                    "description": (
+                        "Required when needs_action is true: the specific action a human must "
+                        "complete before this draft is true (e.g. 'Process refund of $99.99 on "
+                        "sub_ABC123'). Omit or leave empty when needs_action is false."
+                    ),
+                },
             },
-            "required": ["html"],
+            "required": ["html", "needs_action"],
         },
     },
     {
@@ -215,32 +239,61 @@ TOOLS = [
 ]
 
 
-def _handle_update_draft(store: SessionStore, cid: str, session_data: dict, html: str) -> str:
-    html = (html or "").strip()
+def _send_status_line(needs_action: bool, action_description: str) -> str:
+    """One-line, teammate-facing summary of whether THIS draft is sendable as-is.
+
+    The send-precondition decision is re-made for every draft (see the update_draft
+    tool + prompts/sidebar_chat_system_prompt.txt); this renders the current draft's
+    result so it never lags behind an edit.
+    """
+    if needs_action:
+        action = action_description or "complete the required action"
+        return f"⚠️ Not sendable as-is — a human must first: {action}. Until that's done, this draft can't go out."
+    return "✅ Sendable as written — a teammate can send this draft as-is; nothing to do first."
+
+
+def _handle_update_draft(store: SessionStore, cid: str, session_data: dict, args: dict) -> str:
+    html = (args.get("html") or "").strip()
     if not html:
         return "update_draft failed: empty html"
+
+    # Re-decide the send-precondition for THIS draft on every update — it is a property
+    # of the draft being posted, not the ticket, and can flip across the ticket's
+    # lifecycle (a first draft asking for the account email is sendable as-is; a later
+    # draft confirming "I've refunded you" is blocked on the refund). Never inherit the
+    # previous draft's classification.
+    needs_action = bool(args.get("needs_action"))
+    action_description = (args.get("action_description") or "").strip()
+    status_line = _send_status_line(needs_action, action_description)
+
     hs = _hs_session()
     thread_id = session_data.get("draft_thread_id")
     if thread_id:
         bert_pipeline.update_draft(hs, int(cid), int(thread_id), html)
-        session_data["draft_text"] = html
-        store.add_ui_message(cid, "event", "Draft updated — refresh the reply editor to see it.")
-        return "Draft updated in place in the Help Scout reply editor."
+        result = "Draft updated in place in the Help Scout reply editor."
+        event = "Draft updated — refresh the reply editor to see it."
+    else:
+        ctx = session_data["ctx"]
+        payload: dict = {"customer": {"id": int(ctx["hs_customer_id"])}, "text": html, "draft": True}
+        agent_user = _agent_user_id()
+        if agent_user:
+            payload["user"] = agent_user
+        r = orchestrator._helpscout_post(hs, f"{orchestrator.BASE_URL}/conversations/{cid}/reply", payload)
+        r.raise_for_status()
+        rid = r.headers.get("Resource-ID") or r.headers.get("resource-id")
+        if rid:
+            draft_registry.set(str(cid), rid, _now_iso())
+            session_data["draft_thread_id"] = rid
+        result = "Draft created in the Help Scout reply editor."
+        event = "Draft created — open the reply editor to see it."
 
-    ctx = session_data["ctx"]
-    payload: dict = {"customer": {"id": int(ctx["hs_customer_id"])}, "text": html, "draft": True}
-    agent_user = _agent_user_id()
-    if agent_user:
-        payload["user"] = agent_user
-    r = orchestrator._helpscout_post(hs, f"{orchestrator.BASE_URL}/conversations/{cid}/reply", payload)
-    r.raise_for_status()
-    rid = r.headers.get("Resource-ID") or r.headers.get("resource-id")
-    if rid:
-        draft_registry.set(str(cid), rid, _now_iso())
-        session_data["draft_thread_id"] = rid
     session_data["draft_text"] = html
-    store.add_ui_message(cid, "event", "Draft created — open the reply editor to see it.")
-    return "Draft created in the Help Scout reply editor."
+    session_data["needs_action"] = needs_action
+    session_data["action_description"] = action_description if needs_action else ""
+    store.add_ui_message(cid, "event", f"{event} {status_line}")
+    # Echo the recomputed decision back to Bert so it relays it accurately and never
+    # tells the teammate a draft is ready to send when it flagged an action as required.
+    return f"{result} Send decision for THIS draft — {status_line}"
 
 
 def _handle_propose_policy(store: SessionStore, cid: str, session_data: dict, args: dict) -> str:
@@ -313,8 +366,7 @@ def run_turn(store: SessionStore, cid: str, user_text: str, client=None) -> None
             for tu in tool_uses:
                 try:
                     if tu.name == "update_draft":
-                        out = _handle_update_draft(store, cid, session_data,
-                                                   (tu.input or {}).get("html", ""))
+                        out = _handle_update_draft(store, cid, session_data, tu.input or {})
                     elif tu.name == "propose_policy_update":
                         out = _handle_propose_policy(store, cid, session_data, tu.input or {})
                     else:
