@@ -130,6 +130,15 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 - **Date added:** 2026-07-10
 - **Date resolved:** —
 
+## 11a. Network Errors During Playback — Ask About VPN
+
+- **Status:** Known interference source — not a bug fix, a troubleshooting step
+- **Platforms:** All platforms
+- **What to tell the customer:** A VPN can sometimes interfere with our player and cause "network error" messages when trying to play a meditation. When a customer reports a network error, always ask whether they're using a VPN and, if so, suggest turning it off to see if that resolves the issue. This should be a standard question in any network-error troubleshooting reply, alongside device/OS, app version, and Wi-Fi vs. cellular.
+- **Linear ticket:** N/A
+- **Date added:** 2026-07-13
+- **Date resolved:** —
+
 ## 11. "Last 4 Weeks" / Weekly Time-Tracking View Missing
 
 - **Status:** Known issue — fix planned
