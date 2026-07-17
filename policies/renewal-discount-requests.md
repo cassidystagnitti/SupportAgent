@@ -38,6 +38,8 @@ This policy applies only to **Stripe** (and to **Apple/Google customers willing 
 
 **Action:** Issue a **40% partial refund** of the renewal charge. The customer keeps their subscription for the full renewal period; we refund 40% of what they paid, effectively retroactively applying the discounted rate.
 
+> **Before issuing any "difference" or partial refund, confirm what they were ACTUALLY charged on the last renewal.** Read the `Last Invoice Amount Charged` / `Last Invoice Coupon Applied` fields in the Stripe block — **not** `Base Plan`, `Active Coupon`, `Effective Price`, or `Next Renewal Amount`, which are current/forward-looking and read as "full price / no coupon" even when a one-time coupon already discounted the last charge. If `Last Invoice Coupon Applied` shows the renewal already went through at 40% off, **no refund is owed** — do not tell the customer we refunded a difference that doesn't exist. See *Account Lookup Data Model → Stripe Enrichment: Last-Invoice (Actual Charge) Fields*. (HS #3377107792 was drafted with exactly this error.)
+
 *Note: This is a partial refund (rate adjustment), not a pro-rated refund. We never pro-rate based on unused time. This path is the only sanctioned partial-refund scenario in our policy — it's a deliberate, narrow exception.*
 
 ### Path 3: Post-renewal past 30 days
