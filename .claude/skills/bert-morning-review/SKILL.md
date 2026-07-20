@@ -19,6 +19,13 @@ Run these in order, but treat step 2 as a hub you can stay in as long as Cassidy
    - Dive into a specific ticket → `bert-hydrate-ticket`.
    - Look something up in the codebase or Linear → the existing `research_agent` (`run_research`).
    - Cassidy states a bug-truth / company context / wording preference → append it to the standing brief with `bert.state.append_brief`, then save.
+   - **Mindful Minute Challenge / Apple challenge ticket** → do NOT draft a reply. Per
+     `policies/mindful-minute-challenge.md`, move it to the Apple mailbox:
+     `bert.fanout.move_to_apple_mailbox(session, conversation_id)`. It returns `"moved"`,
+     `"no_mailbox_id"` (APPLE_MAILBOX_ID env var unset — tell Cassidy), or `None` (move
+     failed — likely the API credentials still can't access the Apple mailbox; surface it
+     and leave the ticket for a manual move in the HS UI). Exclude moved tickets from the
+     draft fan-out.
 
 3. **Draft** — when Cassidy says to draft, use `bert-draft-all`. It injects the *current* standing brief into every worker.
 
