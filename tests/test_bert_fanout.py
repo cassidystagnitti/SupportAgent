@@ -231,3 +231,34 @@ def test_draft_all_passes_brief_through(monkeypatch):
     monkeypatch.setattr(fo.pipeline, "draft_one", fake_draft)
     fo.draft_all([{"conversation_id": 1}], object(), object(), "- streak fixed", model="m")
     assert seen["brief"] == "- streak fixed"
+
+
+# --- move_to_apple_mailbox (challenge-ticket routing) ---
+
+def test_move_to_apple_mailbox_moves(monkeypatch):
+    monkeypatch.setenv("APPLE_MAILBOX_ID", "246810")
+    calls = {}
+
+    def fake_move(session, cid, mailbox_id):
+        calls["args"] = (cid, mailbox_id)
+        return True
+
+    monkeypatch.setattr(fo.pipeline, "move_conversation", fake_move)
+    assert fo.move_to_apple_mailbox(object(), 3391686145) == "moved"
+    assert calls["args"] == (3391686145, 246810)
+
+
+def test_move_to_apple_mailbox_without_env(monkeypatch):
+    monkeypatch.delenv("APPLE_MAILBOX_ID", raising=False)
+
+    def must_not_call(*a, **k):
+        raise AssertionError("move_conversation must not be called without APPLE_MAILBOX_ID")
+
+    monkeypatch.setattr(fo.pipeline, "move_conversation", must_not_call)
+    assert fo.move_to_apple_mailbox(object(), 1) == "no_mailbox_id"
+
+
+def test_move_to_apple_mailbox_failed_move(monkeypatch):
+    monkeypatch.setenv("APPLE_MAILBOX_ID", "246810")
+    monkeypatch.setattr(fo.pipeline, "move_conversation", lambda *a, **k: False)
+    assert fo.move_to_apple_mailbox(object(), 1) is None

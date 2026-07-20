@@ -154,6 +154,14 @@ HELPSCOUT_WEBHOOK_SECRET      # for signature verification
 HELPSCOUT_NOTE_USER_ID        # HS user id AI-authored notes are attributed to. REQUIRED for notes:
                               # if unset, internal notes (incl. "Actions needed" lists) are silently
                               # SKIPPED — drafts still post. Set to the Support Automations agent user id.
+APPLE_MAILBOX_ID              # HS mailbox id of the Apple mailbox (Mindful Minute Challenge routing —
+                              # policies/mindful-minute-challenge.md; bert.fanout.move_to_apple_mailbox).
+                              # KNOWN GAP as of 2026-07-20: unset, AND the OAuth app's token cannot see the
+                              # Apple mailbox (GET /v2/mailboxes returns only 185235 "1. Happier Support") —
+                              # mailbox visibility follows the HS user who owns the API app, so that user
+                              # must be granted Apple-mailbox access in the HS UI before moves can work.
+                              # Until both are fixed, move_to_apple_mailbox fails soft ("no_mailbox_id")
+                              # and challenge tickets are moved manually in the Help Scout UI.
 
 # Anthropic
 ANTHROPIC_API_KEY

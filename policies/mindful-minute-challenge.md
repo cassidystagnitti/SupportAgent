@@ -44,7 +44,7 @@ The Mindful Minute Challenge — internally also called the **Apple challenge** 
 
 - **Action:** Move the conversation to the Apple mailbox (mailbox #3 in the Help Scout mailbox list).
 - **When:** Any ticket referencing the Mindful Minute Challenge / Apple challenge.
-- **Why AI can't do it alone:** As of 2026-07-20 the pipeline's Help Scout API credentials can only access the main `1. Happier Support` mailbox (id 185235) — the Apple mailbox is not visible to the OAuth app, so the move must be done by a human in the Help Scout UI until API access to the Apple mailbox is granted and an automated move capability ships (in progress).
+- **Why AI can't do it alone:** As of 2026-07-20 the pipeline's Help Scout API credentials can only access the main `1. Happier Support` mailbox (id 185235) — the Apple mailbox is not visible to the OAuth app (mailbox visibility follows the HS user who owns the API app). The automated move capability exists (`bert.fanout.move_to_apple_mailbox`, gated on the `APPLE_MAILBOX_ID` env var), but until the app-owning user is granted Apple-mailbox access in the Help Scout UI and `APPLE_MAILBOX_ID` is set, the move must be done by a human in the Help Scout UI.
 
 ## Do Not Auto-Send Conditions
 

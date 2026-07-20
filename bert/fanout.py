@@ -102,6 +102,20 @@ def apply_auto_send_tag(session, result: dict) -> str | None:
         return None
 
 
+def move_to_apple_mailbox(session, conversation_id) -> str | None:
+    """Route a Mindful Minute Challenge ticket to the Apple mailbox (fail-soft).
+
+    Per policies/mindful-minute-challenge.md, challenge tickets are moved to
+    the Apple mailbox instead of being answered from the main queue. Returns
+    ``"moved"`` on success, ``"no_mailbox_id"`` when APPLE_MAILBOX_ID is not
+    configured, or ``None`` when the move call failed. Never raises.
+    """
+    mailbox_id = pipeline.apple_mailbox_id()
+    if not mailbox_id:
+        return "no_mailbox_id"
+    return "moved" if pipeline.move_conversation(session, conversation_id, mailbox_id) else None
+
+
 def apply_result(session, result: dict, *, timestamp: str | None = None) -> dict:
     """Apply one drafted result to Help Scout: update existing draft(s) in place
     (or post a new one), then post the internal action-note when needed.

@@ -237,3 +237,60 @@ def test_hydrate_ticket_assembles_context(monkeypatch):
     # non-stripe platform → stripe_block is an N/A note, enrichment not attempted
     assert "apple" in ctx["stripe_block"].lower()
     assert ctx["stripe_ctx"] is None
+
+
+# --- move_conversation / apple_mailbox_id (challenge-ticket routing) ---
+
+def test_move_conversation_patches_move_op():
+    captured = {}
+
+    class R:
+        status_code = 204
+
+        def raise_for_status(self):
+            pass
+
+    class Sess:
+        def patch(self, url, json=None):
+            captured["url"] = url
+            captured["json"] = json
+            return R()
+
+    ok = pl.move_conversation(Sess(), 3391686145, 246810)
+    assert ok is True
+    assert captured["json"] == {"op": "move", "path": "/mailboxId", "value": 246810}
+    assert captured["url"].endswith("/conversations/3391686145")
+
+
+def test_move_conversation_fail_soft_on_http_error():
+    class R:
+        status_code = 403
+
+        def raise_for_status(self):
+            raise RuntimeError("403 Forbidden")
+
+    class Sess:
+        def patch(self, url, json=None):
+            return R()
+
+    assert pl.move_conversation(Sess(), 5, 111) is False
+
+
+def test_move_conversation_fail_soft_on_bad_input():
+    class Sess:
+        def patch(self, url, json=None):
+            raise AssertionError("patch must not be called for bad input")
+
+    assert pl.move_conversation(Sess(), "not-a-number", 111) is False
+
+
+def test_apple_mailbox_id_from_env(monkeypatch):
+    monkeypatch.setenv("APPLE_MAILBOX_ID", "246810")
+    assert pl.apple_mailbox_id() == 246810
+
+
+def test_apple_mailbox_id_unset_or_garbage(monkeypatch):
+    monkeypatch.delenv("APPLE_MAILBOX_ID", raising=False)
+    assert pl.apple_mailbox_id() is None
+    monkeypatch.setenv("APPLE_MAILBOX_ID", "not-an-id")
+    assert pl.apple_mailbox_id() is None
