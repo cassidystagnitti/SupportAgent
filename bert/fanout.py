@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import orchestrator
+import stripe_research
 import triage_tickets
 import bert.pipeline as pipeline
 import bert.verify as verify
@@ -157,6 +158,18 @@ def _initial_verdict(session, client, result: dict, *, brief: str,
         siblings = []
     if siblings:
         return {"verdict": "ERROR", "findings": [verify.sibling_finding(siblings)]}, ctx, None
+    try:
+        # Deterministic Stripe truth check (read-only): a draft that references
+        # a Stripe object that doesn't exist / isn't the customer's, or claims
+        # an action with no locatable object, is an automatic ERROR (class A /
+        # class C, fix_type "none" — never auto-repaired).
+        truth = stripe_research.verify_claimed_stripe_objects(
+            result, customer_email=ctx.get("email"))
+        if truth.get("findings"):
+            return {"verdict": "ERROR", "findings": truth["findings"]}, ctx, None
+    except Exception:
+        log.warning("stripe truth check failed for conversation %s — continuing without it",
+                    cid, exc_info=True)
     policies = orchestrator.load_policy_docs()
     return verify.verify_draft(client, result, ctx, brief, policies, model=model), ctx, policies
 
