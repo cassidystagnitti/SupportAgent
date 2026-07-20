@@ -156,12 +156,11 @@ HELPSCOUT_NOTE_USER_ID        # HS user id AI-authored notes are attributed to. 
                               # SKIPPED — drafts still post. Set to the Support Automations agent user id.
 APPLE_MAILBOX_ID              # HS mailbox id of the Apple mailbox (Mindful Minute Challenge routing —
                               # policies/mindful-minute-challenge.md; bert.fanout.move_to_apple_mailbox).
-                              # KNOWN GAP as of 2026-07-20: unset, AND the OAuth app's token cannot see the
-                              # Apple mailbox (GET /v2/mailboxes returns only 185235 "1. Happier Support") —
-                              # mailbox visibility follows the HS user who owns the API app, so that user
-                              # must be granted Apple-mailbox access in the HS UI before moves can work.
-                              # Until both are fixed, move_to_apple_mailbox fails soft ("no_mailbox_id")
-                              # and challenge tickets are moved manually in the Help Scout UI.
+                              # 201086 = "3. Happier Apple Support". Works since 2026-07-20, when the
+                              # app-owning HS user was granted Apple-mailbox access (API mailbox visibility
+                              # follows that user — GET /v2/mailboxes must list the destination or moves fail).
+                              # If unset, move_to_apple_mailbox fails soft ("no_mailbox_id") and challenge
+                              # tickets are moved manually in the Help Scout UI.
 
 # Anthropic
 ANTHROPIC_API_KEY

@@ -42,9 +42,9 @@ The Mindful Minute Challenge — internally also called the **Apple challenge** 
 
 ## Human Action Required
 
-- **Action:** Move the conversation to the Apple mailbox (mailbox #3 in the Help Scout mailbox list).
+- **Action:** Move the conversation to the Apple mailbox (`3. Happier Apple Support`, id 201086).
 - **When:** Any ticket referencing the Mindful Minute Challenge / Apple challenge.
-- **Why AI can't do it alone:** As of 2026-07-20 the pipeline's Help Scout API credentials can only access the main `1. Happier Support` mailbox (id 185235) — the Apple mailbox is not visible to the OAuth app (mailbox visibility follows the HS user who owns the API app). The automated move capability exists (`bert.fanout.move_to_apple_mailbox`, gated on the `APPLE_MAILBOX_ID` env var), but until the app-owning user is granted Apple-mailbox access in the Help Scout UI and `APPLE_MAILBOX_ID` is set, the move must be done by a human in the Help Scout UI.
+- **How:** Automated since 2026-07-20 — `bert.fanout.move_to_apple_mailbox(session, conversation_id)` (gated on the `APPLE_MAILBOX_ID` env var; the API app's HS user has Apple-mailbox access). Falls back to a manual move in the Help Scout UI if the env var is unset or the API call fails.
 
 ## Do Not Auto-Send Conditions
 
@@ -58,7 +58,7 @@ The Mindful Minute Challenge — internally also called the **Apple challenge** 
 
 - **High confidence areas:** identification (the challenge name is distinctive) and the routing rule (always move to the Apple mailbox).
 - **Judgment call areas:** mixed tickets — how much of the support portion to resolve before moving.
-- **Gaps:** exact Apple mailbox id is unconfirmed (it is not visible to the current API credentials); challenge program details (dates, registration mechanics) are intentionally not documented here because the challenge team owns them.
+- **Gaps:** challenge program details (dates, registration mechanics) are intentionally not documented here because the challenge team owns them. (Apple mailbox id confirmed 2026-07-20: 201086, `3. Happier Apple Support`.)
 
 # Saved Reply Mapping
 
