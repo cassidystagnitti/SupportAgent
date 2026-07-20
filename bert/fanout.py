@@ -105,7 +105,9 @@ def apply_auto_send_tag(session, result: dict) -> str | None:
 def move_to_apple_mailbox(session, conversation_id) -> str | None:
     """Route a Mindful Minute Challenge ticket to the Apple mailbox (fail-soft).
 
-    Per policies/mindful-minute-challenge.md, challenge tickets are moved to
+    ONLY for the Mindful Minute Challenge (the Apple-org event) — Happier's
+    other meditation challenges are normal tickets and must never be moved.
+    Per policies/mindful-minute-challenge.md, these tickets are moved to
     the Apple mailbox instead of being answered from the main queue. Returns
     ``"moved"`` on success, ``"no_mailbox_id"`` when APPLE_MAILBOX_ID is not
     configured, or ``None`` when the move call failed. Never raises.
