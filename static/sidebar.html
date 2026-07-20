@@ -109,29 +109,6 @@
   }
   #btn-mic:hover { background: #f4f4f4; color: #333; }
   #btn-mic:disabled { opacity: 0.55; cursor: default; }
-  #record-bar {
-    display: none; align-items: center; gap: 8px;
-    border: 1px solid #e0b4b4; border-radius: 6px; background: #fff6f6;
-    padding: 6px 8px;
-  }
-  #record-bar.active { display: flex; }
-  #waveform {
-    flex: 1; display: flex; align-items: center; justify-content: center; gap: 2px;
-    height: 30px; overflow: hidden;
-  }
-  #waveform .bar {
-    flex: 1; max-width: 4px; height: 3px; border-radius: 2px; background: #d94a4a;
-  }
-  #rec-timer {
-    font-variant-numeric: tabular-nums; font-size: 12px; color: #b03a3a;
-    min-width: 30px; text-align: right;
-  }
-  #btn-rec-cancel, #btn-rec-done {
-    flex: none; padding: 7px 10px; border-radius: 6px; cursor: pointer;
-    font-size: 12px; font-weight: 600; border: none; line-height: 1;
-  }
-  #btn-rec-cancel { background: #ececec; color: #444; }
-  #btn-rec-done { background: #2e7d32; color: #fff; }
 </style>
 </head>
 <body>
@@ -155,16 +132,10 @@
   <div id="chat"></div>
   <div id="input-row">
     <textarea id="input" placeholder="Ask Bert about this ticket… (never sent to the customer)"></textarea>
-    <button id="btn-mic" onclick="toggleDictation()" title="Dictate" aria-label="Dictate">
+    <button id="btn-mic" onclick="openDictation()" title="Dictate" aria-label="Dictate">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
     </button>
     <button id="btn-chat" onclick="sendMessage()">Ask</button>
-  </div>
-  <div id="record-bar">
-    <button id="btn-rec-cancel" onclick="endDictation(false)" title="Cancel">&#10005;</button>
-    <div id="waveform"></div>
-    <span id="rec-timer">0:00</span>
-    <button id="btn-rec-done" onclick="endDictation(true)">&#10003; Done</button>
   </div>
 </div>
 <script>
@@ -182,16 +153,13 @@ var sendPending = false;   // true while the undo window is counting down
 var sending = false;       // true while the send request is in flight
 var sentDone = false;      // true once the reply has actually gone out
 
-// --- Dictation (browser Web Speech API + Web Audio waveform) ---
+// --- Dictation ---
+// The mic is blocked inside the Help Scout app iframe (its Permissions-Policy
+// allows only clipboard, never microphone). So we dictate in a popup window on
+// our own origin (top-level context → mic allowed) and receive the transcript
+// back via postMessage. See /dictate (static/dictate.html).
 var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-var recognition = null;
-var dictating = false;
-var originalText = '';   // textarea contents when dictation started (restored on cancel)
-var committed = '';      // finalized transcript appended this session
-var restartCount = 0;    // guards against onend flapping
-var micStream = null, audioCtx = null, analyser = null, freqData = null, waveRAF = null;
-var recSeconds = 0, recTimerId = null;
-var INPUT_PLACEHOLDER = '';
+var dictWin = null;
 
 if (CID) {
   ready(CID, EMAIL);
@@ -227,13 +195,14 @@ function ready(cid, email) {
   var ui = document.getElementById('ui');
   ui.style.display = 'flex';
   var input = document.getElementById('input');
-  INPUT_PLACEHOLDER = input.getAttribute('placeholder');
   input.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
   input.addEventListener('input', function() { autoGrow(input); });
-  if (Rec) { buildWaveBars(); }
-  else { document.getElementById('btn-mic').style.display = 'none'; }
+  // Hide the mic where speech recognition isn't available (e.g. Firefox) — the
+  // popup relies on the same Web Speech API, so this is a valid proxy.
+  if (!Rec) { document.getElementById('btn-mic').style.display = 'none'; }
+  window.addEventListener('message', onDictationMessage);
   watchAppHeight();
   fetchDraftState();
   schedulePoll(0);
@@ -307,7 +276,6 @@ function autoGrow(input) {
 }
 
 async function sendMessage() {
-  if (dictating) return;
   var input = document.getElementById('input');
   var text = input.value.trim();
   if (!text || busy) return;
@@ -592,167 +560,40 @@ async function doSend(force) {
 
 // ---- Dictation ----
 
-function buildWaveBars() {
-  var wf = document.getElementById('waveform');
-  wf.innerHTML = '';
-  for (var i = 0; i < 24; i++) {
-    var b = document.createElement('div');
-    b.className = 'bar';
-    wf.appendChild(b);
-  }
-}
-
 function joinText(base, add) {
   if (!add) return base;
   if (!base) return add;
   return /\s$/.test(base) ? base + add : base + ' ' + add;
 }
 
-function toggleDictation() {
-  if (dictating) endDictation(true);
-  else startDictation();
+// Open the dictation popup on our own origin. Passing our origin lets the popup
+// postMessage the transcript back to exactly this window and nowhere else.
+function openDictation() {
+  if (busy || !Rec) return;
+  if (dictWin && !dictWin.closed) { dictWin.focus(); return; }
+  var url = '/dictate?opener=' + encodeURIComponent(window.location.origin);
+  dictWin = window.open(url, 'bertDictate',
+    'width=420,height=340,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
+  if (!dictWin) { addChip('Popup blocked — allow popups for this site to dictate.', true); return; }
+  dictWin.focus();
 }
 
-function startDictation() {
-  if (busy || dictating || !Rec) return;
-  recognition = new Rec();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
-  recognition.onresult = onRecResult;
-  recognition.onerror = onRecError;
-  recognition.onend = onRecEnd;
-  originalText = document.getElementById('input').value;
-  committed = '';
-  restartCount = 0;
-  dictating = true;
-  try { recognition.start(); }
-  catch (e) { dictating = false; recognition = null; addChip('Could not start dictation.', true); return; }
-  showRecordingUI(true);
-  startTimer();
-  waveRAF = requestAnimationFrame(drawWave);
-  startWaveform();   // best-effort mic-level visualization
+// Receive the transcript from the dictation popup and drop it into the composer.
+function onDictationMessage(e) {
+  if (e.origin !== window.location.origin) return;   // popup shares our origin
+  if (!dictWin || e.source !== dictWin) return;       // only the window we opened
+  var d = e.data;
+  if (!d || d.type !== 'BERT_DICTATION' || d.action !== 'transcript') return;
+  insertTranscript(d.text);
 }
 
-// endDictation is the single teardown path. keepText=true commits the transcript
-// into the textarea for review; false restores what was there before dictation.
-function endDictation(keepText) {
-  if (!dictating) return;
-  dictating = false;
-  if (recognition) {
-    recognition.onend = null;
-    try { recognition.stop(); } catch (e) { /* already stopped */ }
-    recognition = null;
-  }
-  stopTimer();
-  if (waveRAF) { cancelAnimationFrame(waveRAF); waveRAF = null; }
-  stopWaveform();
-  showRecordingUI(false);
+function insertTranscript(text) {
+  text = (text || '').trim();
+  if (!text) return;
   var input = document.getElementById('input');
-  input.value = keepText ? joinText(originalText, committed.trim()) : originalText;
+  input.value = joinText(input.value, text);
   autoGrow(input);
-  if (keepText) input.focus();
-}
-
-function onRecResult(e) {
-  var interim = '';
-  for (var i = e.resultIndex; i < e.results.length; i++) {
-    var t = e.results[i][0].transcript;
-    if (e.results[i].isFinal) committed += t;
-    else interim += t;
-  }
-  var input = document.getElementById('input');
-  input.value = joinText(originalText, (committed + interim).trim());
-  autoGrow(input);
-}
-
-function onRecError(e) {
-  var err = e && e.error;
-  if (err === 'no-speech' || err === 'aborted') return;   // benign; onend handles it
-  if (err === 'not-allowed' || err === 'service-not-allowed') {
-    addChip('Microphone blocked — allow mic access to dictate.', true);
-    endDictation(false);   // nothing transcribed yet
-  } else {
-    addChip('Dictation error: ' + (err || 'unknown'), true);
-    endDictation(true);    // keep whatever was captured
-  }
-}
-
-function onRecEnd() {
-  if (!dictating) return;   // we tore down deliberately
-  // Chrome ends the session after a silence even with continuous=true. Restart to
-  // keep listening until the user taps Done/Cancel, with a backstop against flapping.
-  if (++restartCount > 40) { endDictation(true); return; }
-  try { recognition.start(); } catch (e) { endDictation(true); }
-}
-
-function showRecordingUI(on) {
-  document.getElementById('record-bar').classList.toggle('active', on);
-  document.getElementById('btn-mic').style.display = on ? 'none' : '';
-  document.getElementById('btn-chat').style.display = on ? 'none' : '';
-  var input = document.getElementById('input');
-  input.readOnly = on;
-  input.placeholder = on ? 'Listening…' : INPUT_PLACEHOLDER;
-}
-
-function startTimer() {
-  recSeconds = 0; updateTimerLabel();
-  recTimerId = setInterval(function() {
-    recSeconds += 1; updateTimerLabel();
-    if (recSeconds >= 120) endDictation(true);   // 2-min safety cap
-  }, 1000);
-}
-
-function stopTimer() {
-  if (recTimerId) { clearInterval(recTimerId); recTimerId = null; }
-}
-
-function updateTimerLabel() {
-  var m = Math.floor(recSeconds / 60), s = recSeconds % 60;
-  document.getElementById('rec-timer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
-}
-
-async function startWaveform() {
-  try {
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    var src = audioCtx.createMediaStreamSource(micStream);
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 64;
-    freqData = new Uint8Array(analyser.frequencyBinCount);
-    src.connect(analyser);
-  } catch (e) {
-    analyser = null;   // fall back to the idle animated bars
-  }
-}
-
-function stopWaveform() {
-  try {
-    if (micStream) { micStream.getTracks().forEach(function(t) { t.stop(); }); micStream = null; }
-    if (audioCtx) { audioCtx.close(); audioCtx = null; }
-  } catch (e) { /* ignore */ }
-  analyser = null; freqData = null;
-}
-
-function drawWave() {
-  if (!dictating) return;
-  var bars = document.getElementById('waveform').children;
-  var n = bars.length;
-  if (analyser) {
-    analyser.getByteFrequencyData(freqData);
-    var step = Math.max(1, Math.floor(freqData.length / n));
-    for (var i = 0; i < n; i++) {
-      var v = freqData[i * step] / 255;                 // 0..1
-      bars[i].style.height = (3 + v * 25).toFixed(1) + 'px';
-    }
-  } else {
-    var t = Date.now() / 180;
-    for (var j = 0; j < n; j++) {
-      var w = (Math.sin(t + j * 0.6) + 1) / 2;           // gentle idle wiggle
-      bars[j].style.height = (3 + w * 12).toFixed(1) + 'px';
-    }
-  }
-  waveRAF = requestAnimationFrame(drawWave);
+  input.focus();
 }
 </script>
 </body>
