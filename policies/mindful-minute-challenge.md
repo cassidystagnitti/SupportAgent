@@ -2,13 +2,16 @@
 
 # Summary
 
-The Mindful Minute Challenge — internally also called the **Apple challenge** — is a month-long meditation challenge event we run every year for **Apple employees**. It is not a general Happier Meditation product feature, and the main support team does not own it. Tickets that reference the challenge are handled by the team behind the dedicated **Apple mailbox** in Help Scout (mailbox #3 in the mailbox list — not the main `1. Happier Support` mailbox). The correct handling for any challenge ticket is to **move the conversation to the Apple mailbox**, not to answer it from the main support queue. Support does not answer challenge logistics questions (registration windows, pre-registration, eligibility, prizes, dates) because the answers live with the challenge team.
+The Mindful Minute Challenge — internally also called the **Apple challenge** — is a month-long meditation challenge event we run every year for **Apple employees**. It is not a general Happier Meditation product feature, and the main support team does not own it. Tickets that reference the challenge are handled by the team behind the dedicated **Apple mailbox** in Help Scout (`3. Happier Apple Support`, id 201086 — not the main `1. Happier Support` mailbox). The correct handling for a Mindful Minute Challenge ticket is to **move the conversation to the Apple mailbox**, not to answer it from the main support queue. Support does not answer its logistics questions (registration windows, pre-registration, eligibility, prizes, dates) because the answers live with the challenge team.
+
+**Scope — this policy is Apple-org only.** Happier runs other meditation challenges (e.g. the ENL join challenge and general in-app challenge events) that have nothing to do with Apple. Those are normal support tickets: answer them from the main mailbox under the relevant policy / saved reply, and never move them to the Apple mailbox. Only the Mindful Minute Challenge routes there.
 
 # Trigger Conditions
 
 - **Ticket signals:** customer asks about the Mindful Minute Challenge — registration, pre-registration, dates, eligibility, how it works, past participation, prizes/completion; customer identifies as an Apple employee asking about "the challenge" or "this year's challenge"
 - **Account signals:** organizational/enterprise subscription tied to Apple; corporate email domain (`@apple.com`) is a strong signal but not required
-- **Keywords / phrases:** "Mindful Minute Challenge," "mindful minute," "Apple challenge," "the challenge" (from an Apple-affiliated account), "challenge registration," "sign up for the challenge," "pre-register"
+- **Keywords / phrases:** "Mindful Minute Challenge," "mindful minute," "Apple challenge"; "the challenge" / "challenge registration" / "sign up for the challenge" / "pre-register" ONLY when the Apple context is present (Apple employee, @apple.com address, Apple org subscription, or an explicit Mindful Minute reference)
+- **Non-triggers (do NOT route to Apple):** any other meditation challenge — the ENL join challenge, general in-app/community challenge events, "challenge" feature questions with no Apple signal. The word "challenge" alone is NOT enough; without an Apple/Mindful-Minute signal, handle as a normal support ticket.
 
 # Required Context
 
@@ -31,7 +34,7 @@ The Mindful Minute Challenge — internally also called the **Apple challenge** 
 
 ## Edge Cases & Exceptions
 
-- **Non-Apple customer asking about the challenge** (heard about it, wants to join): the challenge is an Apple-employee event. Route to the Apple mailbox rather than improvising an eligibility answer — the challenge team owns that messaging.
+- **Non-Apple customer asking about the Mindful Minute Challenge specifically** (heard about it by name, wants to join): it is an Apple-employee event. Route to the Apple mailbox rather than improvising an eligibility answer — the challenge team owns that messaging. (A non-Apple customer asking about a *different* challenge is a normal ticket — see Non-triggers.)
 - **Ticket already drafted/answered by support before the challenge reference was noticed:** still move it; the Apple team inherits the thread history.
 
 # Action Classification
@@ -42,9 +45,9 @@ The Mindful Minute Challenge — internally also called the **Apple challenge** 
 
 ## Human Action Required
 
-- **Action:** Move the conversation to the Apple mailbox (mailbox #3 in the Help Scout mailbox list).
+- **Action:** Move the conversation to the Apple mailbox (`3. Happier Apple Support`, id 201086).
 - **When:** Any ticket referencing the Mindful Minute Challenge / Apple challenge.
-- **Why AI can't do it alone:** As of 2026-07-20 the pipeline's Help Scout API credentials can only access the main `1. Happier Support` mailbox (id 185235) — the Apple mailbox is not visible to the OAuth app, so the move must be done by a human in the Help Scout UI until API access to the Apple mailbox is granted and an automated move capability ships (in progress).
+- **How:** Automated since 2026-07-20 — `bert.fanout.move_to_apple_mailbox(session, conversation_id)` (gated on the `APPLE_MAILBOX_ID` env var; the API app's HS user has Apple-mailbox access). Falls back to a manual move in the Help Scout UI if the env var is unset or the API call fails.
 
 ## Do Not Auto-Send Conditions
 
@@ -58,7 +61,7 @@ The Mindful Minute Challenge — internally also called the **Apple challenge** 
 
 - **High confidence areas:** identification (the challenge name is distinctive) and the routing rule (always move to the Apple mailbox).
 - **Judgment call areas:** mixed tickets — how much of the support portion to resolve before moving.
-- **Gaps:** exact Apple mailbox id is unconfirmed (it is not visible to the current API credentials); challenge program details (dates, registration mechanics) are intentionally not documented here because the challenge team owns them.
+- **Gaps:** challenge program details (dates, registration mechanics) are intentionally not documented here because the challenge team owns them. (Apple mailbox id confirmed 2026-07-20: 201086, `3. Happier Apple Support`.)
 
 # Saved Reply Mapping
 
@@ -72,4 +75,4 @@ No saved reply in `data/saved_replies.json` covers the Mindful Minute Challenge 
 
 - *Escalation Policy* (general routing/escalation principles)
 - *Account Lookup Data Model* (organizational-subscription signals)
-- *Non-Support Requests* (contrast: those get declined/closed; challenge tickets get **moved**, never declined)
+- *Non-Support Requests* (contrast: those get declined/closed; Mindful Minute Challenge tickets get **moved**, never declined)

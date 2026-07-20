@@ -121,6 +121,22 @@ def reconcile_auto_send_tag(session, cid, verdict) -> str | None:
         return "remove_failed" if verdict != "SEND_AS_IS" else None
 
 
+def move_to_apple_mailbox(session, conversation_id) -> str | None:
+    """Route a Mindful Minute Challenge ticket to the Apple mailbox (fail-soft).
+
+    ONLY for the Mindful Minute Challenge (the Apple-org event) — Happier's
+    other meditation challenges are normal tickets and must never be moved.
+    Per policies/mindful-minute-challenge.md, these tickets are moved to
+    the Apple mailbox instead of being answered from the main queue. Returns
+    ``"moved"`` on success, ``"no_mailbox_id"`` when APPLE_MAILBOX_ID is not
+    configured, or ``None`` when the move call failed. Never raises.
+    """
+    mailbox_id = pipeline.apple_mailbox_id()
+    if not mailbox_id:
+        return "no_mailbox_id"
+    return "moved" if pipeline.move_conversation(session, conversation_id, mailbox_id) else None
+
+
 def _initial_verdict(session, client, result: dict, *, brief: str,
                      model: str | None):
     """First-pass verdict, cheapest check first. Returns (verdict_dict, ctx,

@@ -192,6 +192,37 @@ def update_draft(session, conversation_id, thread_id, text: str) -> bool:
     return r.status_code == 204
 
 
+def apple_mailbox_id() -> int | None:
+    """The Apple mailbox id from APPLE_MAILBOX_ID, or None when unset/invalid."""
+    raw = os.getenv("APPLE_MAILBOX_ID", "").strip()
+    try:
+        return int(raw) if raw else None
+    except ValueError:
+        return None
+
+
+def move_conversation(session, conversation_id, mailbox_id) -> bool:
+    """Move a conversation to another mailbox via Help Scout PATCH (fail-soft).
+
+    Same single-JSON-Patch-object shape as ``update_draft``:
+    {"op": "move", "path": "/mailboxId", "value": <id>} → HTTP 204.
+
+    Note: the OAuth app's token can only move into mailboxes the app-owning
+    Help Scout user has access to — a destination outside GET /v2/mailboxes
+    will fail. Returns True on success, False on any failure; never raises.
+    """
+    try:
+        url = f"{orchestrator.BASE_URL}/conversations/{int(conversation_id)}"
+        body = {"op": "move", "path": "/mailboxId", "value": int(mailbox_id)}
+        r = session.patch(url, json=body)
+        r.raise_for_status()
+        print(f"Moved conversation {conversation_id} → mailbox {mailbox_id}")
+        return True
+    except Exception as e:
+        print(f"Move FAILED for conversation {conversation_id} → mailbox {mailbox_id}: {e}")
+        return False
+
+
 # --- Internal action-note: a short "Actions needed" bullet list, nothing else ---
 
 NOTE_MARKER = "Actions needed"

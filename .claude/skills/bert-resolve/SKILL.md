@@ -9,7 +9,7 @@ Walk the `review` set from the fan-out with Cassidy. This is where judgment gets
 
 ## For each flagged draft
 
-1. Show Cassidy why it's flagged (low confidence, needs_action, escalation, open_question, suspected bug) and the draft itself.
+1. Show Cassidy why it's flagged (low confidence, needs_action, escalation, open_question, suspected bug) and the draft itself. If the flag is brand confusion — the customer might mean Dan Harris's 10% Happier rather than us — run `bert-disambiguate-10-percent` before revising; don't settle it from memory.
 2. Get the answer / wording direction. If it establishes a general truth (not just this ticket), append it to the standing brief (`bert.state.append_brief`) so remaining drafts inherit it — and consider re-drafting affected tickets via `bert-draft-all`.
 3. Revise the draft as directed (re-draft that ticket with the updated brief, or hand-edit).
 
