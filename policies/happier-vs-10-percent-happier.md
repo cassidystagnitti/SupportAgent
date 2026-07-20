@@ -14,7 +14,7 @@ Happier Meditation (us) and **10% Happier** (Dan Harris's brand — his podcast 
 
 - [ ] Which product does the customer actually mean? Signals: podcast/episodes/Dan Harris interviews → 10% Happier; meditations, courses, sleep content, our app's features → Happier Meditation
 - [ ] Does the ticket mix both (e.g., a Happier Meditation billing question plus a podcast question)? Handle each half separately.
-- [ ] If ambiguous after reading the full thread: ask the customer a clarifying question rather than guessing. (A disambiguation capability that checks what Dan Harris / 10% Happier is currently doing is planned; until it exists this is a manual judgment.)
+- [ ] If ambiguous after reading the full thread: run the `bert-disambiguate-10-percent` skill (web-researches what Dan Harris / 10% Happier is currently doing and combines it with the ticket signals). If still ambiguous after that, ask the customer a clarifying question rather than guessing.
 
 # Policy / Correct Response
 
@@ -66,7 +66,7 @@ Customer asks about a 10% Happier thing (podcast, ad-free feed, podcast subscrip
 # Confidence Notes
 
 - **High confidence areas:** the naming rule (10% Happier, numerals, always) and the boundary rule (we can't see or act on the 10% Happier side).
-- **Judgment call areas:** disambiguating what the customer means when they say "Ten Percent Happier" — currently a manual judgment from thread context. A skill that checks Dan Harris's / 10% Happier's current activity to inform this call is planned (capability gap, 2026-07-20).
+- **Judgment call areas:** disambiguating what the customer means when they say "Ten Percent Happier" — use the `bert-disambiguate-10-percent` skill (added 2026-07-20), which checks Dan Harris's / 10% Happier's current activity and combines it with thread + account signals.
 - **Gaps:** no saved reply exists for the general product-boundary explanation (only the podcast-location one). Flag for a dedicated saved reply.
 
 # Saved Reply Mapping
