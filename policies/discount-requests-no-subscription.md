@@ -8,7 +8,7 @@ This policy applies only to customers who are **not currently subscribed**. Subs
 
 - **Ticket signals:** unsubscribed user asks for a discount, deal, lower price, promo code, or reduced rate on the annual subscription; mentions they'd like to come back but at a lower price; asks if there are any offers available
 - **Account signals:** `Subscribed: false` in account lookup (expired/canceled subscription or never subscribed), OR `Account Found: false` (no account at all)
-- **Keywords / phrases:** "discount," "deal," "promo," "coupon," "lower price," "reduced rate," "any offers," "can't justify full price," "too expensive," "willing to pay but," "come back if cheaper," "is there a deal," "student discount," "senior discount"
+- **Keywords / phrases:** "discount," "deal," "promo," "coupon," "lower price," "reduced rate," "any offers," "can't justify full price," "too expensive," "willing to pay but," "come back if cheaper," "is there a deal," "student discount," "senior discount," "regional pricing," "price in my country," "purchasing power," "exchange rate," "too expensive in [country]"
 
 # Required Context
 
@@ -36,6 +36,8 @@ For customers who simply ask for a discount, want a deal to resubscribe, or ment
 ### Forever Ladder (ongoing/permanent need expressed)
 
 For customers who mention a non-time-bounded reason they need a reduced price — fixed income, chronic health challenges, disability, retirement, or similar permanent circumstances:
+
+> **Regional / purchasing-power pricing requests** (customer says the price is unaffordable in their country/currency — e.g. India): treat as an ongoing need under this forever ladder; there is no separate regional-pricing program. The resolution offer is **50% off annual (forever)**. Escalate to a *Need-Based Complimentary Subscription* **only if the customer has already declined 50% off forever** (confirmed 2026-07-20).
 
 1. **First offer: 40% off annual (forever).** Send the 40% off annual FOREVER link from account lookup.
 2. **If customer responds that 40% forever isn't enough:** Escalate to **50% off annual (forever).** Send the 50% off annual FOREVER link.

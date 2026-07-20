@@ -60,13 +60,13 @@ The customer wants their account deleted. The account on the contact email is fr
 ## Variations
 
 - **If the customer also mentions a charge or unrecognized receipt alongside the deletion request:** Do not proceed with the deletion reply. Investigate the charge first — the account they want deleted might not be the account with the subscription. Route to **Account Found, No Subscription (Charge Inquiry)**.
-- **If the customer invokes GDPR or "right to erasure":** Human action required. Do not send the standard reply or direct to self-serve deletion. See Edge Cases below.
+- **If the customer invokes GDPR or "right to erasure":** Handle through the standard deletion flow — our cancellation/account-deletion process is GDPR compliant (confirmed 2026-07-20), so no separate compliance procedure is needed. See Edge Cases below.
 - **If the customer says they can't find the deletion option in the app:** Confirm which app version they're on and provide navigation steps. If the option is missing or broken, escalate to support engineering.
 - **If the customer is on iPhone/iPad and deletion fails:** Sign in with Apple complications can sometimes block in-app deletion. Escalate to a senior agent to handle manually.
 
 ## Edge Cases & Exceptions
 
-- **Customer invokes GDPR / right to erasure** → Human action required. GDPR requests have specific response and fulfillment timelines and may require agent-executed deletion with a documented confirmation record. Do not instruct self-serve deletion. Flag for senior agent or data privacy owner immediately.
+- **Customer invokes GDPR / right to erasure** → Non-issue: the standard cancellation/account-deletion process is GDPR compliant (confirmed 2026-07-20). Handle exactly like a standard deletion request — same reply, same self-serve or agent-assisted path. No dedicated GDPR procedure, timeline tracking, or data-privacy-owner routing is required.
 - **Customer wants written confirmation of deletion** → Human review. An agent should draft confirmation after the customer completes in-app deletion. The AI should not send this automatically.
 - **Account not found on contact email** → This policy does not apply. Do not send deletion instructions for an account we cannot confirm exists. Investigate which email the account may be under first.
 - **Customer wants deletion but has an active subscription** → Different policy applies. Do not advise deletion until the subscription is cancelled. See **Cancellation + Account Deletion**.

@@ -18,6 +18,7 @@ Set `escalate: true` and `draft_reply: null` for any of the following situations
 - Situations that require coordination with another internal team (e.g., engineering, finance)
 - Edge cases not covered by any policy document where guessing would be risky
 - Any ticket where you have low confidence and the stakes are high
+- **Compensation via subscription extension**: customer asks for their subscription to be extended because access was blocked (login/account issue, outage). This is possible but never standard — always escalate; a human decides case-by-case. Never promise or confirm an extension in a draft (confirmed 2026-07-20).
 
 ## What Happens on Escalation
 
