@@ -35,3 +35,13 @@ Routine situations that have clear policy coverage should be handled with a draf
 - Apple/Google subscription questions (answer per policy; we cannot take action on their subscriptions)
 - Subscription pricing or discount questions
 - Account lookup failures (follow the No Account Found policy)
+
+## Draft Language: Never Reference a Pending Internal Review
+
+Every AI-drafted reply already passes through human review before it is sent — the support teammate reviewing/editing the draft in Help Scout *is* that review; there is no separate later review step. Do not draft customer-facing language that implies otherwise, e.g.:
+
+- "I've flagged this for a member of our team to double-check."
+- "I'm escalating this internally and will follow up shortly."
+- "Someone will review this and get back to you."
+
+This creates a false expectation of a second review cycle that has, in effect, already happened by the time the draft reaches the customer. If a ticket genuinely can't be resolved without human judgment, either escalate properly (`escalate: true`, no draft — see above) so a human handles it directly, or draft the best supportable answer / a clarifying question. Never draft a stalling reply that promises a future internal check that is actually just this same draft-review step already in progress.
