@@ -18,6 +18,7 @@ Run these in order, but treat step 2 as a hub you can stay in as long as Cassidy
 2. **Discuss** (hub — loop freely):
    - Dive into a specific ticket → `bert-hydrate-ticket`.
    - Look something up in the codebase or Linear → the existing `research_agent` (`run_research`).
+   - Ticket references "Ten Percent Happier," Dan Harris, the podcast, or live events → `bert-disambiguate-10-percent` to web-research the current 10% Happier side and settle which product the customer means.
    - Cassidy states a bug-truth / company context / wording preference → append it to the standing brief with `bert.state.append_brief`, then save.
    - **Mindful Minute Challenge / Apple challenge ticket** → do NOT draft a reply. Per
      `policies/mindful-minute-challenge.md`, move it to the Apple mailbox:

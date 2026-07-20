@@ -16,6 +16,7 @@ Handles requests to cancel a subscription (turn off auto-renewal). The customer 
 - [ ]  Subscription expiration / next renewal date
 - [ ]  Whether the subscription has an active discount (Stripe only — relevant for retention offer eligibility)
 - [ ]  Plan type (annual or monthly)
+- [ ]  If no subscription is found and the customer mentions "Ten Percent Happier," Dan Harris, or the podcast: which product are they actually subscribed to? Run the `bert-disambiguate-10-percent` skill (see *Happier vs. 10% Happier*) before sending the redirect or the free-account reply.
 
 # Policy / Correct Response
 
@@ -111,7 +112,7 @@ The correct saved reply is determined by account and subscription data. Work thr
 | Free account, no subscription | `CancelRefund FreeAccountCancel` | Explains no active sub; asks for receipt/alternate email if they think they're subscribed |
 | Account has been deleted | `CancelRefund AllCancelDeletedAccount FILLIN` | Fill in ACCOUNTADDRESS |
 | Platform unclear, need more info | `CancelRefund PlatformUnclearCancel` | Use when we can't determine provider from account data |
-| Customer is actually 10% Happier | `CancelRefund 10%HappierSub` | Redirect to 10% Happier support; we are not affiliated |
+| Customer is actually 10% Happier | `CancelRefund 10%HappierSub` | Redirect to 10% Happier support; we are not affiliated. Unsure it's actually theirs? Run `bert-disambiguate-10-percent` first |
 
 ## Auto-renew already off
 
