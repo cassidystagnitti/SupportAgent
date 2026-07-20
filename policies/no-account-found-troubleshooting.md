@@ -234,3 +234,7 @@ These examples share the same account trigger (`Account Found: false`) — what 
 - *Apple/Google → Stripe Migration* (if Apple customer wants to cancel and resubscribe on Stripe)
 - *Free Trial Policy* (if account found shows a trial that needs cancellation)
 - *[Account Found — No Subscription / Account Deletion]* (adjacent scenario: contact email matches an account but no subscription exists)
+
+## Note on Family Sharing as a troubleshooting suggestion
+
+When investigating an Apple-billed subscription that can't be matched (merchant descriptor `APPLE.COM/BILL`), don't default to suggesting the customer check whether the subscription is under a family member's Apple ID via Family Sharing. Many customers don't have Family Sharing set up at all, and offering it as a blanket step wastes their time. Only raise the Family Sharing possibility if the customer has indicated they use Family Sharing, or after confirming with them that it's enabled. The standard, generally-applicable checks remain: Settings → [name] → Subscriptions on the device itself, and checking for a hidden Sign in with Apple relay address.
