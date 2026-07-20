@@ -28,6 +28,8 @@ Covers all tickets where the customer's primary issue is logging into the Happie
 
 The core principle: **find the subscribed account, then send login instructions for that account.** We do not direct a customer to log into an unsubscribed account when they're claiming a subscription.
 
+**Sign-in is app-only (confirmed 2026-07-20).** Customers cannot currently sign in on the website — a web/desktop view is coming soon but is not out yet. Never link a customer to a website sign-in page (e.g. `my.meditatehappier.com/.../sign_in`); all login instructions go through the app's welcome screen (**Already have an account? Sign In**). Do not proactively promise the upcoming web view.
+
 ### What counts as the customer claiming a subscription
 
 Any of the following:
