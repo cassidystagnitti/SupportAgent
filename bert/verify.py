@@ -13,11 +13,24 @@ Three layers, cheapest first:
 
 from __future__ import annotations
 
+import json
+import os
 import re
 
+import claude_utils
+import orchestrator
 import triage_tickets
 
 VERDICTS = ("SEND_AS_IS", "MINOR", "ERROR")
+DEFAULT_VERIFY_MODEL = os.getenv("BERT_VERIFY_MODEL", "claude-sonnet-5")
+
+_PROMPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
+                            "prompts", "verify_system_prompt.txt")
+
+_JSON_RETRY_SUFFIX = (
+    "\n\nIMPORTANT: your previous response was not parseable JSON. Respond with ONLY the "
+    "JSON verdict object — no prose, no markdown fences."
+)
 
 # Sequences that only appear when UTF-8 text was decoded as Latin-1/CP1252
 # somewhere along the way ("â€™", "â€”", …) or replaced outright ("ï¿½", "�").
@@ -92,3 +105,99 @@ def find_sibling_conversations(session, email, *, exclude_cid) -> list:
     convos = (data or {}).get("_embedded", {}).get("conversations", [])
     return [c.get("id") for c in convos
             if c.get("id") is not None and int(c["id"]) != int(exclude_cid)]
+
+
+def _load_verify_prompt() -> str:
+    with open(_PROMPT_PATH, encoding="utf-8") as f:
+        return f.read()
+
+
+def _build_verify_user_message(result: dict, ctx: dict, brief: str) -> str:
+    brief = (brief or "").strip()
+    history = (ctx.get("conversation_history") or "").strip()
+    history_section = f"\n=== CONVERSATION HISTORY ===\n{history}\n" if history else ""
+    reply_mode_note = (
+        "\nNOTE: this is an ongoing thread — the draft must address the customer's "
+        "LATEST message only.\n" if ctx.get("reply_mode") else ""
+    )
+    return f"""=== TICKET ===
+Subject: {ctx.get('subject') or '(no subject)'}
+Customer: {ctx.get('customer_name') or '(unknown)'} <{ctx.get('email') or 'unknown'}>
+{reply_mode_note}
+=== CUSTOMER MESSAGE ===
+{ctx.get('body') or '(empty)'}
+{history_section}
+=== ACCOUNT CONTEXT ===
+{ctx.get('account_blob') or '(none)'}
+
+=== STRIPE CONTEXT ===
+{ctx.get('stripe_block') or '(none)'}
+
+=== STANDING BRIEF (live internal team context) ===
+{brief or '(empty)'}
+
+=== DRAFTING MODEL'S SELF-ASSESSMENT ===
+Confidence: {result.get('confidence')}
+Referenced policies: {', '.join(result.get('referenced_policies') or []) or '(none)'}
+Reasoning: {result.get('reasoning') or '(none)'}
+
+=== DRAFT REPLY UNDER REVIEW ===
+{result.get('draft_reply') or '(empty)'}
+
+Review the draft against everything above and return your JSON verdict."""
+
+
+def _normalize_verdict(parsed: dict) -> dict:
+    verdict = str(parsed.get("verdict") or "").strip().upper()
+    if verdict not in VERDICTS:
+        raise ValueError(f"verifier returned unknown verdict {parsed.get('verdict')!r}")
+    findings = []
+    for f in parsed.get("findings") or []:
+        if not isinstance(f, dict):
+            continue
+        findings.append({
+            "class": str(f.get("class") or "").strip().upper(),
+            "detail": str(f.get("detail") or ""),
+            "fix_type": str(f.get("fix_type") or ""),
+            "suggested_fix": str(f.get("suggested_fix") or ""),
+        })
+    return {"verdict": verdict, "findings": findings}
+
+
+def verify_draft(client, result: dict, ctx: dict, brief: str, policies: str, *,
+                 model: str | None = None) -> dict:
+    """One adversarial Claude review of an auto-send candidate draft.
+
+    Returns {"verdict": SEND_AS_IS|MINOR|ERROR, "findings": [...]}. Raises on an
+    unusable model response (bad JSON twice, unknown verdict, API error) — the
+    caller fail-softs that into "no auto_send tag".
+    """
+    system_blocks = [{
+        "type": "text",
+        "text": _load_verify_prompt(),
+        "cache_control": {"type": "ephemeral"},
+    }]
+    dynamic = _build_verify_user_message(result, ctx, brief)
+
+    last_err: Exception | None = None
+    for attempt in range(2):
+        content = [
+            {
+                "type": "text",
+                "text": f"=== POLICY DOCUMENTS ===\n{policies}\n",
+                "cache_control": {"type": "ephemeral"},
+            },
+            {"type": "text", "text": dynamic + (_JSON_RETRY_SUFFIX if attempt else "")},
+        ]
+        message = client.messages.create(
+            model=model or DEFAULT_VERIFY_MODEL,
+            max_tokens=4000,
+            system=system_blocks,
+            messages=[{"role": "user", "content": content}],
+        )
+        text = claude_utils.extract_text(message)
+        try:
+            return _normalize_verdict(orchestrator._parse_claude_json(text))
+        except json.JSONDecodeError as e:
+            last_err = e
+    raise ValueError(f"verifier did not return parseable JSON after retry: {last_err}")
