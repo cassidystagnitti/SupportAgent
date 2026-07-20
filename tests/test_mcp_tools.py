@@ -76,13 +76,29 @@ def test_post_drafts_filters_by_cid(monkeypatch):
                         lambda *a, **k: [_fake_draft_result(1), _fake_draft_result(2)])
     applied = []
     monkeypatch.setattr(mcp_tools.bert_fanout, "apply_result",
-                        lambda session, r, timestamp=None: applied.append(r["conversation_id"]) or
+                        lambda session, r, timestamp=None, **kw: applied.append(r["conversation_id"]) or
                         {"conversation_id": r["conversation_id"], "draft_action": "updated"})
 
     run_id = mcp_tools.draft_all([_rec(1), _rec(2)])["run_id"]
     out = mcp_tools.post_drafts(run_id, conversation_ids=[2])
     assert out["posted"] == 1
     assert applied == [2]
+
+
+def test_post_drafts_passes_verifier_client_and_run_brief(monkeypatch):
+    monkeypatch.setattr(mcp_tools.bert_fanout, "draft_all",
+                        lambda *a, **k: [_fake_draft_result(1)])
+    seen = {}
+
+    def fake_apply(session, r, timestamp=None, **kw):
+        seen.update(kw)
+        return {"conversation_id": r["conversation_id"], "draft_action": "updated"}
+
+    monkeypatch.setattr(mcp_tools.bert_fanout, "apply_result", fake_apply)
+    run_id = mcp_tools.draft_all([_rec(1)], brief="- streak bug fixed")["run_id"]
+    mcp_tools.post_drafts(run_id)
+    assert seen["verify_client"] == "CLIENT"
+    assert seen["brief"] == "- streak bug fixed"
 
 
 def test_post_drafts_unknown_run():
