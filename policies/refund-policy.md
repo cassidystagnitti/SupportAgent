@@ -16,6 +16,7 @@ Defines refund eligibility windows for Stripe and Google Play subscriptions, and
 - [ ]  Date of the charge they want refunded
 - [ ]  Whether the charge was an initial purchase or a renewal (rule is the same, but useful for response framing)
 - [ ]  Number of days elapsed since the charge
+- [ ]  If the charge can't be found on our side and the customer mentions "Ten Percent Happier," Dan Harris, or the podcast: confirm the charge is actually ours — run the `bert-disambiguate-10-percent` skill (see *Happier vs. 10% Happier*) before declining or redirecting.
 
 # Policy / Correct Response
 

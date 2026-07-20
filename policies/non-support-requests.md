@@ -31,7 +31,7 @@ Covers inbound messages to the support mailbox that are not support requests at 
 
 ## Variations
 
-- **Podcast or guest pitch:** One-paragraph decline, close. No forwarding needed unless the pitch is from a notably large or relevant outlet (see Escalation Triggers).
+- **Podcast or guest pitch:** One-paragraph decline, close. No forwarding needed unless the pitch is from a notably large or relevant outlet (see Escalation Triggers). If the pitch is clearly aimed at Dan Harris's **10% Happier** podcast (we don't run a podcast), the decline should not imply the show is ours — run `bert-disambiguate-10-percent` (see *Happier vs. 10% Happier*) if it's unclear which show or product the sender means.
 - **Partnership proposal (small business, unclear fit, generic B2B pitch):** One-paragraph decline, close.
 - **Press inquiry (small or unclear outlet):** One-paragraph decline, close. Do not provide quotes, statements, or company information without human sign-off even for a "small" inquiry — the decline itself is safe to send, but never substitute a real answer to their question in place of the decline.
 - **Influencer/collab pitch:** One-paragraph decline, close. Do not offer promo codes, free subscriptions, or affiliate terms — that's a business decision outside support's scope.
