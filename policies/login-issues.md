@@ -28,7 +28,7 @@ Covers all tickets where the customer's primary issue is logging into the Happie
 
 The core principle: **find the subscribed account, then send login instructions for that account.** We do not direct a customer to log into an unsubscribed account when they're claiming a subscription.
 
-**Sign-in is app-only (confirmed 2026-07-20).** Customers cannot currently sign in on the website — a web/desktop view is coming soon but is not out yet. Never link a customer to a website sign-in page (e.g. `my.meditatehappier.com/.../sign_in`); all login instructions go through the app's welcome screen (**Already have an account? Sign In**). Do not proactively promise the upcoming web view.
+**Content access is app-only; the web is checkout-only (confirmed 2026-07-20, changing very soon).** Purchases work on the web — the web checkout flow, including the policy-prescribed discount coupon links (`/start/sign_in?coupon=...`) and gift purchase/redemption, is fine to send. But there is no website sign-in to *access content or the product*: all login/access instructions go through the app's welcome screen (**Already have an account? Sign In**). Never send a bare website sign-in link for account or content access, and do not proactively promise the upcoming web/desktop view.
 
 ### What counts as the customer claiming a subscription
 
