@@ -239,19 +239,29 @@ def post_drafts(run_id: str, conversation_ids: list[int] | None = None) -> dict:
     """Post the run's drafts to Help Scout (draft only — never auto-send).
 
     With `conversation_ids`, posts only those; otherwise posts all in the run.
-    Returns {"statuses": [ apply_result status, … ]}.
+    Auto-send candidates go through the verifier stage (bert/verify.py); the
+    auto_send tag follows the verdict. Returns {"statuses": [ apply_result
+    status, … ]} — including verify_verdict / verify_findings per ticket.
     """
     run = _RUNS.get(run_id)
     if not run:
         raise ValueError(f"unknown run_id {run_id!r} (it may have expired)")
     session = _hs_session()
+    try:
+        client = _anthropic_client()
+    except Exception:
+        # Posting must not require the Anthropic key — candidates just stay
+        # unverified (and therefore untagged).
+        client = None
     ts = _now_iso()
     if conversation_ids:
         wanted = {str(c) for c in conversation_ids}
         results = [run["results_by_cid"][c] for c in wanted if c in run["results_by_cid"]]
     else:
         results = list(run["results_by_cid"].values())
-    statuses = [bert_fanout.apply_result(session, r, timestamp=ts) for r in results]
+    statuses = [bert_fanout.apply_result(session, r, timestamp=ts,
+                                         verify_client=client, brief=run.get("brief") or "")
+                for r in results]
     return {"statuses": statuses, "posted": len(statuses)}
 
 

@@ -16,6 +16,7 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `policy_updater.py` | Live | Confirmed policy updates: live apply + GitHub commit (`[skip render]`); git is the single source of truth |
 | `mcp_server.py` | Live | Bert MCP server (FastMCP, streamable HTTP): exposes the morning-review pipeline as MCP tools for the `support` marketplace plugin; Bearer-token auth (`SUPPORT_MCP_TOKEN`). Deployed on Render alongside the sidebar. Requires Python ≥3.10. |
 | `bert/mcp_tools.py` | Live | Adapter behind `mcp_server.py`: thin wrappers over `bert.summarize`/`pipeline`/`fanout`, `research_agent`, `policy_updater`; keeps heavy draft results in an ephemeral server-side run store, returns compact views. No MCP import (unit-testable on any Python). |
+| `bert/verify.py` | Live | VERIFIER stage for auto-send candidates: deterministic pre-lint (brand naming, placeholders, mojibake, bare sign-in links) + same-customer sibling-ticket check + one adversarial Claude review (rubric classes A–I, `prompts/verify_system_prompt.txt`). The `auto_send` tag follows the verdict (`bert/fanout.verify_and_tag`). |
 | `static/sidebar.html` | Live | Sidebar chat frontend (vanilla JS; postMessage context handshake) |
 | `triage_tickets.py` | Live | Tags, team, priority, tier classification via Claude |
 | `account_context.py` | Built, not connected | Fetches customer/account data from Happier Maven API |
@@ -94,6 +95,27 @@ orchestrator.py (invoked per ticket by Bert skills / sidebar chat hydration)
        10. bug_registry.py             — best-effort: track new-bug candidates, auto-file to Linear
                                           Technical once a fuzzy-matched summary has 2+ reports
 ```
+
+**Auto-send VERIFIER (Bert apply path).** When Bert posts/updates a draft
+(`bert/fanout.apply_result`) and the result qualifies for auto-send
+(`should_auto_send`), a VERIFIER stage runs (`bert/verify.py`): deterministic
+pre-lint → mechanical same-customer sibling check (other open conversations →
+automatic ERROR, consolidate) → one adversarial Claude review against the full
+policy corpus, ticket context, and standing brief (error rubric A–I in
+`prompts/verify_system_prompt.txt`). When the verdict is MINOR/ERROR and every
+finding is a pure `rewrite` (fixable from documented truths — never external
+facts, human action, or consolidation), a bounded REPAIR loop
+(`prompts/repair_system_prompt.txt`, max 2 iterations) revises the draft,
+updates the Help Scout draft in place, and re-verifies. The `auto_send` tag in
+Help Scout follows the FINAL verdict: applied only on `SEND_AS_IS`, removed
+otherwise (including on any verifier failure — and the verifier is the tag's
+ONLY owner: `orchestrator.compute_tags` no longer applies it). Fail-soft — a
+verifier error never blocks the draft; the draft just stays untagged. Verdicts
++ findings come back in the `apply_result` status dict (`verify_verdict`,
+`verify_initial_verdict`, `verify_initial_findings`, `verify_repairs`,
+`verify_findings`, `verify_error`) and are recorded into the day's
+morning-review state via `bert.state.set_status`, so the scorecard can show
+"clean on first pass" vs. "dirty → repaired → clean".
 
 ---
 
@@ -178,6 +200,7 @@ SUPPORT_MCP_TOKEN             # shared bearer token that gates every MCP tool ca
                               # (openssl rand -hex 32); set here AND in each teammate's env. Without
                               # it the server fails closed (500). Same pattern as SIDEBAR_SECRET.
 BERT_DRAFT_MODEL              # optional — draft model for the MCP draft tools (default: claude-sonnet-5)
+BERT_VERIFY_MODEL             # optional — model for the auto-send verifier (bert/verify.py; default: claude-sonnet-5)
 
 # Happier backend ("Maven" API — account/subscription lookup; account_context.py)
 HAPPIER_BEARER_TOKEN          # REQUIRED for account lookup (fallback name: ACCOUNT_CONTEXT_BEARER_TOKEN).

@@ -68,31 +68,35 @@ def test_apply_result_updates_and_posts_note(monkeypatch):
     assert status["note_posted"] is True and calls["note"] == 1
 
 
-def test_apply_result_tags_auto_send_when_draft_posted(monkeypatch):
+def test_apply_result_verifies_auto_send_candidate_when_draft_posted(monkeypatch):
     monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [])
     monkeypatch.setattr(fo.pipeline, "conversation_status", lambda s, cid: "active")
     monkeypatch.setattr(fo.pipeline, "post_draft", lambda s, cid, hcid, txt, ts: "rid")
     monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: False)
-    tagged = []
-    monkeypatch.setattr(fo, "apply_auto_send_tag",
-                        lambda s, r: tagged.append(r["conversation_id"]) or "tagged")
+    verified = []
+    monkeypatch.setattr(fo, "verify_and_tag",
+                        lambda s, c, r, **kw: verified.append(r["conversation_id"]) or
+                        {"verdict": "SEND_AS_IS", "findings": [], "tag": "tagged", "error": None})
     result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "hs_customer_id": 9,
-              "parsed": {"needs_action": False}}
-    status = fo.apply_result(object(), result, timestamp="t")
+              "confidence": "high",
+              "parsed": {"needs_action": False, "auto_sendable": True, "confidence": "high"}}
+    status = fo.apply_result(object(), result, timestamp="t", verify_client=object())
     assert status["draft_action"] == "posted_new"
-    assert tagged == [5]
+    assert verified == [5]
     assert status["auto_send_tagged"] == "tagged"
+    assert status["verify_verdict"] == "SEND_AS_IS"
 
 
-def test_apply_result_does_not_tag_when_draft_skipped(monkeypatch):
+def test_apply_result_does_not_verify_when_draft_skipped(monkeypatch):
     monkeypatch.setattr(fo.pipeline, "find_draft_threads", lambda s, cid: [])
     monkeypatch.setattr(fo.pipeline, "conversation_status", lambda s, cid: "closed")
     monkeypatch.setattr(fo.pipeline, "should_post_note", lambda parsed: False)
     called = []
-    monkeypatch.setattr(fo, "apply_auto_send_tag", lambda s, r: called.append(1) or "tagged")
+    monkeypatch.setattr(fo, "verify_and_tag", lambda *a, **k: called.append(1))
     result = {"conversation_id": 5, "ok": True, "draft_reply": "hi", "hs_customer_id": 9,
-              "parsed": {"needs_action": False}}
-    status = fo.apply_result(object(), result, timestamp="t")
+              "confidence": "high",
+              "parsed": {"needs_action": False, "auto_sendable": True, "confidence": "high"}}
+    status = fo.apply_result(object(), result, timestamp="t", verify_client=object())
     assert status["draft_action"] == "skipped_closed"
     assert called == []
     assert status["auto_send_tagged"] is None

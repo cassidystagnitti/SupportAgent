@@ -1,9 +1,11 @@
 from orchestrator import compute_tags
 
 
-def test_auto_send_high_confidence():
+def test_auto_sendable_high_confidence_never_tags_auto_send():
+    # auto_send now means "verifier-approved" (bert/verify.py); the unverified
+    # classifier path must not apply it.
     t = compute_tags({"auto_sendable": True, "confidence": "high", "escalate": False})
-    assert "auto_send" in t and "automated" in t
+    assert "auto_send" not in t and "automated" in t
 
 
 def test_no_auto_send_when_low_confidence():

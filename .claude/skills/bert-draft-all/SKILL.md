@@ -17,6 +17,8 @@ Draft every ticket at once. Each ticket gets its own worker that hydrates its fu
    - `review` = anything not ok, low/absent confidence, needs_action, escalate, an open_question, or a suspected bug.
 4. Record each ticket's outcome into state (`bert.state.set_status`, e.g. `drafted=True, confidence=...`) and save.
 
+Auto-send candidates (`bert.fanout.should_auto_send`) are NOT tagged at draft time — the VERIFIER stage runs at post time (`bert-post` skill / `apply_result` with `verify_client`), and the `auto_send` tag follows its verdict.
+
 ## What to tell Cassidy
 
 How many drafted cleanly (ready) vs. how many need discussion (review), plus any that errored. Then move to the `bert-resolve` skill for the review set. Do not post yet.
