@@ -15,7 +15,7 @@ We offer complimentary (free) annual subscriptions on a discretionary, case-by-c
 
 - [ ]  Customer's stated reason for needing assistance (informs discretion, not a hard gate)
 - [ ]  Whether a relevant discount has already been offered and declined / found insufficient
-- [ ]  Provider (determines whether we set up the complimentary subscription directly in Stripe or need to coordinate migration)
+- [ ]  Provider (determines what the customer must cancel first — the comp itself is always granted through the internal admin tool)
 - [ ]  Whether they currently have an active subscription that needs to be canceled/refunded first
 - [ ]  What price is their current subscription
 - [ ]  Whether they’ve had a comp subscription in the past
@@ -46,10 +46,12 @@ We offer complimentary (free) annual subscriptions on a discretionary, case-by-c
 
 ## Variations
 
-- **Customer is on Stripe:** Set up the complimentary subscription directly in Stripe. Cancel/refund existing paid subscription if applicable.
-- **Customer is on Apple:** They must cancel themselves on Apple. Once that's done (or expired), set up the complimentary subscription in Stripe and send them a link / set it up via their account email. See *Apple/Google → Stripe Migration*.
-- **Customer is on Google:** Cancel/refund on Google per *Refund Policy*, then set up complimentary in Stripe. Same migration logic.
-- **Customer doesn't yet have a subscription** (e.g., trial about to expire and they can't afford the conversion): Set up a complimentary subscription directly in Stripe; no cancellation needed.
+**Fulfillment (corrected 2026-07-20): complimentary subscriptions are granted through the internal admin tool, NOT Stripe.** The provider only determines what has to be cancelled first — the comp itself is always an admin-tool grant on the customer's account.
+
+- **Customer is on Stripe:** Cancel/refund the existing paid subscription in Stripe if applicable, then grant the complimentary subscription through the admin tool.
+- **Customer is on Apple:** They must cancel themselves on Apple. Once that's done (or expired), grant the complimentary subscription through the admin tool on their account email. See *Apple/Google → Stripe Migration*.
+- **Customer is on Google:** Cancel/refund on Google per *Refund Policy*, then grant the complimentary through the admin tool. Same migration logic.
+- **Customer doesn't yet have a subscription** (e.g., trial about to expire and they can't afford the conversion): Grant a complimentary subscription through the admin tool; no cancellation needed.
 - **Customer wants a complimentary monthly:** We default to a complimentary annual (12 months free). Monthly complimentary isn't typical — the annual is cleaner.
 
 ## Edge Cases & Exceptions
@@ -67,13 +69,13 @@ We offer complimentary (free) annual subscriptions on a discretionary, case-by-c
 
 - Initial reply offering a relevant discount when customer expresses hardship (before complimentary is on the table).
 - Explaining the offer ladder if the customer asks what options exist.
-- **Apple/Google customers being offered the complimentary path:** AI sends cancellation/expiry instructions for their current provider + the pre-built Stripe complimentary subscription link. This is reply-only because the customer is not an existing Stripe account holder (or is a past Stripe user who needs to re-enter card info). No admin action on our end. See *Apple/Google → Stripe Migration* and *Account Lookup Data Model*.
+- **Apple/Google customers being offered the complimentary path:** AI sends cancellation/expiry instructions for their current provider + the pre-built Stripe complimentary subscription link. This is reply-only because the customer is not an existing Stripe account holder (or is a past Stripe user who needs to re-enter card info). No admin action on our end. See *Apple/Google → Stripe Migration* and *Account Lookup Data Model*. *(NOTE 2026-07-20: comps are granted via the admin tool, so this pre-built self-serve link flow may be stale — confirm it still exists before sending it.)*
 
 ## Human Action Required
 
-- **Action:** Set up complimentary annual subscription directly on an **existing active Stripe account** (full year, free).
-- **When:** Customer is a current Stripe subscriber, has expressed need, discount-first step has been considered, and we've decided to extend the complimentary offer.
-- **Why AI can't do it:** Discretionary judgment + Stripe admin access required to modify existing subscription.
+- **Action:** Grant a complimentary annual subscription (full year, free) through the **internal admin tool** — not Stripe.
+- **When:** Customer has expressed need, discount-first step has been considered, and we've decided to extend the complimentary offer.
+- **Why AI can't do it:** Discretionary judgment + admin-tool access required.
 - **Action:** Cancel/refund existing Stripe or Google paid subscription as part of transitioning to complimentary.
 - **When:** Customer has an active paid Stripe or Google subscription and we're moving them to complimentary.
 - **Why AI can't do it:** Refund/cancellation = provider admin action.
