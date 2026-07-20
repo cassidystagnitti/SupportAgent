@@ -57,6 +57,20 @@ If you don’t have a Hidden Sign in with Apple Address, please provide the foll
 
 Thanks in advance for the additional information - I look forward to hearing back from you, {user.firstName}
 
+### Step 3: Run the Stripe charge hunt (when payment details arrive)
+
+Once the customer provides card last-4, a charge date/amount, alternate emails, or name variants, run the read-only Stripe search **before** replying — do not ask the customer for more information that a search can answer. Read-only Stripe research is pre-approved (confirmed 2026-07-20): it carries no write risk, so AI runs it autonomously as part of drafting.
+
+The procedure (added 2026-07-20 after it fully resolved a live ticket):
+
+1. **Charges by card:** search charges on `payment_method_details.card.last4:'<digits>'` (REST search API) and scan the results for the claimed date and amount.
+2. **Customers by email:** `stripe.Customer.search(query="email:'<each candidate email>'")` for every email in the thread.
+3. **Customers by name:** `name~'<each surname variant>'` — married/maiden names, spouses.
+4. **Interpret decisively:**
+   - **Match found** → verify it belongs to this customer (email/name lines up), then apply the downstream policy (cancellation, refund, etc.). Never confirm an action on a subscription/charge whose Stripe object you haven't actually located.
+   - **No match across all searches** → the charge did not go through our Stripe. Say so plainly and ask for the two facts that resolve it: the **exact merchant descriptor** and **amount** on their card statement. Explain the likely places it lives: an Apple subscription under a different Apple ID or family sharing (`APPLE.COM/BILL`), Google Play billing (`GOOGLE*`), or a different company's app entirely (e.g. 10% Happier, which customers regularly conflate with us — see *Happier Meditation vs. 10% Happier*).
+5. **Never** reply with a cancellation/refund confirmation drafted on the assumption the search will succeed.
+
 ## Variations
 
 - **Second email found in ticket body:** Look it up before replying. If found, skip the investigation reply and apply the downstream policy directly.
@@ -73,9 +87,9 @@ Thanks in advance for the additional information - I look forward to hearing bac
 
 ## Human Action Required
 
-- **Action:** Look up account by receipt, last-4 card digits + charge date/amount, or Sign in with Apple relay address once customer provides it
-- **When:** Customer has responded with identifying information and the account still needs to be located
-- **Why AI can't do it:** Requires querying billing records by payment details — not available via the standard account lookup API
+- **Action:** Look up the account by Sign in with Apple relay address, or in Apple/Google billing records, when the Stripe charge hunt (Step 3) comes up empty and the merchant descriptor points at Apple or Google
+- **When:** Customer has responded with identifying information and the Stripe-side search has already been run without a match
+- **Why AI can't do it:** Apple App Store Connect / Google Play Console lookups require console access. (The Stripe-side search itself is NO LONGER a human action — since 2026-07-20 AI runs it read-only as Step 3.)
 - **Action:** Apply the appropriate downstream policy once the account is found (cancellation, refund, login help, etc.)
 - **When:** Account is successfully identified
 - **Why AI can't do it:** Downstream actions require admin access; see relevant policy docs
@@ -87,13 +101,13 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 - Customer says they've never had an account but was charged — this is a billing dispute, not a standard no-account case; needs investigation before any reply
 - Customer mentions a business, organization, or work-provided subscription — may be an org account with different handling
 - A second email was found in the ticket body and the account on it is unsubscribed or ambiguous — human should verify before sending login instructions for the wrong account
-- Customer has already responded to a previous investigation reply with identifying info (receipt, last-4, relay address) — human lookup required; AI should not attempt to resolve from this info alone
+- Customer has already responded to a previous investigation reply with identifying info (receipt, last-4, relay address) — AI runs the Step 3 Stripe charge hunt and drafts from its actual findings, but the reply stays human-reviewed before send
 
 ## Escalation Triggers
 
 - **Two or more subscribed accounts found across any email in the ticket** → escalate immediately to support leadership. Do not send any reply.
 
-- **Receipt / last-4 provided but account still not found** → senior support for deeper billing investigation
+- **Merchant descriptor confirms the charge is ours, but the Step 3 Stripe hunt and account lookups still can't locate it** → senior support for deeper billing investigation. (A clean Step 3 miss alone is NOT an escalation — it gets the "not in our billing, send the descriptor + amount" reply.)
 - **A second account is located but is unsubscribed/clearly not the one the user is looking for →** senior support
 - **Account found but identity mismatch** (wrong person's account located via shared card) → senior support
 - **Customer provides identifying info other than email address (receipt, last-4)** → Escalate to senior support.
