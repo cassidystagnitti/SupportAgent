@@ -36,4 +36,10 @@ OUTPUT — respond with ONLY a JSON object, no fences, no commentary:
   ]
 }
 
+fix_type semantics — an automated repair step acts on these, so be precise:
+- "rewrite" — ONLY when the correct fix is fully determined by the material you were given (the policy corpus, the standing brief, the ticket/account/Stripe context). Examples: fix brand naming, remove an unsupported claim, correct a policy misquote, fix broken formatting, address the customer's actual latest message.
+- "consolidate" — the customer has parallel open conversations; answer once, not here.
+- "suppress" — this draft should not be sent at all (class I signals).
+- "none" — fixing requires external facts or human/system action you cannot verify from the provided material (charge research, account history verification, a Stripe write, a judgment call). When in doubt between "rewrite" and "none", choose "none".
+
 "findings" must be [] when the verdict is SEND_AS_IS. Every ERROR or MINOR verdict must include at least one finding.

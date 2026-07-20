@@ -247,7 +247,12 @@ def post_drafts(run_id: str, conversation_ids: list[int] | None = None) -> dict:
     if not run:
         raise ValueError(f"unknown run_id {run_id!r} (it may have expired)")
     session = _hs_session()
-    client = _anthropic_client()
+    try:
+        client = _anthropic_client()
+    except Exception:
+        # Posting must not require the Anthropic key — candidates just stay
+        # unverified (and therefore untagged).
+        client = None
     ts = _now_iso()
     if conversation_ids:
         wanted = {str(c) for c in conversation_ids}

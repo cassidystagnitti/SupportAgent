@@ -25,18 +25,12 @@ def _result(*, ok=True, auto_sendable=True, confidence="high",
     }
 
 
-class _FakeResp:
-    def raise_for_status(self):
-        pass
-
-
-class _FakeSession:
-    def __init__(self):
-        self.puts = []
-
-    def put(self, url, json=None):
-        self.puts.append((url, json))
-        return _FakeResp()
+def _capture_tag_put(monkeypatch):
+    """Capture the 429-aware tag PUT (triage_tickets.api_put) reconcile uses."""
+    puts = []
+    monkeypatch.setattr(fanout.triage_tickets, "api_put",
+                        lambda session, url, body: puts.append((url, body)))
+    return puts
 
 
 # --- should_auto_send: the gate ---
@@ -107,10 +101,10 @@ def test_reconcile_idempotent_when_tag_present(monkeypatch):
 def test_reconcile_removes_tag_on_downgrade(monkeypatch):
     monkeypatch.setattr(fanout.orchestrator, "fetch_conversation",
                         lambda session, cid: {"tags": [{"tag": "billing"}, {"tag": "auto_send"}]})
-    session = _FakeSession()
-    ret = fanout.reconcile_auto_send_tag(session, 42, "MINOR")
+    puts = _capture_tag_put(monkeypatch)
+    ret = fanout.reconcile_auto_send_tag(object(), 42, "MINOR")
     assert ret == "removed"
-    url, body = session.puts[0]
+    url, body = puts[0]
     assert url.endswith("/conversations/42/tags")
     assert body == {"tags": ["billing"]}
 
@@ -118,17 +112,17 @@ def test_reconcile_removes_tag_on_downgrade(monkeypatch):
 def test_reconcile_removes_tag_on_error_verdict(monkeypatch):
     monkeypatch.setattr(fanout.orchestrator, "fetch_conversation",
                         lambda session, cid: {"tags": [{"tag": "auto_send"}]})
-    session = _FakeSession()
-    assert fanout.reconcile_auto_send_tag(session, 42, "ERROR") == "removed"
-    assert session.puts[0][1] == {"tags": []}
+    puts = _capture_tag_put(monkeypatch)
+    assert fanout.reconcile_auto_send_tag(object(), 42, "ERROR") == "removed"
+    assert puts[0][1] == {"tags": []}
 
 
 def test_reconcile_noop_when_downgraded_and_tag_absent(monkeypatch):
     monkeypatch.setattr(fanout.orchestrator, "fetch_conversation",
                         lambda session, cid: {"tags": [{"tag": "billing"}]})
-    session = _FakeSession()
-    assert fanout.reconcile_auto_send_tag(session, 42, "ERROR") is None
-    assert session.puts == []
+    puts = _capture_tag_put(monkeypatch)
+    assert fanout.reconcile_auto_send_tag(object(), 42, "ERROR") is None
+    assert puts == []
 
 
 def test_reconcile_fails_soft_on_api_error(monkeypatch):
@@ -137,6 +131,19 @@ def test_reconcile_fails_soft_on_api_error(monkeypatch):
 
     monkeypatch.setattr(fanout.orchestrator, "fetch_conversation", boom)
     assert fanout.reconcile_auto_send_tag(object(), 42, "SEND_AS_IS") is None
+
+
+def test_reconcile_surfaces_failed_removal(monkeypatch):
+    # A failed strip is NOT the same as "tag wasn't there" — the conversation
+    # still carries a tag the verdict says it must not have.
+    monkeypatch.setattr(fanout.orchestrator, "fetch_conversation",
+                        lambda session, cid: {"tags": [{"tag": "auto_send"}]})
+
+    def boom_put(session, url, body):
+        raise RuntimeError("HS 500")
+
+    monkeypatch.setattr(fanout.triage_tickets, "api_put", boom_put)
+    assert fanout.reconcile_auto_send_tag(object(), 42, "ERROR") == "remove_failed"
 
 
 # --- verify_and_tag: the verifier stage (never raises) ---
@@ -153,17 +160,20 @@ def _quiet_reconcile(monkeypatch):
     return seen
 
 
-def test_verify_and_tag_prelint_hit_is_error_without_model_or_hydration(monkeypatch):
+def test_verify_and_tag_prelint_hit_is_error_before_model(monkeypatch):
     def boom(*a, **k):
-        raise AssertionError("prelint hit must short-circuit before hydration/model")
+        raise AssertionError("prelint hit must short-circuit the model review")
 
     monkeypatch.setattr(fanout.pipeline, "hydrate_ticket", boom)
     monkeypatch.setattr(fanout.verify, "verify_draft", boom)
+    # no draft thread to rewrite → the repair loop stops before hydrating
+    monkeypatch.setattr(fanout.pipeline, "find_draft_threads", lambda s, cid: [])
     seen = _quiet_reconcile(monkeypatch)
 
     out = fanout.verify_and_tag(object(), object(),
                                 _result(draft="<p>Ten Percent Happier</p>"))
     assert out["verdict"] == "ERROR"
+    assert out["initial_verdict"] == "ERROR"
     assert any(f["class"] == "E" for f in out["findings"])
     assert out["tag"] == "removed"
     assert seen["verdict"] == "ERROR"
@@ -223,25 +233,112 @@ def test_verify_and_tag_clean_verdict_tags(monkeypatch):
 
     out = fanout.verify_and_tag(object(), object(), _result(),
                                 brief="- brief", model="claude-opus-4-8")
-    assert out == {"verdict": "SEND_AS_IS", "findings": [], "tag": "tagged", "error": None}
+    assert out == {"verdict": "SEND_AS_IS", "findings": [],
+                   "initial_verdict": "SEND_AS_IS", "initial_findings": [],
+                   "repairs": 0, "tag": "tagged", "error": None}
     assert captured == {"brief": "- brief", "policies": "P", "model": "claude-opus-4-8"}
     assert seen["verdict"] == "SEND_AS_IS"
 
 
-def test_verify_and_tag_minor_verdict_removes_tag(monkeypatch):
+def test_verify_and_tag_nonrepairable_minor_removes_tag_without_repair(monkeypatch):
     monkeypatch.setattr(fanout.pipeline, "hydrate_ticket",
                         lambda s, cid: {"conversation_id": cid, "email": "a@b.com"})
     monkeypatch.setattr(fanout.verify, "find_sibling_conversations", lambda *a, **k: [])
     monkeypatch.setattr(fanout.orchestrator, "load_policy_docs", lambda: "P")
     monkeypatch.setattr(fanout.verify, "verify_draft", lambda *a, **k: {
         "verdict": "MINOR",
-        "findings": [{"class": "G", "detail": "stiff tone", "fix_type": "rewrite", "suggested_fix": "loosen up"}],
+        "findings": [{"class": "A", "detail": "needs charge research", "fix_type": "none", "suggested_fix": ""}],
     })
+
+    def boom(*a, **k):
+        raise AssertionError("non-repairable findings must not enter the repair loop")
+
+    monkeypatch.setattr(fanout.verify, "repair_draft", boom)
     seen = _quiet_reconcile(monkeypatch)
 
     out = fanout.verify_and_tag(object(), object(), _result())
     assert out["verdict"] == "MINOR" and out["tag"] == "removed"
+    assert out["repairs"] == 0
     assert seen["verdict"] == "MINOR"
+
+
+# --- the repair loop: verify → revise → re-verify (bounded) ---
+
+_MINOR_RW = {"verdict": "MINOR", "findings": [
+    {"class": "G", "detail": "stiff tone", "fix_type": "rewrite", "suggested_fix": "loosen up"}]}
+_CLEAN = {"verdict": "SEND_AS_IS", "findings": []}
+
+
+def _repair_env(monkeypatch, verdicts, revised="<p>fixed</p>"):
+    """Wire the repair-loop seams; verify_draft pops verdicts in order."""
+    monkeypatch.setattr(fanout.pipeline, "hydrate_ticket",
+                        lambda s, cid: {"conversation_id": cid, "email": "a@b.com"})
+    monkeypatch.setattr(fanout.verify, "find_sibling_conversations", lambda *a, **k: [])
+    monkeypatch.setattr(fanout.orchestrator, "load_policy_docs", lambda: "P")
+    monkeypatch.setattr(fanout.pipeline, "find_draft_threads", lambda s, cid: [7])
+    updated = []
+    monkeypatch.setattr(fanout.pipeline, "update_draft",
+                        lambda s, cid, tid, txt: updated.append((tid, txt)))
+    repair_calls = []
+
+    def fake_repair(client, result, ctx, brief, policies, findings, model=None):
+        repair_calls.append(findings)
+        return revised
+
+    monkeypatch.setattr(fanout.verify, "repair_draft", fake_repair)
+    seq = list(verdicts)
+    monkeypatch.setattr(fanout.verify, "verify_draft", lambda *a, **k: seq.pop(0))
+    return updated, repair_calls
+
+
+def test_verify_and_tag_repairs_minor_then_tags(monkeypatch):
+    updated, repair_calls = _repair_env(monkeypatch, [_MINOR_RW, _CLEAN])
+    seen = _quiet_reconcile(monkeypatch)
+    result = _result()
+    out = fanout.verify_and_tag(object(), object(), result)
+    assert out["initial_verdict"] == "MINOR"
+    assert out["initial_findings"] == _MINOR_RW["findings"]
+    assert out["verdict"] == "SEND_AS_IS"
+    assert out["repairs"] == 1
+    assert out["tag"] == "tagged"
+    assert updated == [(7, "<p>fixed</p>")]
+    assert result["draft_reply"] == "<p>fixed</p>"
+    assert repair_calls == [_MINOR_RW["findings"]]
+    assert seen["verdict"] == "SEND_AS_IS"
+
+
+def test_verify_and_tag_repair_capped_at_two_iterations(monkeypatch):
+    updated, repair_calls = _repair_env(monkeypatch, [_MINOR_RW, _MINOR_RW, _MINOR_RW])
+    _quiet_reconcile(monkeypatch)
+    out = fanout.verify_and_tag(object(), object(), _result())
+    assert out["repairs"] == 2
+    assert len(repair_calls) == 2
+    assert out["verdict"] == "MINOR" and out["tag"] == "removed"
+
+
+def test_verify_and_tag_repairs_prelint_hit(monkeypatch):
+    # Deterministic lint hits (mojibake here) are exactly the fixes the repair
+    # loop should handle: revise, update the HS draft, re-verify clean → tag.
+    updated, repair_calls = _repair_env(monkeypatch, [_CLEAN])
+    seen = _quiet_reconcile(monkeypatch)
+    result = _result(draft="<p>Weâ€™re happy to help</p>")
+    out = fanout.verify_and_tag(object(), object(), result)
+    assert out["initial_verdict"] == "ERROR"
+    assert out["verdict"] == "SEND_AS_IS"
+    assert out["repairs"] == 1
+    assert out["tag"] == "tagged"
+    assert updated == [(7, "<p>fixed</p>")]
+    assert seen["verdict"] == "SEND_AS_IS"
+
+
+def test_verify_and_tag_repair_aborts_without_draft_thread(monkeypatch):
+    updated, repair_calls = _repair_env(monkeypatch, [_MINOR_RW])
+    monkeypatch.setattr(fanout.pipeline, "find_draft_threads", lambda s, cid: [])
+    _quiet_reconcile(monkeypatch)
+    out = fanout.verify_and_tag(object(), object(), _result())
+    # nothing to rewrite in Help Scout → no repair, verdict stands, no tag
+    assert out["repairs"] == 0 and repair_calls == []
+    assert out["verdict"] == "MINOR" and out["tag"] == "removed"
 
 
 def test_verify_and_tag_fails_soft_when_verifier_errors(monkeypatch):
@@ -279,7 +376,9 @@ def test_apply_result_records_verifier_verdict_and_tag(monkeypatch):
     def fake_verify_and_tag(session, client, result, *, brief="", model=None):
         captured["brief"] = brief
         captured["model"] = model
-        return {"verdict": "SEND_AS_IS", "findings": [], "tag": "tagged", "error": None}
+        return {"verdict": "SEND_AS_IS", "findings": [],
+                "initial_verdict": "MINOR", "initial_findings": [{"class": "G"}],
+                "repairs": 1, "tag": "tagged", "error": None}
 
     monkeypatch.setattr(fanout, "verify_and_tag", fake_verify_and_tag)
     status = fanout.apply_result(object(), _result(), timestamp="t",
@@ -287,15 +386,20 @@ def test_apply_result_records_verifier_verdict_and_tag(monkeypatch):
     assert status["draft_action"] == "posted_new"
     assert status["verify_verdict"] == "SEND_AS_IS"
     assert status["verify_findings"] == []
+    assert status["verify_initial_verdict"] == "MINOR"
+    assert status["verify_initial_findings"] == [{"class": "G"}]
+    assert status["verify_repairs"] == 1
     assert status["auto_send_tagged"] == "tagged"
     assert captured == {"brief": "- b", "model": "m2"}
 
 
 def test_apply_result_downgrade_removes_tag(monkeypatch):
     _posted_new(monkeypatch)
-    findings = [{"class": "A", "detail": "wrong email", "fix_type": "rewrite", "suggested_fix": "fix it"}]
+    findings = [{"class": "A", "detail": "wrong email", "fix_type": "none", "suggested_fix": ""}]
     monkeypatch.setattr(fanout, "verify_and_tag", lambda *a, **k: {
-        "verdict": "ERROR", "findings": findings, "tag": "removed", "error": None})
+        "verdict": "ERROR", "findings": findings,
+        "initial_verdict": "ERROR", "initial_findings": findings,
+        "repairs": 0, "tag": "removed", "error": None})
     status = fanout.apply_result(object(), _result(), timestamp="t", verify_client=object())
     assert status["verify_verdict"] == "ERROR"
     assert status["verify_findings"] == findings
@@ -317,17 +421,20 @@ def test_apply_result_without_verifier_client_never_tags(monkeypatch):
     assert status["auto_send_tagged"] == "removed"
 
 
-def test_apply_result_non_candidate_skips_verifier(monkeypatch):
+def test_apply_result_non_candidate_strips_stale_tag_without_verifier(monkeypatch):
+    # A ticket that was a verified candidate yesterday but is not one today
+    # (needs_action now true) must not keep yesterday's auto_send tag.
     _posted_new(monkeypatch)
 
     def boom(*a, **k):
         raise AssertionError("non-candidates must not reach the verifier")
 
     monkeypatch.setattr(fanout, "verify_and_tag", boom)
-    monkeypatch.setattr(fanout, "reconcile_auto_send_tag", boom)
+    seen = _quiet_reconcile(monkeypatch)
     status = fanout.apply_result(object(), _result(needs_action=True), timestamp="t",
                                  verify_client=object())
-    assert status["auto_send_tagged"] is None
+    assert seen["verdict"] is None
+    assert status["auto_send_tagged"] == "removed"
     assert status["verify_verdict"] is None
 
 

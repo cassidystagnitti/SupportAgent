@@ -9,14 +9,19 @@ before sending.
 from __future__ import annotations
 
 import concurrent.futures
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
 import orchestrator
+import triage_tickets
 import bert.pipeline as pipeline
 import bert.verify as verify
 
+log = logging.getLogger(__name__)
+
 AUTO_SEND_TAG = "auto_send"
+MAX_REPAIRS = 2
 
 
 def draft_all(records, session, client, brief, *, model, max_workers: int = 6) -> list[dict]:
@@ -86,14 +91,19 @@ def reconcile_auto_send_tag(session, cid, verdict) -> str | None:
     """Make the conversation's ``auto_send`` tag match the verifier verdict.
 
     SEND_AS_IS → tag applied ("tagged", or "already" if present). Any other
-    verdict — MINOR, ERROR, or None (unverified / verifier failure) — → an
-    existing tag is stripped ("removed", or None if it wasn't there). Never
-    raises — a tagging error must not break the post that already landed; a
-    soft failure just returns None (i.e. no tag applied).
+    verdict — MINOR, ERROR, or None (unverified / not a candidate / verifier
+    failure) — → an existing tag is stripped ("removed", or None if it wasn't
+    there; "remove_failed" when the strip itself errored, because a lingering
+    tag the verdict forbids must be visible). Never raises — a tagging error
+    must not break the post that already landed.
     """
     try:
         convo = orchestrator.fetch_conversation(session, int(cid))
         existing = orchestrator._extract_tag_names(convo.get("tags", []))
+    except Exception:
+        log.warning("auto_send reconcile: could not read tags for %s", cid, exc_info=True)
+        return None
+    try:
         if verdict == "SEND_AS_IS":
             if AUTO_SEND_TAG in existing:
                 return "already"
@@ -102,52 +112,88 @@ def reconcile_auto_send_tag(session, cid, verdict) -> str | None:
         if AUTO_SEND_TAG not in existing:
             return None
         remaining = [t for t in existing if t != AUTO_SEND_TAG]
-        resp = session.put(f"{orchestrator.BASE_URL}/conversations/{cid}/tags",
-                           json={"tags": remaining})
-        resp.raise_for_status()
+        triage_tickets.api_put(session, f"{orchestrator.BASE_URL}/conversations/{cid}/tags",
+                               {"tags": remaining})
         return "removed"
     except Exception:
-        return None
+        log.warning("auto_send reconcile: tag write failed for %s (verdict=%s)",
+                    cid, verdict, exc_info=True)
+        return "remove_failed" if verdict != "SEND_AS_IS" else None
+
+
+def _initial_verdict(session, client, result: dict, *, brief: str,
+                     model: str | None):
+    """First-pass verdict, cheapest check first. Returns (verdict_dict, ctx,
+    policies); ctx/policies are None when an earlier layer short-circuited."""
+    cid = result.get("conversation_id")
+    pre = verify.prelint(result.get("draft_reply") or "")
+    if pre:
+        return {"verdict": "ERROR", "findings": pre}, None, None
+    ctx = pipeline.hydrate_ticket(session, cid)
+    try:
+        siblings = verify.find_sibling_conversations(session, ctx.get("email"),
+                                                     exclude_cid=cid)
+    except Exception:
+        # Best-effort: the model review still runs, but losing this guard is
+        # worth a trace ("log everything").
+        log.warning("sibling check failed for conversation %s — continuing without it",
+                    cid, exc_info=True)
+        siblings = []
+    if siblings:
+        return {"verdict": "ERROR", "findings": [verify.sibling_finding(siblings)]}, ctx, None
+    policies = orchestrator.load_policy_docs()
+    return verify.verify_draft(client, result, ctx, brief, policies, model=model), ctx, policies
 
 
 def verify_and_tag(session, client, result: dict, *, brief: str = "",
                    model: str | None = None) -> dict:
-    """VERIFIER stage for one auto-send candidate, then tag reconcile.
+    """VERIFIER stage for one auto-send candidate: verify → repair → re-verify
+    (bounded), then tag reconcile.
 
-    Cheapest check first: deterministic pre-lint (no API), then the mechanical
-    same-customer sibling check (other active conversations → automatic ERROR,
-    consolidate), then one adversarial Claude review against the full policy
-    corpus + standing brief. The ``auto_send`` tag is applied ONLY on a
-    SEND_AS_IS verdict and stripped otherwise — including when the verifier
-    itself fails (fail-soft: the draft stays, unverified drafts never carry the
-    tag). Returns {"verdict", "findings", "tag", "error"} and never raises.
+    First pass runs the cheapest check first: deterministic pre-lint (no API),
+    the mechanical same-customer sibling check (other open conversations →
+    automatic ERROR, consolidate), then one adversarial Claude review against
+    the full policy corpus + standing brief. When the verdict is MINOR/ERROR
+    and every finding is a pure ``rewrite`` (fixable from documented truths),
+    the draft is repaired, the Help Scout draft is updated in place, and the
+    revised draft re-verifies — at most ``MAX_REPAIRS`` times. The ``auto_send``
+    tag is applied ONLY when the FINAL verdict is SEND_AS_IS and stripped
+    otherwise — including when the verifier itself fails (fail-soft: the draft
+    stays, unverified drafts never carry the tag).
+
+    Mutates ``result["draft_reply"]`` to the repaired text when a repair lands.
+    Returns {"verdict", "findings", "initial_verdict", "initial_findings",
+    "repairs", "tag", "error"} and never raises.
     """
     cid = result.get("conversation_id")
-    out = {"verdict": None, "findings": [], "tag": None, "error": None}
+    out = {"verdict": None, "findings": [], "initial_verdict": None,
+           "initial_findings": [], "repairs": 0, "tag": None, "error": None}
     try:
-        findings = verify.prelint(result.get("draft_reply") or "")
-        if findings:
-            out["verdict"], out["findings"] = "ERROR", findings
-        else:
-            ctx = pipeline.hydrate_ticket(session, cid)
-            try:
-                siblings = verify.find_sibling_conversations(session, ctx.get("email"),
-                                                             exclude_cid=cid)
-            except Exception:
-                siblings = []  # sibling check is best-effort; the model review still runs
-            if siblings:
-                out["verdict"] = "ERROR"
-                out["findings"] = [{
-                    "class": "I",
-                    "detail": f"customer has {len(siblings)} other active conversation(s): {siblings}",
-                    "fix_type": "consolidate",
-                    "suggested_fix": "Answer once on the primary thread and consolidate the duplicates.",
-                }]
-            else:
-                v = verify.verify_draft(client, result, ctx, brief,
-                                        orchestrator.load_policy_docs(), model=model)
-                out["verdict"], out["findings"] = v["verdict"], v["findings"]
+        v, ctx, policies = _initial_verdict(session, client, result, brief=brief, model=model)
+        out["initial_verdict"], out["initial_findings"] = v["verdict"], v["findings"]
+        while (v["verdict"] in ("MINOR", "ERROR") and out["repairs"] < MAX_REPAIRS
+               and verify.repairable(v["findings"])):
+            tids = pipeline.find_draft_threads(session, cid)
+            if not tids:
+                # nothing to rewrite in Help Scout — the flawed draft would
+                # stay live, so the verdict stands unrepaired
+                break
+            if ctx is None:
+                ctx = pipeline.hydrate_ticket(session, cid)
+            if policies is None:
+                policies = orchestrator.load_policy_docs()
+            revised = verify.repair_draft(client, result, ctx, brief, policies,
+                                          v["findings"], model=model)
+            for tid in tids:
+                pipeline.update_draft(session, cid, tid, revised)
+            result["draft_reply"] = revised
+            out["repairs"] += 1
+            pre = verify.prelint(revised)
+            v = ({"verdict": "ERROR", "findings": pre} if pre
+                 else verify.verify_draft(client, result, ctx, brief, policies, model=model))
+        out["verdict"], out["findings"] = v["verdict"], v["findings"]
     except Exception as e:
+        log.warning("verifier failed for conversation %s", cid, exc_info=True)
         out["error"] = str(e)
     out["tag"] = reconcile_auto_send_tag(session, cid, out["verdict"])
     return out
@@ -166,6 +212,7 @@ def apply_result(session, result: dict, *, timestamp: str | None = None,
 
     Returns a status dict: {conversation_id, draft_action, threads_updated,
     note_posted, note_skipped_reason, auto_send_tagged, verify_verdict,
+    verify_initial_verdict, verify_initial_findings, verify_repairs,
     verify_findings, verify_error, error}. Never raises — per-ticket failures
     are captured so a batch can continue.
     """
@@ -173,7 +220,9 @@ def apply_result(session, result: dict, *, timestamp: str | None = None,
     status = {"conversation_id": cid, "draft_action": None, "threads_updated": 0,
               "note_posted": False, "note_skipped_reason": None,
               "auto_send_tagged": None, "verify_verdict": None,
-              "verify_findings": [], "verify_error": None, "error": None}
+              "verify_initial_verdict": None, "verify_initial_findings": [],
+              "verify_repairs": 0, "verify_findings": [], "verify_error": None,
+              "error": None}
     if not result.get("ok"):
         status["error"] = result.get("error") or "draft generation failed"
         return status
@@ -217,19 +266,21 @@ def apply_result(session, result: dict, *, timestamp: str | None = None,
     else:
         status["draft_action"] = "skipped_no_customer"
 
-    # --- auto_send tag: follows the VERIFIER verdict, only on conversations we
-    # actually drafted on ---
-    if status["draft_action"] in ("posted_new", "updated") and should_auto_send(result):
-        if verify_client is not None:
+    # --- auto_send tag: follows the VERIFIER verdict on every conversation we
+    # actually drafted on. Non-candidates and unverified candidates must not
+    # carry the tag, so a stale tag from an earlier run is stripped. ---
+    if status["draft_action"] in ("posted_new", "updated"):
+        if should_auto_send(result) and verify_client is not None:
             v = verify_and_tag(session, verify_client, result,
                                brief=brief, model=verify_model)
             status["verify_verdict"] = v["verdict"]
+            status["verify_initial_verdict"] = v.get("initial_verdict")
+            status["verify_initial_findings"] = v.get("initial_findings") or []
+            status["verify_repairs"] = v.get("repairs", 0)
             status["verify_findings"] = v["findings"]
             status["verify_error"] = v["error"]
             status["auto_send_tagged"] = v["tag"]
         else:
-            # No verifier client → the candidate stays unverified; it must not
-            # carry the tag, and a stale tag from an earlier run is stripped.
             status["auto_send_tagged"] = reconcile_auto_send_tag(session, cid, None)
 
     # --- note: attempted regardless of partial thread failures above ---

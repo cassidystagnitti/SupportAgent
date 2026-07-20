@@ -99,15 +99,23 @@ orchestrator.py (invoked per ticket by Bert skills / sidebar chat hydration)
 **Auto-send VERIFIER (Bert apply path).** When Bert posts/updates a draft
 (`bert/fanout.apply_result`) and the result qualifies for auto-send
 (`should_auto_send`), a VERIFIER stage runs (`bert/verify.py`): deterministic
-pre-lint → mechanical same-customer sibling check (other active conversations →
+pre-lint → mechanical same-customer sibling check (other open conversations →
 automatic ERROR, consolidate) → one adversarial Claude review against the full
 policy corpus, ticket context, and standing brief (error rubric A–I in
-`prompts/verify_system_prompt.txt`). The `auto_send` tag in Help Scout follows
-the verdict: applied only on `SEND_AS_IS`, removed on `MINOR`/`ERROR` or any
-verifier failure. Fail-soft — a verifier error never blocks the draft; the
-draft just stays untagged. Verdicts + findings come back in the `apply_result`
-status dict (`verify_verdict`, `verify_findings`, `verify_error`) and are
-recorded into the day's morning-review state via `bert.state.set_status`.
+`prompts/verify_system_prompt.txt`). When the verdict is MINOR/ERROR and every
+finding is a pure `rewrite` (fixable from documented truths — never external
+facts, human action, or consolidation), a bounded REPAIR loop
+(`prompts/repair_system_prompt.txt`, max 2 iterations) revises the draft,
+updates the Help Scout draft in place, and re-verifies. The `auto_send` tag in
+Help Scout follows the FINAL verdict: applied only on `SEND_AS_IS`, removed
+otherwise (including on any verifier failure — and the verifier is the tag's
+ONLY owner: `orchestrator.compute_tags` no longer applies it). Fail-soft — a
+verifier error never blocks the draft; the draft just stays untagged. Verdicts
++ findings come back in the `apply_result` status dict (`verify_verdict`,
+`verify_initial_verdict`, `verify_initial_findings`, `verify_repairs`,
+`verify_findings`, `verify_error`) and are recorded into the day's
+morning-review state via `bert.state.set_status`, so the scorecard can show
+"clean on first pass" vs. "dirty → repaired → clean".
 
 ---
 

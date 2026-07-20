@@ -151,3 +151,23 @@ def test_siblings_queries_active_by_email(monkeypatch):
 
 - [ ] Run entire test suite with the primary venv; fix any fallout
 - [ ] Push branch, open PR to main
+
+---
+
+## Amendment (Cassidy via check-in session, 2026-07-20): verify → REPAIR → re-verify
+
+### Task 7: bounded repair loop
+
+**Files:**
+- Create: `prompts/repair_system_prompt.txt`
+- Modify: `bert/verify.py`, `bert/fanout.py`
+- Test: `tests/test_bert_verify.py`, `tests/test_bert_autosend_tag.py`
+
+**Interfaces:**
+- `verify.repairable(findings) -> bool` — non-empty and every finding has `fix_type == "rewrite"` (the verifier prompt is updated so "rewrite" means "fully fixable from the provided policies/brief/context"; external-fact, human-action, and consolidation findings get other fix_types).
+- `verify.repair_draft(client, result, ctx, brief, policies, findings, *, model=None) -> str` — one Claude call applying ONLY the findings' fixes; JSON `{"draft_reply": ...}`; raises on unusable output.
+- `fanout.verify_and_tag` loop: while verdict is MINOR/ERROR, findings are repairable, and repairs < 2 → find draft threads (break if none), repair, `pipeline.update_draft` in place, mutate `result["draft_reply"]`, re-verify (prelint, then model). Tag only if the FINAL verdict is SEND_AS_IS.
+- Output/status gains `initial_verdict`, `initial_findings`, `repairs` → `apply_result` status keys `verify_initial_verdict`, `verify_initial_findings`, `verify_repairs` (so the scorecard can distinguish "clean on first pass" from "dirty → repaired → clean").
+- Class I (siblings/consolidate) and any non-`rewrite` finding: no repair, no tag, finding surfaced.
+
+- [ ] Failing tests → implement → suite green → commit → update skill docs/CLAUDE.md → PR

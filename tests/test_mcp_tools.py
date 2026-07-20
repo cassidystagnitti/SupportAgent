@@ -85,6 +85,29 @@ def test_post_drafts_filters_by_cid(monkeypatch):
     assert applied == [2]
 
 
+def test_post_drafts_fail_soft_without_anthropic_client(monkeypatch):
+    # Posting already-drafted replies must not require the Anthropic key —
+    # candidates just stay unverified (and untagged).
+    monkeypatch.setattr(mcp_tools.bert_fanout, "draft_all",
+                        lambda *a, **k: [_fake_draft_result(1)])
+    seen = {}
+
+    def fake_apply(session, r, timestamp=None, **kw):
+        seen.update(kw)
+        return {"conversation_id": r["conversation_id"], "draft_action": "updated"}
+
+    monkeypatch.setattr(mcp_tools.bert_fanout, "apply_result", fake_apply)
+    run_id = mcp_tools.draft_all([_rec(1)])["run_id"]
+
+    def boom():
+        raise RuntimeError("ANTHROPIC_API_KEY not configured")
+
+    monkeypatch.setattr(mcp_tools, "_anthropic_client", boom)
+    out = mcp_tools.post_drafts(run_id)
+    assert out["posted"] == 1
+    assert seen["verify_client"] is None
+
+
 def test_post_drafts_passes_verifier_client_and_run_brief(monkeypatch):
     monkeypatch.setattr(mcp_tools.bert_fanout, "draft_all",
                         lambda *a, **k: [_fake_draft_result(1)])

@@ -89,8 +89,9 @@ def compute_tags(parsed: dict) -> list[str]:
     if parsed.get("escalate"):
         tags.append("escalation")
     tags.append("automated" if parsed.get("auto_sendable") else "technical")
-    if parsed.get("auto_sendable") and parsed.get("confidence") != "low":
-        tags.append("auto_send")
+    # NOTE: `auto_send` is deliberately NOT applied here. Since 2026-07-20 that
+    # tag means "verifier-approved SEND_AS_IS" and is owned exclusively by the
+    # verifier stage (bert/verify.py via bert/fanout.reconcile_auto_send_tag).
     conf = (parsed.get("confidence") or "").strip().lower()
     if conf in ("high", "medium", "low"):
         tags.append(f"confidence-{conf}")
