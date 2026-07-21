@@ -53,8 +53,8 @@ None — there is no backend or account action available to restore downloads or
 
 - Any churn or cancellation threat tied to missing downloads — `auto_sendable = false`, human review required even though no backend action is needed
 - Ticket combines this issue with an active refund or cancellation request — route the billing portion through *Refund Policy* / *Cancellation Policy* and flag for human review before sending anything
-- Customer pushes hard for a specific ETA and the drafted reply is at risk of implying one — flag for human review rather than risk a fabricated date going out
-- Customer reports severe impact (e.g., "I paid for annual specifically for offline access and use it every day for flights") — acknowledge but flag for human review; may warrant a goodwill gesture beyond standard policy
+- ~~Customer pushes hard for a specific ETA~~ — GRADUATED to auto-sendable 2026-07-21: the empathetic no-ETA holding reply may auto-send, PROVIDED the draft contains no date, timeframe, or "soon"-style implication. A draft that implies any ETA still fails verification.
+- ~~Customer reports severe impact~~ — GRADUATED to auto-sendable 2026-07-21: acknowledge the impact warmly and send the standard known-issue reply. (A churn/cancellation threat is still its own do-not-auto-send condition above — severe impact WITH a cancel/refund threat stays human.)
 
 ## Escalation Triggers
 

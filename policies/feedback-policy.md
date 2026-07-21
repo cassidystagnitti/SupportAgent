@@ -74,7 +74,7 @@ All standard feedback tickets are reply-only. No account changes, billing action
 - Message contains any hostile, hateful, or harassing language — requires human review before any response
 - Feedback is emotionally intense (deeply distressed, grieving, in crisis) — tone calibration requires human judgment
 - Marketing quote request — requires human confirmation before sending
-- Customer's feedback is about a specific named team member or teacher in a sensitive way (positive or negative) — forward to senior support before replying
+- Customer's feedback about a specific named team member or teacher: the standard thank-and-log acknowledgment is auto-sendable as of 2026-07-21 (the feedback itself is still logged/forwarded internally). ONLY if the feedback is sensitive — alleging misconduct, harm, or anything beyond content/style preference — forward to senior support before replying.
 
 ## Escalation Triggers
 
