@@ -43,6 +43,7 @@ You must respond with a JSON object containing exactly these fields:
 
 {
   "draft_reply": "The full reply text to be inserted as a Help Scout draft. Use HTML formatting where appropriate (paragraphs, links, lists). Include greeting and sign-off. ALWAYS write a draft, even when escalate is true — escalation means a human reviews (and may add to or hold) the reply before sending, NOT that we skip writing it. When you have a known, correct response (e.g. a documented known-bug script), draft it fully. Only leave this blank if you genuinely cannot form any customer-appropriate reply.",
+  "close_no_reply": true/false — "true ONLY on an ongoing thread where a support reply was already sent AND the customer's latest message needs no response at all (pure thanks, or confirmation the issue is resolved, with nothing new to answer). The pipeline will not post a draft; the ticket is surfaced to a human as a close candidate. Still fill in draft_reply with a one-line fallback in case a human chooses to reply anyway. Never true when the latest message contains a question, new information, or an unresolved complaint.",
   "escalate": true/false,
   "escalate_reason": "If escalate is true: one sentence explaining why this ticket cannot be handled with a standard reply. If false: null.",
   "needs_action": true/false,
