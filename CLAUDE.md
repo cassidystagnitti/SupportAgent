@@ -122,7 +122,7 @@ morning-review state via `bert.state.set_status`, so the scorecard can show
 ## Key Architecture Decisions
 
 - **All policy docs are loaded into every prompt (no RAG).** The corpus is ~17 docs, ~15-20k tokens. Full context is more reliable than retrieval at this scale. Revisit if corpus exceeds ~40 docs.
-- **Stripe enrichment only runs for Stripe subscribers.** Apple/Google subscribers are skipped — we can't act on their subscriptions from the backend anyway.
+- **Stripe enrichment only runs for Stripe subscribers.** Apple/Google subscribers are skipped — their billing data isn't in Stripe. (This is about API enrichment only, NOT rep capability: a human rep CAN cancel Google Play subscriptions via the Play admin console — see policies/cancellation-policy.md. Apple subscriptions are self-serve only.)
 - **Classification and draft come from one Claude call.** No separate classifier. One call returns: `draft_reply`, `needs_action`, `auto_sendable`, `confidence`, `referenced_policies`, `reasoning`.
 - **`auto_sendable` is captured but not acted on.** Auto-send is a future feature gated by env var. Right now everything goes to draft.
 - **Default to safe classifications.** If uncertain: `needs_action = true`, `auto_sendable = false`. A false positive (unnecessary human review) is far less costly than a false negative.
