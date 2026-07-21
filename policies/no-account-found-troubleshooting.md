@@ -105,6 +105,7 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 
 ## Escalation Triggers
 
+- **Two investigation replies already sent without locating the account/subscription** → do NOT send a third template ask. Escalate (`escalate = true`) with a summary of everything gathered so far (emails tried, receipts/last-4 received, Step 3 results). Repeating the same request list a third time reads as a scripted loop and stalls the customer (confirmed 2026-07-21).
 - **Two or more subscribed accounts found across any email in the ticket** → escalate immediately to support leadership. Do not send any reply.
 
 - **Merchant descriptor confirms the charge is ours, but the Step 3 Stripe hunt and account lookups still can't locate it** → senior support for deeper billing investigation. (A clean Step 3 miss alone is NOT an escalation — it gets the "not in our billing, send the descriptor + amount" reply.)
