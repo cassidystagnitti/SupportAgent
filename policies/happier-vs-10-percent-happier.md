@@ -56,7 +56,7 @@ Customer asks about a 10% Happier thing (podcast, ad-free feed, podcast subscrip
 ## Do Not Auto-Send Conditions
 
 - The reply would use the spelled-out phrase "Ten Percent Happier" (naming-rule violation — rewrite with "10% Happier" / "Happier Meditation")
-- It is genuinely ambiguous whether the customer means Happier Meditation or 10% Happier — clarify first
+- It is genuinely ambiguous whether the customer means Happier Meditation or 10% Happier — clarify first. The short clarifying question ITSELF is auto-sendable (confirmed 2026-07-21): a polite "which product do you mean, so I can point you the right way" reply may carry `auto_sendable = true` as long as it makes no claims about either product. Only the substantive boundary explanation must wait for the customer's answer / human review.
 - The draft makes any claim about 10% Happier's current offerings, feeds, pricing, or events — we don't have visibility into those
 
 ## Escalation Triggers

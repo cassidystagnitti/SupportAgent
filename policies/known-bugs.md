@@ -42,7 +42,7 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
   - **Battery workaround (FOR REFERENCE ONLY — do not send unless a customer explicitly can't update yet):**
     - **Pixel / stock Android:** Settings → Apps → Happier → Battery → set to **Unrestricted**.
     - **Samsung (most reporters):** same **Unrestricted** setting, **plus** make sure Happier is **not** in Device Care's "Sleeping apps" / "Deep sleeping apps" list (Battery → Background usage limits). Samsung layers its own power saving on top of Android's, so both steps matter.
-- **Auto-send:** Do NOT auto-send yet — everything still drafts for human review.
+- **Auto-send:** Do NOT auto-send — and since the fix is released, treat any report of this bug STILL happening (especially post-update) as an ESCALATION (`escalate = true`): Cassidy needs to know about every still-affected user, because each one is evidence the fix didn't fully land (confirmed 2026-07-21).
 - **Linear ticket:** Fix released 2026-07-08 (add ticket ref once filed)
 - **Date added:** 2026-07-01
 - **Date resolved:** 2026-07-08 (marked Fixed 2026-07-01; reopened 2026-07-06 after continued reports; **fix released 2026-07-08**)
