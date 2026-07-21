@@ -601,6 +601,11 @@ def _html_escape(s: str) -> str:
 REPLY_MODE_PROMPT_PREFIX = (
     "NOTE: This is an ongoing thread — a support agent has already replied at least once. "
     "Respond to the customer's LATEST message only; do not re-answer the original question. "
+    "NEVER repeat content already sent in this thread — address only what the customer newly "
+    "said, and advance the conversation (next step on the relevant policy ladder, a new "
+    "question answered, a different angle) rather than re-deriving the earlier answer. "
+    "If the customer's latest message needs no response at all (pure thanks, or confirmation "
+    "the issue is resolved, with nothing new to answer), set close_no_reply=true. "
     "Full thread history follows."
 )
 

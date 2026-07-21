@@ -206,11 +206,14 @@ def draft_all(records: list[dict], brief: str = "", model: str | None = None) ->
     part = bert_fanout.partition(results)
     ready = [_compact_draft(r, customer_by_cid.get(str(r.get("conversation_id")))) for r in part["ready"]]
     review = [_compact_draft(r, customer_by_cid.get(str(r.get("conversation_id")))) for r in part["review"]]
+    close = [_compact_draft(r, customer_by_cid.get(str(r.get("conversation_id")))) for r in part["close"]]
     return {
         "run_id": run_id,
         "ready": ready,
         "review": review,
-        "counts": {"total": len(results), "ready": len(ready), "review": len(review)},
+        "close": close,
+        "counts": {"total": len(results), "ready": len(ready), "review": len(review),
+                   "close": len(close)},
     }
 
 

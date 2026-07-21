@@ -242,6 +242,13 @@ def apply_result(session, result: dict, *, timestamp: str | None = None,
     if not result.get("ok"):
         status["error"] = result.get("error") or "draft generation failed"
         return status
+    if _close_no_reply(result):
+        # Conversation is over (thanks-only follow-up): no draft, no verifier —
+        # the ticket surfaces as a close candidate for the human. A stale
+        # auto_send tag from an earlier run must still be stripped.
+        status["draft_action"] = "skipped_close_no_reply"
+        status["auto_send_tagged"] = reconcile_auto_send_tag(session, cid, None)
+        return status
     ts = timestamp or datetime.now(timezone.utc).isoformat()
     errors = []
 
@@ -320,6 +327,12 @@ def apply_result(session, result: dict, *, timestamp: str | None = None,
     return status
 
 
+def _close_no_reply(result: dict) -> bool:
+    """True when the draft brain marked this thread as conversation-over."""
+    return bool(result.get("close_no_reply")
+                or (result.get("parsed") or {}).get("close_no_reply"))
+
+
 def _needs_review(result: dict) -> bool:
     if not result.get("ok"):
         return True
@@ -361,8 +374,18 @@ def stale_drafts_matching(results: list[dict], *, include: list[str],
 
 
 def partition(results: list[dict]) -> dict:
-    """Split results into {'ready': [...], 'review': [...]}."""
-    ready, review = [], []
+    """Split results into {'ready': [...], 'review': [...], 'close': [...]}.
+
+    ``close`` = successful drafts flagged ``close_no_reply`` (thanks-only
+    follow-ups): no draft gets posted; the human approves the close. A FAILED
+    worker always lands in ``review`` regardless of any close flag.
+    """
+    ready, review, close = [], [], []
     for r in results:
-        (review if _needs_review(r) else ready).append(r)
-    return {"ready": ready, "review": review}
+        if r.get("ok") and _close_no_reply(r):
+            close.append(r)
+        elif _needs_review(r):
+            review.append(r)
+        else:
+            ready.append(r)
+    return {"ready": ready, "review": review, "close": close}

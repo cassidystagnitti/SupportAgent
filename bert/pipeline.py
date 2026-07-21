@@ -138,6 +138,7 @@ def draft_one(client, ctx: dict, brief: str, *, model: str) -> dict:
         "bug_report": parsed.get("bug_report"),
         "action_description": parsed.get("action_description"),
         "action_system": parsed.get("action_system"),
+        "close_no_reply": bool(parsed.get("close_no_reply")),
         # full Claude JSON, so the internal note can be rendered faithfully
         "parsed": parsed,
     }

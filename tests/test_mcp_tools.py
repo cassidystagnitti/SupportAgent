@@ -53,7 +53,7 @@ def test_draft_all_partitions_and_stores(monkeypatch):
     monkeypatch.setattr(mcp_tools.bert_fanout, "draft_all", fake_draft_all)
 
     out = mcp_tools.draft_all([_rec(1), _rec(2)], brief="be kind")
-    assert out["counts"] == {"total": 2, "ready": 1, "review": 1}
+    assert out["counts"] == {"total": 2, "ready": 1, "review": 1, "close": 0}
     assert out["ready"][0]["conversation_id"] == 1
     assert out["review"][0]["conversation_id"] == 2
     assert "low_confidence" in out["review"][0]["review_reasons"]

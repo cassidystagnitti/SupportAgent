@@ -13,8 +13,12 @@ Draft every ticket at once. Each ticket gets its own worker that hydrates its fu
 2. Fan out: `bert.fanout.draft_all(records, session, client, brief, model="claude-sonnet-5")`.
    - One result per record: the draft dict (`draft_reply`, `confidence`, `referenced_policies`, `needs_action`, `escalate`, `open_question`, `bug_report`, …) plus `conversation_id`, `hs_customer_id`, `ok`, `error`.
    - Per-ticket failures are isolated (`ok=False`, `error` set) — they never block the batch.
-3. Partition: `bert.fanout.partition(results)` → `{"ready": [...], "review": [...]}`.
+3. Partition: `bert.fanout.partition(results)` → `{"ready": [...], "review": [...], "close": [...]}`.
    - `review` = anything not ok, low/absent confidence, needs_action, escalate, an open_question, or a suspected bug.
+   - `close` = `close_no_reply` results: an agent reply was already sent and the customer's
+     latest message is pure thanks / resolution-confirmed — nothing to answer. `apply_result`
+     posts NO draft for these (`skipped_close_no_reply`); present them to Cassidy as close
+     candidates and close in Help Scout on her approval (never auto-close).
 4. Record each ticket's outcome into state (`bert.state.set_status`, e.g. `drafted=True, confidence=...`) and save.
 
 Auto-send candidates (`bert.fanout.should_auto_send`) are NOT tagged at draft time — the VERIFIER stage runs at post time (`bert-post` skill / `apply_result` with `verify_client`), and the `auto_send` tag follows its verdict.
