@@ -41,7 +41,7 @@ For customers who mention a non-time-bounded reason they need a reduced price �
 
 1. **First offer: 40% off annual (forever).** Send the 40% off annual FOREVER link from account lookup.
 2. **If customer responds that 40% forever isn't enough:** Escalate to **50% off annual (forever).** Send the 50% off annual FOREVER link.
-3. **If 50% forever still isn't enough:** If the customer expresses genuine inability to pay even at 50% off, pivot to *Need-Based Complimentary Subscriptions*.
+3. **If 50% forever still isn't enough:** If the customer expresses genuine inability to pay even at 50% off, pivot to *Need-Based Complimentary Subscriptions* (standard grant: **one complimentary year**). A specific counter-offer below the 50%-forever price (e.g. "I could manage CAD 59.99" ≈ USD 44 vs. our $49.99) COUNTS as declining 50% forever — do not re-send the 50% link; move straight to the comp. 50% off is our lowest paid rate; there is no negotiating between $49.99 and free (confirmed 2026-07-21).
 
 **Key behavioral rules:**
 
