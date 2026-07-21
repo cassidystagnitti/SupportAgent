@@ -15,10 +15,13 @@ write side effects.
 
 from __future__ import annotations
 
+import logging
 import os
 
 import orchestrator
 import triage_tickets
+
+log = logging.getLogger(__name__)
 
 BRIEF_PREFIX = (
     "\n\n=== STANDING BRIEF (internal team context — apply it, but never quote it "
@@ -221,6 +224,84 @@ def move_conversation(session, conversation_id, mailbox_id) -> bool:
     except Exception as e:
         print(f"Move FAILED for conversation {conversation_id} → mailbox {mailbox_id}: {e}")
         return False
+
+
+# --- Duplicate consolidation: fold a same-customer duplicate into the keeper ---
+
+HS_CONVERSATION_URL = "https://secure.helpscout.net/conversation/{cid}"
+
+
+def customer_thread_html(session, conversation_id) -> str:
+    """Concatenated HTML bodies of the customer's own messages on a conversation."""
+    threads = triage_tickets._fetch_all_threads(session, int(conversation_id))
+    parts = [t.get("body") or "" for t in threads if t.get("type") == "customer"]
+    return "\n<hr>\n".join(p for p in parts if p)
+
+
+def post_plain_note(session, conversation_id, html: str) -> str | None:
+    """POST a free-form internal note. None when HELPSCOUT_NOTE_USER_ID is unset
+    (Help Scout requires a user id on notes)."""
+    note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
+    if not note_user_id:
+        return None
+    url = f"{orchestrator.BASE_URL}/conversations/{int(conversation_id)}/notes"
+    r = orchestrator._helpscout_post(session, url, {"text": html, "user": int(note_user_id)})
+    r.raise_for_status()
+    return r.headers.get("Resource-ID") or r.headers.get("resource-id") or "posted"
+
+
+def close_conversation(session, conversation_id) -> bool:
+    """Close a conversation via the same single-JSON-Patch shape as update_draft."""
+    url = f"{orchestrator.BASE_URL}/conversations/{int(conversation_id)}"
+    r = session.patch(url, json={"op": "replace", "path": "/status", "value": "closed"})
+    r.raise_for_status()
+    return True
+
+
+def consolidate_duplicate(session, keep_cid, dup_cid) -> dict:
+    """Fold a same-customer DUPLICATE conversation into the one that will answer.
+
+    Only for tickets that are genuinely about the same issue — the caller
+    (Bert with Cassidy) decides relevance; unrelated tickets from the same
+    customer stay open side by side.
+
+    Ordered so nothing is lost: (1) the duplicate's customer messages are
+    copied into an internal note on the keeper; only if that lands, (2) the
+    duplicate gets a "Duplicate of #keeper" note (best-effort) and (3) is
+    closed. Closing the duplicate also unblocks the verifier's same-customer
+    sibling check on the keeper, which only counts OPEN conversations.
+
+    Returns {"keeper_note", "dup_note", "closed", "error"}; never raises.
+    """
+    out = {"keeper_note": False, "dup_note": False, "closed": False, "error": None}
+    try:
+        dup_html = customer_thread_html(session, dup_cid)
+        dup_link = HS_CONVERSATION_URL.format(cid=int(dup_cid))
+        keeper_note = (
+            f"<p><strong>Consolidated from duplicate conversation "
+            f'<a href="{dup_link}">#{int(dup_cid)}</a></strong> '
+            f"(same customer, same issue). Customer's message(s) there:</p>"
+            f"{dup_html or '<p>(no customer text found)</p>'}"
+        )
+        if not post_plain_note(session, keep_cid, keeper_note):
+            out["error"] = ("keeper note not posted (HELPSCOUT_NOTE_USER_ID unset) — "
+                            "duplicate left open")
+            return out
+        out["keeper_note"] = True
+
+        keep_link = HS_CONVERSATION_URL.format(cid=int(keep_cid))
+        dup_note = (f'<p>Duplicate of <a href="{keep_link}">conversation #{int(keep_cid)}</a> '
+                    f"— consolidated and answered there.</p>")
+        try:
+            out["dup_note"] = bool(post_plain_note(session, dup_cid, dup_note))
+        except Exception:
+            log.warning("duplicate-of note failed for %s — closing anyway", dup_cid,
+                        exc_info=True)
+        out["closed"] = close_conversation(session, dup_cid)
+    except Exception as e:
+        log.warning("consolidate_duplicate(%s -> %s) failed", dup_cid, keep_cid, exc_info=True)
+        out["error"] = str(e)
+    return out
 
 
 # --- Internal action-note: a short "Actions needed" bullet list, nothing else ---

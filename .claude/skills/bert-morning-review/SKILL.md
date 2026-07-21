@@ -20,6 +20,16 @@ Run these in order, but treat step 2 as a hub you can stay in as long as Cassidy
    - Look something up in the codebase or Linear → the existing `research_agent` (`run_research`).
    - Ticket references "Ten Percent Happier," Dan Harris, the podcast, or live events → `bert-disambiguate-10-percent` to web-research the current 10% Happier side and settle which product the customer means.
    - Cassidy states a bug-truth / company context / wording preference → append it to the standing brief with `bert.state.append_brief`, then save.
+   - **Same customer, two open tickets about the SAME issue** (often surfaced by the
+     verifier's sibling check) → consolidate instead of answering twice:
+     `bert.pipeline.consolidate_duplicate(session, keep_cid, dup_cid)` — `keep_cid` is the
+     conversation whose draft will actually answer. It copies the duplicate's customer
+     messages into an internal note on the keeper, posts a "Duplicate of #keeper" note on
+     the duplicate, and closes it (in that order — the duplicate is never closed before its
+     content lands on the keeper; fails soft and reports what happened). Closing the
+     duplicate also unblocks the sibling check, which only counts open conversations.
+     Relevance is a judgment call — if the two tickets are about DIFFERENT issues, leave
+     both open and answer each.
    - **Mindful Minute Challenge ticket (the Apple-org event ONLY)** → do NOT draft a reply.
      Per `policies/mindful-minute-challenge.md`, move it to the Apple mailbox:
      `bert.fanout.move_to_apple_mailbox(session, conversation_id)`. It returns `"moved"`,
