@@ -26,7 +26,7 @@ Covers failed payment / declined card scenarios across all three providers. Stri
 - **Access during retry window:** Customer **retains access** for the full 30 days while retries continue.
 - **Suspension:** If no successful charge by day 31, the subscription is suspended and access is revoked.
 - **Dunning emails:** Sent automatically with a link to update credit card.
-- **Customer self-serve:** Customers can update their card via in-app settings (same outcome as the dunning email link).
+- **Customer self-serve:** Customers can update their card via in-app settings (same outcome as the dunning email link). **The canonical self-serve path is IN APP: Profile → Settings → Subscription** (confirmed 2026-07-21). When drafting, give these in-app steps — do NOT invent a web URL for card updates; no standalone update-card web page is documented. (The "update-card link" below refers to the link inside Stripe's automated dunning emails, which the customer already has; support replies point to the in-app path.)
 
 ### Standard support response (Stripe)
 
