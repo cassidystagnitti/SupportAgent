@@ -208,8 +208,12 @@ HAPPIER_BEARER_TOKEN          # REQUIRED for account lookup (fallback name: ACCO
                               # "Account lookup failed" context and no Stripe enrichment.
 HAPPIER_MAVEN_BASE_URL        # optional — defaults to https://my.happierapp.com/api/maven/v1
 
-# Stripe (optional enrichment)
-STRIPE_READ_API_KEY           # read-only restricted key
+# Stripe — exactly TWO keys, named by role. (STRIPE_API_KEY is RETIRED as of 2026-07-22:
+# nothing reads it — delete the line and deactivate the old rk_live_…zdTH key in the dashboard.)
+STRIPE_READ_API_KEY           # enrichment key, used automatically on every ticket (stripe_context.py).
+                              # Should be a truly READ-ONLY restricted key. (2026-07-22: temporarily holds
+                              # the same write-scoped key as STRIPE_WRITE_API_KEY — mint a read-only key
+                              # and swap it in here, REQUIRED before Render ever gets the write vars.)
 
 # Linear (product prioritization)
 LINEAR_API_KEY                # personal API key from Linear settings
@@ -230,11 +234,15 @@ NOTION_VERSION                # Notion API version header (default: 2022-06-28)
 HELPSCOUT_DOCS_API_KEY        # Docs API key: Settings → Docs → Your Site → API Keys
 HELPSCOUT_DOCS_COLLECTION_ID  # ID of the private/internal collection (run push_kb_docs.py --list-collections)
 
-# Stripe write actions (action_executor.py — SUP-457)
-STRIPE_WRITE_API_KEY          # write-capable Stripe key for real coupon/cancellation execution. NOT YET SET — execute()
-                               # raises NotImplementedError past the env gate until this is approved and provided.
-ACTION_EXECUTION_ENABLED      # "true" to allow action_executor.execute() to run at all; default off. Both this AND
-                               # STRIPE_WRITE_API_KEY must be set before any real Stripe write happens.
+# Stripe write actions (scripts/stripe_*.py, apply_renewal_coupon.py, action_executor.py — SUP-457)
+STRIPE_WRITE_API_KEY          # write-skills key, read ONLY by the write scripts. LIVE since 2026-07-22
+                               # (first prod run: cancel for HS #3391134628). Restricted key scopes:
+                               # Customers Read + Subscriptions Write + Refunds Write + Charges Read
+                               # (+ Coupons Read / Invoices Write as later skills land). Never a full sk_ key.
+ACTION_EXECUTION_ENABLED      # "true" arms Stripe writes on THIS deployment; unset/false = every write
+                               # script refuses --apply. Per-deployment kill switch — set it (plus the write
+                               # key) only where actions should execute. Local dev: armed 2026-07-22.
+                               # Render: leave BOTH unset until sidebar/MCP skill execution is wired in.
 
 # Future
 AUTO_SEND_ENABLED=false       # gate for UNATTENDED auto-send; currently always false. (Human-clicked
@@ -255,7 +263,7 @@ AUTO_SEND_ENABLED=false       # gate for UNATTENDED auto-send; currently always 
 - Customer lookup by email: `stripe.Customer.search(query=f"email:'{email}'")`
 - Subscription with expansion: `expand=["data.items.data.price", "data.discount"]`
 - Upcoming invoice: `stripe.Invoice.upcoming(customer=customer_id)`
-- Always use the **read-only restricted key** — never a full secret key
+- Two restricted keys by role: reads/enrichment use `STRIPE_READ_API_KEY`; writes happen ONLY inside the guarded write scripts via `STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED`. Never a full secret key, and never reintroduce `STRIPE_API_KEY`
 
 ### Anthropic API
 - Model: `claude-sonnet-5` (current default)

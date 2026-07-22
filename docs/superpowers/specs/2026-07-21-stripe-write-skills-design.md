@@ -143,14 +143,13 @@ apply the four sanctioned coupons, never mint new ones), no PaymentIntents Write
 Amount/velocity caps aren't expressible on Stripe keys, so those live in the
 script harness below.
 
-**Env-var naming (found 2026-07-21):** `apply_renewal_coupon.py` reads
-`STRIPE_API_KEY`, while `action_executor.py`/CLAUDE.md gate on
-`STRIPE_WRITE_API_KEY`, and the current `.env` carries `STRIPE_API_KEY` +
-`STRIPE_READ_API_KEY`. Standardize when hardening: read enrichment stays on
-`STRIPE_READ_API_KEY`; every write script (including the hardened
-`stripe_apply_discount.py`) reads `STRIPE_WRITE_API_KEY` only, and
-`STRIPE_API_KEY` gets retired so no script accidentally picks up a
-broader-than-intended key.
+**Env-var naming (found 2026-07-21, resolved 2026-07-22):** exactly two names,
+by role — `STRIPE_READ_API_KEY` for enrichment (should hold a truly read-only
+key), `STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED=true` for the write
+scripts. `STRIPE_API_KEY` is retired: `apply_renewal_coupon.py` (its only
+consumer) now uses the same two-var write-gate contract as
+`scripts/stripe_*.py`; delete the `.env` line and deactivate the old key in
+the dashboard.
 
 ## Guardrail architecture (shared harness)
 

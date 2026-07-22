@@ -6,8 +6,9 @@ subscription renews at a discounted price.
 
 Safety:
   * Dry-run by default. Nothing is mutated unless you pass --apply.
-  * Uses STRIPE_API_KEY (the restricted write key: Customers read + Subscriptions
-    write). Falls back to nothing — it will not silently use the read-only key.
+  * Dry runs use STRIPE_WRITE_API_KEY (or STRIPE_READ_API_KEY as fallback — reads
+    only). --apply strictly requires STRIPE_WRITE_API_KEY plus
+    ACTION_EXECUTION_ENABLED=true — the same write gates as scripts/stripe_*.py.
   * Skips subscriptions that already carry the target coupon (idempotent).
   * Skips subscriptions that carry a *different* discount unless --replace-existing.
 
@@ -215,10 +216,26 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    key = (os.environ.get("STRIPE_API_KEY") or "").strip()
-    if not key:
-        print("ERROR: STRIPE_API_KEY is not set in the environment / .env", file=sys.stderr)
-        return 1
+    write_key = (os.environ.get("STRIPE_WRITE_API_KEY") or "").strip()
+    read_key = (os.environ.get("STRIPE_READ_API_KEY") or "").strip()
+    if args.apply:
+        enabled = (os.environ.get("ACTION_EXECUTION_ENABLED") or "").strip().lower() == "true"
+        if not write_key or not enabled:
+            print(
+                "ERROR: Stripe writes are gated — set STRIPE_WRITE_API_KEY and "
+                "ACTION_EXECUTION_ENABLED=true (see CLAUDE.md).",
+                file=sys.stderr,
+            )
+            return 1
+        key = write_key
+    else:
+        key = write_key or read_key
+        if not key:
+            print(
+                "ERROR: no Stripe key available (STRIPE_WRITE_API_KEY / STRIPE_READ_API_KEY).",
+                file=sys.stderr,
+            )
+            return 1
     stripe.api_key = key
 
     coupon_id = (args.coupon or input("Enter coupon ID to apply: ")).strip()
