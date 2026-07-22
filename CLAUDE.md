@@ -247,11 +247,17 @@ NOTION_VERSION                # Notion API version header (default: 2022-06-28)
 HELPSCOUT_DOCS_API_KEY        # Docs API key: Settings → Docs → Your Site → API Keys
 HELPSCOUT_DOCS_COLLECTION_ID  # ID of the private/internal collection (run push_kb_docs.py --list-collections)
 
-# Stripe write actions (action_executor.py — SUP-457)
-STRIPE_WRITE_API_KEY          # write-capable Stripe key for real coupon/cancellation execution. NOT YET SET — execute()
-                               # raises NotImplementedError past the env gate until this is approved and provided.
-ACTION_EXECUTION_ENABLED      # "true" to allow action_executor.execute() to run at all; default off. Both this AND
-                               # STRIPE_WRITE_API_KEY must be set before any real Stripe write happens.
+# Stripe write actions (scripts/stripe_*.py, apply_renewal_coupon.py, action_executor.py — SUP-457)
+STRIPE_WRITE_API_KEY          # write-skills key, read ONLY by the write scripts. LIVE since 2026-07-22
+                               # (first prod run: cancel for HS #3391134628). Restricted key scopes:
+                               # Customers Read + Subscriptions Write + Charges (charges/refunds) Write —
+                               # refund creation rides on the charges row; there is NO separate Refunds
+                               # permission — plus Coupons Read + Invoices Read (→ Write only when the
+                               # dunning-retry skill ships). Never a full sk_ key.
+ACTION_EXECUTION_ENABLED      # "true" arms Stripe writes on THIS deployment; unset/false = every write
+                               # script refuses --apply. Per-deployment kill switch — set it (plus the write
+                               # key) only where actions should execute. Local dev: armed 2026-07-22.
+                               # Render: leave BOTH unset until sidebar/MCP skill execution is wired in.
 
 # Future
 AUTO_SEND_ENABLED=false       # gate for UNATTENDED auto-send; currently always false. (Human-clicked
@@ -272,7 +278,7 @@ AUTO_SEND_ENABLED=false       # gate for UNATTENDED auto-send; currently always 
 - Customer lookup by email: `stripe.Customer.search(query=f"email:'{email}'")`
 - Subscription with expansion: `expand=["data.items.data.price", "data.discount"]`
 - Upcoming invoice: `stripe.Invoice.upcoming(customer=customer_id)`
-- Always use the **read-only restricted key** — never a full secret key
+- Two restricted keys by role: reads/enrichment use `STRIPE_READ_API_KEY`; writes happen ONLY inside the guarded write scripts via `STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED`. Never a full secret key, and never reintroduce `STRIPE_API_KEY`
 
 ### Anthropic API
 - Model: `claude-sonnet-5` (current default)
