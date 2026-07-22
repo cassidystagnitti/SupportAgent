@@ -27,6 +27,8 @@ When `escalate: true`:
 - **No draft reply is created** — a human agent reviews and responds directly
 - An internal note is added with your classification reasoning and `escalate_reason`
 
+**Escalation = handoff to a human support agent.** An escalated ticket leaves Bert's queue entirely: the support agent owns the reply, the resolution, and any customer promises. This is one of the three standing buckets of the morning review (see `.claude/skills/bert-morning-review/SKILL.md`): auto-send (no note, not escalated — the majority), needs-action (internal "Actions needed" note for a human step), and escalated (support agent owns it). Escalations are always discussed with Cassidy during the review before the morning run is considered settled; the verifier only runs over the auto-send bucket after notes and escalations are in place.
+
 ## What Not to Escalate
 
 Routine situations that have clear policy coverage should be handled with a draft reply even if they are sensitive:

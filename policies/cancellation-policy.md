@@ -3,6 +3,8 @@
 
 Handles requests to cancel a subscription (turn off auto-renewal). The customer keeps full access through their period end date. Support can cancel directly on Stripe and Google Play; Apple customers are redirected to self-service. A key edge case: many customers write in when auto-renew is already off — in that case, simply confirm they're set and include the expiration date. For Stripe customers renewing at full price, offer a 40% retention discount before canceling.
 
+**As of 2026-07-22, Bert can EXECUTE Stripe cancel-at-period-end directly** via the guarded write skill (`scripts/stripe_cancel_subscription.py`). A straightforward Stripe cancellation is therefore no longer a human-action ticket: Bert executes the cancellation, and the confirmation reply becomes **auto-sendable** (see "Bert execution" below). Google Play cancellations remain a human action; Apple remains self-serve redirect.
+
 # Trigger Conditions
 
 - **Ticket signals:** customer wants to cancel, doesn't want to renew, wants to turn off auto-renewal, asks how to cancel, wants to stop being charged
@@ -63,6 +65,35 @@ If account data shows auto-renew is already disabled: reply-only confirming they
 - **Customer mentions a cancellation error but auto-renew is already off:** Confirm it worked and they're all set. Do not investigate or address the error. Use the appropriate "already off" reply for their platform. Do NOT say the subscription is "set to renew" — it is set to expire. Use "access continues through [date]."
 - **Cancellation request is vague — customer might want a refund:** If the customer's charge is recent enough to qualify for a refund, surface the option. Don't just cancel without checking refund eligibility when intent is unclear (see `CancelRefund StripeCancelOrRefund`).
 
+# Bert Execution: Cancel at Period End (Stripe) — added 2026-07-22
+
+Bert executes Stripe cancel-at-period-end itself with the first Stripe write skill. **Use it starting immediately** for any eligible Stripe cancellation ticket during the morning review or sidebar session.
+
+## How to run it
+
+1. **Dry-run first** (read-only, always safe): `python3 scripts/stripe_cancel_subscription.py <cus_…> --json` — prints the classification of every subscription on the customer and the exact plan (subscription id, access-continues-through date, schedule release, trial/discount notes).
+2. **Review the plan**, then **apply**: `python3 scripts/stripe_cancel_subscription.py <cus_…> --apply --conversation-id <HS id> --json`. Every apply requires the env gates (`STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED=true`) and appends an audit line to `data/stripe_action_log.jsonl`.
+3. Outcomes: `applied` (auto-renew turned off), `already_off` (idempotent no-op — customer was already set; use the "already off" confirm reply), or `refused` (see below).
+
+## Eligibility (enforced in code — the script refuses rather than guessing)
+
+- **Stripe only.** Google Play cancels remain a human action (note); Apple remains self-serve redirect.
+- Subscription must be **active or trialing** and **set to renew**. Trialing covers real free trials and retention pauses — both cancel cleanly at the trial/extension end.
+- **Dunning (past_due/unpaid) → refused**: policy is IMMEDIATE cancellation for subs stuck in billing retry, which is a different path — handle in the Stripe dashboard (human action note).
+- **Multiple renewing subscriptions → refused**: escalation signal per this policy — do not guess.
+- **Paused collection → refused**: resolve in the dashboard first.
+- Subscriptions under a Billing-Portal schedule are handled automatically (schedule released first; the dry-run plan calls it out).
+
+## Auto-sendability after execution
+
+**Once the cancellation is EXECUTED (`applied`) or confirmed already off (`already_off`), there is no remaining human action** — the ticket moves to the auto-send bucket:
+
+- Treat the result as `needs_action = false`, `auto_sendable = true`; no "Actions needed" internal note is posted (the audit log records the write).
+- The draft's past tense ("I've turned off auto-renewal…") must be TRUE at post time — **execute before posting/verifying**, so the verifier's deterministic Stripe truth check sees `cancel_at_period_end = true` on the live subscription.
+- The standard reply rules still apply: confirmation + expiration date in natural language, and the 40% retention offer when the customer was renewing at full price.
+- The normal do-not-auto-send conditions below still override (refund component, claims of being charged after cancelling, escalating frustration, app-quality complaint combos) — execution removes the ACTION barrier, not the judgment barriers.
+- If the script **refused**, the ticket stays a human-action (note) or escalation ticket per the refusal reason. Never auto-send a reply claiming a cancellation that wasn't executed.
+
 # Action Classification
 
 ## No Action Required (reply only)
@@ -70,14 +101,20 @@ If account data shows auto-renew is already disabled: reply-only confirming they
 - **Auto-renew already off (any platform):** Confirm they're all set, share expiration date. No admin action.
 - **Apple cancellation requests:** Redirect to Apple instructions. No action available to support.
 
+## Bert-Executable Action (auto-send after execution)
+
+- **Action:** Turn off auto-renew in Stripe (cancel at period end).
+- **When:** Active Stripe subscription, auto-renew on, customer wants to cancel, script checks pass.
+- **How:** `scripts/stripe_cancel_subscription.py` per "Bert Execution" above. After `applied`/`already_off`, the ticket is reply-only and auto-sendable (subject to Do Not Auto-Send Conditions).
+
 ## Human Action Required
 
-- **Action:** Turn off auto-renew in Stripe.
-- **When:** Active Stripe subscription, auto-renew is on, customer confirms they want to cancel (possibly after declining retention offer).
-- **Why AI can't do it:** Requires Stripe admin access.
 - **Action:** Turn off auto-renew in Google Play.
 - **When:** Active Google Play subscription, auto-renew is on, customer confirms cancellation.
 - **Why AI can't do it:** Requires Google Play admin access.
+- **Action:** Immediate cancellation of a dunning/past-due Stripe subscription (and any case the write script refuses).
+- **When:** Subscription in billing retry (past_due/unpaid), paused collection, or other refusal reasons.
+- **Why AI can't do it:** The write skill deliberately only implements period-end cancellation; these paths run through the Stripe dashboard.
 
 ## Do Not Auto-Send Conditions
 

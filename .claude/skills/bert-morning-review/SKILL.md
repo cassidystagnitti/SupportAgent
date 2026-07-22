@@ -9,6 +9,18 @@ You are running the attended morning review of the Happier Meditation Help Scout
 
 Keep the morning-review state file (`bert.state`) as your working memory: it holds the ticket index (`records`), the standing brief (`brief`), and per-ticket `statuses`. Load today's state at the start; save after each step that changes it.
 
+## The three buckets (standing model — minted 2026-07-22)
+
+Every drafted ticket lands in exactly one bucket by the end of the review. Cassidy does not restate this each morning; it is the default frame.
+
+1. **AUTO-SEND** — should be the MAJORITY. Definition: **no internal note on it and not escalated to a support agent** — nothing left for a human to do but send. Includes:
+   - all reply-only tickets (known-bug good news, how-to, already-cancelled confirms, redirects), and
+   - tickets whose only required action was a **Stripe cancel-at-period-end that Bert has ALREADY EXECUTED** via `scripts/stripe_cancel_subscription.py` (see `policies/cancellation-policy.md` → "Bert Execution"). After a successful `applied`/`already_off` run, flip the drafted result — `needs_action=false`, `parsed.needs_action=false`, `parsed.auto_sendable=true` — so it joins this bucket and no "Actions needed" note is posted.
+2. **NEEDS-ACTION (notes)** — a human must still perform an action Bert cannot execute: refunds, Google Play cancels, coupons, account changes, immediate/dunning cancellations, anything the write skill refused. These get the "Actions needed" internal note; the draft is written as if the action is already done (per `bert_system_prompt.txt`).
+3. **ESCALATED** — routed to a human support agent per `policies/escalation-policy.md`: escalation tag + internal note, NO customer draft. Talk these through with Cassidy.
+
+**Order of operations:** execute eligible cancel-at-period-end actions and settle buckets 2 and 3 first (notes added, escalations discussed), **then run the VERIFIER over the whole auto-send bucket** (`apply_result` with `verify_client` — the `auto_send` tag follows the verdict). Take the run as far as possible — drafts posted, notes on, verifier done — before coming back to Cassidy for review; bring policy questions and unclarity with you.
+
 ## The loop
 
 Run these in order, but treat step 2 as a hub you can stay in as long as Cassidy wants before moving on.

@@ -35,6 +35,7 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `research_agent.py` | Live | Two-pass codebase + Linear research agent; runs when the first draft is low-confidence, cites no policy, or flags a product question |
 | `bug_registry.py` | Live | New-bug candidate registry; auto-files a Linear Technical issue once a fuzzy-matched bug summary has 2+ reports |
 | `action_executor.py` | Built, execution gated | Prepared-action scaffold for Stripe-affecting actions (coupon, cancellation); builds the "Actions needed" note now, real writes wait on `STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED` |
+| `scripts/stripe_cancel_subscription.py` | Live (2026-07-22) | First Stripe write skill: cancel at period end for ONE customer. Dry-run by default; `--apply --conversation-id` behind both env gates; audit log `data/stripe_action_log.jsonl`. After `applied`/`already_off`, the ticket becomes reply-only + auto-sendable — see policies/cancellation-policy.md "Bert Execution" and the three-bucket model in `.claude/skills/bert-morning-review/SKILL.md` |
 | `draft_registry.py` | Live | Local JSON registry of conversation → drafted thread; prevents duplicate Help Scout drafts and drives the skip/supersede decision |
 | `eval_run.py` | Standalone CLI | Repeatable eval harness: batch-runs the draft pipeline over active tickets, writes `eval/<date>/results.json` |
 | `eval_draft_accuracy.py` | Standalone CLI | Compares Bert's draft against the reply a human agent actually sent, per eval run |

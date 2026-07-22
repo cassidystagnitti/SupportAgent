@@ -2,85 +2,91 @@
 
 # Summary
 
-Covers tickets about downloading meditations for offline playback. There is a known issue affecting downloads in the latest app update, and the team is actively working on a fix. Do **not** describe this as a removal or as intentional — it is an unintended bug. There is no specific date to give. Previously downloaded content may be inaccessible while this is being fixed. Support acknowledges the issue, commits to notifying the customer when downloads are working again, and does not speculate about timelines or about whether previously downloaded files can be recovered. This is the same issue tracked as Entry 4 in `known-bugs.md`; that doc's entry summarizes the status, this doc is the full policy.
+Covers tickets about downloading meditations for offline playback. **RESOLVED 2026-07-21:** the known issue that made downloads unavailable on the new (v2) Android app is fixed as of Android app version **2026.07.21**. Once a customer updates to the latest version from the Google Play Store, their **previously downloaded meditations are restored** and they can **download new content again**. The correct reply for almost every downloads ticket is now the good-news reply: it's fixed, update the app, prior downloads come back with the update. This also fulfills the "we'll notify you once downloads are working again" commitment made on earlier tickets. This is the same issue tracked as Entry 4 in `known-bugs.md`.
+
+History, for context on older threads: the v2 Android app shipped with an unintended bug (never a removal, never intentional) that made downloads unavailable and hid previously downloaded content, roughly 2026-07-02 → 2026-07-21. During that window support acknowledged the bug, gave no ETA, and promised to notify customers when downloads were restored. That notification moment is now.
 
 # Trigger Conditions
 
-- **Ticket signals:** customer asks how to download a meditation for offline use; customer reports the download button or feature is missing/gone; customer says previously downloaded meditations are no longer playable or no longer appear; customer asks why offline mode disappeared after updating; customer threatens to cancel or unsubscribe because they need downloads (e.g., for travel, flights, gym, poor signal areas)
-- **Account signals:** none required — this affects all users of the new (v2) app regardless of subscription state, though it is only relevant to subscribers since downloads are a subscriber feature
+- **Ticket signals:** customer asks how to download a meditation for offline use; customer reports the download button or feature is missing/gone; customer says previously downloaded meditations are no longer playable or no longer appear; customer asks why offline mode disappeared after updating; customer threatens to cancel because they need downloads; customer replies to an earlier thread asking whether downloads are back yet
+- **Account signals:** none required — the bug affected all users of the v2 Android app, though downloads are a subscriber-only feature
 - **Keywords / phrases:** "download," "offline," "airplane mode," "no wifi," "no signal," "can't download anymore," "downloads are gone," "used to be able to download," "save for later," "download button missing"
 
 # Required Context
 
-- [ ] Platform and app version (new v2 app vs. legacy app, if the customer hasn't updated)
+- [ ] Platform — the bug and the fix are **Android v2**; an iOS download complaint does NOT match this policy (treat as a new/unlisted issue per `known-bugs.md`)
+- [ ] Whether the customer has updated to app version 2026.07.21 or later
 - [ ] Whether the customer has ever subscribed (downloads are a subscriber-only feature)
-- [ ] Whether the ticket includes a churn/cancellation threat tied to this issue
-- [ ] Whether the customer is asking about *new* downloads or about *previously downloaded* content that's now inaccessible
+- [ ] Whether the ticket claims downloads are still broken AFTER updating to 2026.07.21+
 
 # Policy / Correct Response
 
 ## Standard Case
 
-Acknowledge that there's a known issue affecting downloads in the latest app update and that the team is actively working on a fix. Let the customer know **we'll notify them once downloads are working again** — this commitment is safe to make. Do **not** give a specific date, week, or month, and do not imply a timeframe (e.g., "soon," "in the next update"). Do **not** call it a removal or imply it was intentional.
+Give the good news: the download issue is fixed. Tell the customer to **update the Happier app to the latest version (2026.07.21 or later) from the Google Play Store**. After updating:
 
-Previously downloaded meditations may not be accessible while this is being fixed. Do not speculate about whether existing downloads will reappear, need to be re-downloaded, or are recoverable in any way — that has not been determined. Stick to: there's a bug affecting downloads in the latest update, we're actively fixing it, and we'll notify the customer when it's resolved.
+- **Previously downloaded meditations are restored** — they don't lose what they had.
+- **New downloads work again.**
+
+Note that the Play Store rollout is gradual — if the update isn't visible yet, check back in a few hours. Close with a light safety net: if downloads still aren't working after updating, reply and we'll dig in. Do NOT proactively offer compensation, and do not re-litigate the outage — lead with the fix.
+
+On threads where we previously promised to "notify you once downloads are working again," frame this reply as that promised follow-up.
 
 ## Variations
 
-- **Churn threat** ("I'm going to cancel if I can't download," "this is a dealbreaker"): Acknowledge the frustration directly, restate the notify-when-restored commitment, and do not push back on the threat or over-apologize. This response is **not auto-sendable** — `needs_action = false` (no backend action required) but `auto_sendable = false` (human should review tone and decide whether a retention gesture is warranted before sending). See *Cancellation Policy* if the customer follows through with an explicit cancellation request — that becomes a separate, standard cancellation flow.
-- **Never-subscribed user asking about downloads:** Downloads are a subscriber feature. Explain politely that offline downloads are part of the paid subscription (and are additionally not working right now for everyone while we fix a known issue), and point them to subscribing if they're interested. Do not frame this as only a "coming back soon" issue for a free user — lead with the feature being subscriber-only.
-- **Customer asks specifically "when" or pushes for a date:** Reiterate that there's no specific date to share yet, and that they'll be notified as soon as it's back. Do not invent a window to placate them.
+- **Churn threat tied to downloads** ("I was going to cancel over this"): the restoration news is the resolution — deliver it warmly, acknowledge the frustration briefly, no retention gesture needed by default. If the ticket ALSO contains an explicit cancellation or refund request, handle that portion under *Cancellation Policy* / *Refund Policy* as usual.
+- **Never-subscribed user asking about downloads:** Downloads are a subscriber feature. Lead with that (not the bug history), mention the feature is fully working again, and point them to subscribing if interested (`Get HowtoSubscribe`).
+- **Customer asks whether their old downloads survived:** Yes — previously downloaded meditations are restored once they update to 2026.07.21+.
+- **Customer on an old thread where we said "no ETA":** Reply with the good news as the promised notification.
 
 ## Edge Cases & Exceptions
 
-- **Customer reports this as a bug/glitch:** They're right — it's a known issue in the latest update that we're actively fixing. Do not describe it as intentional or as a removal. Customer-facing framing: we're aware, we're working on a fix, and we'll notify them when it's resolved.
-- **Customer combines this with a refund or cancellation request tied to lost access to paid content:** Handle the billing/cancellation portion under *Cancellation Policy* or *Refund Policy*; do not resolve the billing action from this doc alone — flag for human review per Do Not Auto-Send Conditions below.
-- **Customer asks if they can get downloads on the legacy/old app instead:** Do not suggest downgrading or switching app versions as a workaround — no such guidance has been confirmed. Stick to the standard response and flag for human review if they push on this.
-- **Customer asks about downloading the app itself (not meditations for offline use):** This is a different request — see app installation links, not this policy.
+- **Downloads still broken after updating to 2026.07.21+:** Do NOT auto-send a generic reply. Gather device model, OS version, and exact app version, and flag for human review — each confirmed post-update failure is evidence the fix didn't fully land and Cassidy wants the signal.
+- **iOS download complaints:** The bug and fix were Android v2. An iOS report does not match this entry — treat as a new, unlisted issue per `known-bugs.md` (acknowledge, ask clarifying questions, flag for review).
+- **Ticket combines downloads with an active refund or cancellation request:** Deliver the restoration news AND route the billing portion through *Refund Policy* / *Cancellation Policy*; the billing portion controls auto-sendability.
+- **Customer hasn't updated / can't update yet:** The fix requires the Play Store update — there is no workaround on older versions. Rollout can take a few hours; ask them to check back.
 
 # Action Classification
 
 ## No Action Required (reply only)
 
-- Standard "where did downloads go" / "how do I download" inquiries with no churn threat: reply-only, no backend action.
-- Never-subscribed user asking about downloads: reply-only, explain subscriber-feature + temporary unavailability.
+- All standard downloads tickets: reply-only good-news response (fixed in 2026.07.21, update the app, prior downloads restored).
+- Never-subscribed user asking about downloads: reply-only, subscriber-feature explanation.
 
 ## Human Action Required
 
-None — there is no backend or account action available to restore downloads or expedite the fix. This is purely a product/engineering timeline outside support's control.
+None — the fix is shipped; the customer self-serves by updating the app.
 
 ## Do Not Auto-Send Conditions
 
-- Any churn or cancellation threat tied to missing downloads — `auto_sendable = false`, human review required even though no backend action is needed
-- Ticket combines this issue with an active refund or cancellation request — route the billing portion through *Refund Policy* / *Cancellation Policy* and flag for human review before sending anything
-- ~~Customer pushes hard for a specific ETA~~ — GRADUATED to auto-sendable 2026-07-21: the empathetic no-ETA holding reply may auto-send, PROVIDED the draft contains no date, timeframe, or "soon"-style implication. A draft that implies any ETA still fails verification.
-- ~~Customer reports severe impact~~ — GRADUATED to auto-sendable 2026-07-21: acknowledge the impact warmly and send the standard known-issue reply. (A churn/cancellation threat is still its own do-not-auto-send condition above — severe impact WITH a cancel/refund threat stays human.)
+- Downloads reported **still broken after updating to 2026.07.21+** — flag for human review (potential fix gap)
+- Ticket combines downloads with an **active refund or cancellation request** — the billing portion controls; route through *Refund Policy* / *Cancellation Policy*
+- Platform is **iOS** or otherwise doesn't match the Android v2 bug — unlisted issue, human review
 
 ## Escalation Triggers
 
-- Customer claims downloads were permanently removed / demands confirmation it's coming back — reassure it's a known bug we're actively fixing and that they'll be notified when it's working again; escalate if that reassurance doesn't resolve it
-- Any threat to leave a public review or contact press/media over this issue — escalate per *Escalation Policy* (sensitive PR risk)
+- Multiple post-update "still broken" reports (pattern = fix regression) — escalate per *Escalation Policy*
+- Any threat to leave a public review or contact press/media — escalate per *Escalation Policy* (sensitive PR risk)
 
 # Confidence Notes
 
-- **High confidence areas:** Downloads are affected by a known bug in the latest app update; the team is actively fixing it; we will notify users when downloads are working again; no ETA should ever be given; do not call it a removal or imply it was intentional; previously downloaded content may be inaccessible while this is being fixed.
-- **Judgment call areas:** How much empathy to lead with on a churn-threat ticket before the human reviewer takes over. Whether a given ticket's "impact" language rises to the level of flagging for a goodwill gesture.
-- **Gaps:** No saved reply currently exists for this exact issue (temporary downloads removal + notify-when-restored commitment). This is a **gap** — flag for the team to create a dedicated saved reply. No confirmed guidance on whether previously downloaded files will need to be re-downloaded once the feature returns; do not speculate either way until this doc is updated.
+- **High confidence areas:** The fix shipped in Android app version 2026.07.21; updating restores prior downloads and re-enables new downloads; the good-news reply is auto-sendable; rollout may take a few hours; the reply fulfills the notify-when-restored commitment.
+- **Judgment call areas:** Whether a vague "it still doesn't work" reply means the customer actually updated to 2026.07.21+ (when unclear, ask for their app version rather than assuming a fix gap).
+- **Gaps:** No dedicated saved reply exists yet for the restoration announcement — draft from this policy's Standard Case language. Flag for the team to create one if downloads tickets keep arriving in volume.
 
 # Saved Reply Mapping
 
-No saved reply in `data/saved_replies.json` directly matches "known download issue in the latest update, actively being fixed, will notify when resolved." This is a **gap** — flag for the team. In the meantime, draft a personalized reply from this policy's Standard Case language rather than forcing an unrelated saved reply. The following existing replies are adjacent but not a direct match — use only as tone/structure references, not as-is:
+No saved reply matches the restoration announcement exactly — draft personalized replies from the Standard Case above. Adjacent replies:
 
 | Situation | Closest existing saved reply | Note |
 |---|---|---|
-| Customer needs the app installed to access any content (not the same as offline download capability) | `Engagement DownloadAppDirectly SNIPPET` | This is about installing the app itself, not offline meditation downloads — do not use for this issue; listed only to rule it out |
-| General uncategorized feedback tied to this feature being missed | `Feedback PassedOn` | Only appropriate if the ticket is pure sentiment with no expectation of a direct answer about downloads |
-| Never-subscribed user asking how to subscribe (after downloads are explained as subscriber-only) | `Get HowtoSubscribe` | Use as a follow-on if they express interest in subscribing |
+| Customer needs to update the app (the fix) | `TechSupport AndroidUpdateApp` / `TechSupport AppleAndAndroidUpdateApp SNIPPET` | Now directly relevant: updating IS the fix — personalize to downloads wording (prior downloads restored, new downloads work) |
+| Never-subscribed user interested in subscribing | `Get HowtoSubscribe` | Use as follow-on after explaining downloads are subscriber-only |
+| Pure sentiment/feedback about the outage, nothing to answer | `Feedback PassedOn` | Only if there's no download question left to answer |
 
 # Related Policies
 
-- *Known Bugs & Current Product Status* (Entry 4 — summary and status pointer back to this doc)
-- *Cancellation Policy* (if a churn threat becomes an actual cancellation request)
-- *Refund Policy* (if combined with a refund request)
-- *Feedback Policy* (if the ticket is purely sentiment about the missing feature with no support ask)
-- *Escalation Policy* (sensitive PR risk if press/public threats are involved)
+- *Known Bugs & Current Product Status* (Entry 4 — status summary points here)
+- *Cancellation Policy* / *Refund Policy* (billing portions of combined tickets)
+- *Feedback Policy* (pure sentiment about the outage)
+- *Escalation Policy* (post-update failures at pattern scale; PR risk)

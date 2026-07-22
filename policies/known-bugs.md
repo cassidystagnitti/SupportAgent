@@ -2,13 +2,12 @@
 
 # Summary
 
-This doc is the **single source of truth for current bugs and product status** affecting support tickets — most urgently the wave of reports following the Hotwire Native Android app (v2) launch. It exists so that bug status can change without touching prompts or code: when a bug is fixed, newly discovered, or re-prioritized, **update this file (and its mirror in Notion) directly.** Never hardcode bug status in `prompts/draft_system_prompt.txt` or anywhere in Python — the prompt loads this doc wholesale along with the rest of `policies/*.md`.
+This doc is the **single source of truth for current bugs and product status** affecting support tickets — most urgently the wave of reports following the Hotwire Native Android app (v2) launch. It exists so that bug status can change without touching prompts or code: when a bug is fixed, newly discovered, or re-prioritized, **update this file directly** (this git repo is the single source of truth — the old Notion mirror was retired 2026-07-14). Never hardcode bug status in `prompts/draft_system_prompt.txt` or anywhere in Python — the prompt loads this doc wholesale along with the rest of `policies/*.md`.
 
 **Update process:**
-1. Edit the relevant `##` entry below (Status, dates, customer-facing script) in this repo.
-2. Make the same edit to the corresponding entry in the **Support Policy Docs** Notion page (ID: `356cffdf-527f-808d-a4fc-f7d05499523f`).
-3. Do not edit `prompts/draft_system_prompt.txt` or any `.py` file to reflect a bug status change — if you find yourself doing that, stop and update this doc instead.
-4. When a bug is fully resolved and no longer generating tickets, leave the entry in place with Status `Fixed` and a Date Resolved — don't delete history, it's useful for pattern-matching recurring issues.
+1. Edit the relevant `##` entry below (Status, dates, customer-facing script) in this repo and commit.
+2. Do not edit `prompts/draft_system_prompt.txt` or any `.py` file to reflect a bug status change — if you find yourself doing that, stop and update this doc instead.
+3. When a bug is fully resolved and no longer generating tickets, leave the entry in place with Status `Fixed` and a Date Resolved — don't delete history, it's useful for pattern-matching recurring issues.
 
 # Trigger Conditions
 
@@ -65,14 +64,15 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 - **Date added:** 2026-07-02
 - **Date resolved:** —
 
-## 4. Downloads / Offline Meditations Unavailable
+## 4. Downloads / Offline Meditations Unavailable (Android v2)
 
-- **Status:** Known issue in latest update — fix in progress
-- **Platforms:** New app (Hotwire Native v2)
-- **What to tell the customer:** There's a known issue affecting downloads in the latest app update, and we're actively working on a fix. We'll notify users once downloads are working again. Do NOT say downloads were "removed" or imply it was intentional — it's an unintended bug. Do not fabricate a timeline. See `downloads-offline.md` for the full policy, variations (e.g. churn-risk responses), and saved reply mapping for this issue.
+- **Status:** FIXED — downloads restored in Android app version **2026.07.21**. Customers must update to the latest version from the Google Play Store.
+- **Platforms:** Android (Hotwire Native v2 app)
+- **What to tell the customer:** Give the good news: the download issue is fixed. Tell them to **update the Happier app to the latest version (2026.07.21 or later) from the Google Play Store** — once updated, their **previously downloaded meditations are restored** and they can **download new ones again**. Play Store rollout is gradual, so if the update isn't visible yet, check back in a few hours. Add a light safety net: if downloads still aren't working after updating, ask them to reply so we can dig in. This reply also fulfills the earlier "we'll notify you once downloads are working again" commitment — on older threads, frame it as that promised follow-up. Do NOT proactively offer compensation.
+- **Auto-send:** The good-news restored reply IS auto-sendable. NOT auto-sendable: a report that downloads are **still broken after updating to 2026.07.21+** — flag for human review (each one is evidence the fix didn't fully land). See `downloads-offline.md` for the full policy.
 - **Linear ticket:** Not yet filed / tracked internally
 - **Date added:** 2026-07-02
-- **Date resolved:** —
+- **Date resolved:** 2026-07-21 (fix released in Android app version 2026.07.21)
 
 ## 5. Do Not Disturb Toggle Missing or Broken (Android v2)
 
