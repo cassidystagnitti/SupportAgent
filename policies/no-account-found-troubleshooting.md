@@ -46,7 +46,7 @@ I'm {user.firstName} from the Support team and I'm happy to help you get connect
 
 Our accounts are registered to either an email address or Sign in with Apple address and I'm guessing you have more than one account going. Would you send some more information so we can find your subscription? Here's what'll help us:
 
-- If you're an Apple customer, check to see if you used [Sign in with Apple](https://support.apple.com/en-us/HT210318) to create your account. Our Help Center article [Check for a Hidden Sign in with Apple Address](https://support.happierapp.com/article/314-check-for-a-hidden-sign-in-with-apple-address) has some steps to help you find that.
+- If you're an Apple customer, check to see if you used [Sign in with Apple](https://support.apple.com/en-us/HT210318) to create your account. Our Help Center article [Check for a Hidden Sign in with Apple Address](https://support.meditatehappier.com/article/314-check-for-a-hidden-sign-in-with-apple-address) has some steps to help you find that.
 
 If you don’t have a Hidden Sign in with Apple Address, please provide the following so we can locate your account:
 

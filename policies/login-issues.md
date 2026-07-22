@@ -119,7 +119,7 @@ Write back anytime with questions - we'll be here!
 
 ## Edge Cases & Exceptions
 
-- **Customer says they used Sign in with Apple and can't find their relay address** → Send the Sign in with Apple guidance from the *No Account Found — Troubleshooting* investigation reply. Reference [Apple's documentation](https://support.apple.com/en-us/HT210318) and our [Help Center article on Hidden Sign in with Apple Address](https://support.happierapp.com/article/314-check-for-a-hidden-sign-in-with-apple-address).
+- **Customer says they used Sign in with Apple and can't find their relay address** → Send the Sign in with Apple guidance from the *No Account Found — Troubleshooting* investigation reply. Reference [Apple's documentation](https://support.apple.com/en-us/HT210318) and our [Help Center article on Hidden Sign in with Apple Address](https://support.meditatehappier.com/article/314-check-for-a-hidden-sign-in-with-apple-address).
 - **Customer asks specifically how to reset their password:** The Login Instructions reply already links to the password reset article. Send the standard reply.
 
 # Action Classification

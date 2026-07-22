@@ -56,6 +56,12 @@ _CHECKOUT_PARAMS = ("coupon=", "plan=")
 
 _SPELLED_OUT_BRAND_RE = re.compile(r"ten\s+percent\s+happier", re.IGNORECASE)
 
+# Dead help-center domain: support.happierapp.com 405s (verified 2026-07-22) —
+# the live Help Center is support.meditatehappier.com. The dead domain leaked
+# into two policy docs (fixed same day); this catches any regression.
+_DEAD_HELP_DOMAIN = "support.happierapp.com"
+_LIVE_HELP_DOMAIN = "support.meditatehappier.com"
+
 
 def _finding(cls: str, detail: str, fix_type: str, suggested_fix: str) -> dict:
     return {"class": cls, "detail": detail, "fix_type": fix_type, "suggested_fix": suggested_fix}
@@ -94,6 +100,12 @@ def prelint(draft_reply: str) -> list[dict]:
                      "the web is checkout-only (policies/login-issues.md)",
                 "rewrite", "Route sign-in through the app's welcome screen instead of the website."))
             break
+
+    if _DEAD_HELP_DOMAIN in text.lower():
+        findings.append(_finding(
+            "B", f"dead Help Center domain ({_DEAD_HELP_DOMAIN}) — that host returns an error; "
+                 f"the live Help Center is {_LIVE_HELP_DOMAIN}",
+            "rewrite", f"Replace {_DEAD_HELP_DOMAIN} with {_LIVE_HELP_DOMAIN} in the link."))
 
     return findings
 

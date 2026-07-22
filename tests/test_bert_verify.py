@@ -59,6 +59,20 @@ def test_prelint_allows_plan_checkout_link():
     assert verify.prelint(html) == []
 
 
+def test_prelint_flags_dead_help_center_domain():
+    html = ('<a href="https://support.happierapp.com/article/314-check-for-a-hidden'
+            '-sign-in-with-apple-address">article</a>')
+    findings = verify.prelint(html)
+    assert any(f["class"] == "B" and "support.meditatehappier.com" in f["suggested_fix"]
+               for f in findings)
+
+
+def test_prelint_allows_live_help_center_domain():
+    html = ('<a href="https://support.meditatehappier.com/article/314-check-for-a-hidden'
+            '-sign-in-with-apple-address">article</a>')
+    assert verify.prelint(html) == []
+
+
 def test_prelint_empty_draft_is_clean():
     assert verify.prelint("") == []
 
