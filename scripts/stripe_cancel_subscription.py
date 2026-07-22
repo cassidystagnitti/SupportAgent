@@ -264,8 +264,12 @@ def _append_audit(entry: dict[str, Any], path: str | None = None) -> None:
         fh.write(json.dumps(entry, sort_keys=True) + "\n")
 
 
-def execute_plan(plan: dict[str, Any], conversation_id: str) -> dict[str, Any]:
-    """Perform the writes described by an eligible plan. Assumes gates passed."""
+def execute_plan(plan: dict[str, Any], conversation_id: str, actor: str | None = None) -> dict[str, Any]:
+    """Perform the writes described by an eligible plan. Assumes gates passed.
+
+    `actor` tags the audit line with who triggered the write ("cli" default;
+    the server rails pass "sidebar:<agent-id>" / "mcp").
+    """
     released = None
     schedule = plan.get("release_schedule")
     if schedule:
@@ -285,6 +289,7 @@ def execute_plan(plan: dict[str, Any], conversation_id: str) -> dict[str, Any]:
         "customer_id": plan["customer_id"],
         "subscription_id": plan["subscription_id"],
         "conversation_id": conversation_id,
+        "actor": actor or "cli",
         "released_schedule": released,
         "access_continues_through": _fmt_date(end_ts),
         "executed_at": datetime.now(tz=timezone.utc).isoformat(),

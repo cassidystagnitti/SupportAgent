@@ -74,6 +74,25 @@ async def hydrate_ticket(conversation_id: int) -> dict:
 
 
 @mcp.tool()
+async def cancel_subscription(conversation_id: int) -> dict:
+    """Turn off auto-renew (cancel at period end) for this ticket's Stripe customer.
+
+    EXECUTES IMMEDIATELY when eligible — call it only when the human in the
+    loop has explicitly asked for the cancellation. The customer is resolved
+    server-side from the conversation (no customer id is accepted). Stripe
+    only; eligibility is enforced in code (dunning, multi-sub, paused
+    collection → refused with a reason). Returns {"status": "applied" |
+    "already_off" | "refused" | "disabled" | "error", ...}. After applied /
+    already_off: redraft the reply to state access continues through the
+    returned date (never "will renew"), and treat the ticket as reply-only
+    per policies/cancellation-policy.md "Bert Execution". On refused /
+    disabled, relay the reason and keep it a manual 'Actions needed' item.
+    An audit note is posted to the ticket automatically.
+    """
+    return await _run(tools.cancel_subscription, conversation_id)
+
+
+@mcp.tool()
 async def research(question: str, account_summary: str = "", platform_hint: str | None = None) -> dict:
     """Investigate a product question across the codebases + Linear.
 

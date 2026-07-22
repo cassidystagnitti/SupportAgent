@@ -22,6 +22,7 @@ import draft_registry
 import orchestrator
 import policy_updater
 import triage_tickets
+from bert import actions as bert_actions
 from bert import pipeline as bert_pipeline
 
 log = logging.getLogger("sidebar_chat")
@@ -190,6 +191,19 @@ TOOLS = [
         },
     },
     {
+        "name": "cancel_subscription",
+        "description": (
+            "Turn off auto-renew (cancel at period end) for THIS ticket's Stripe customer. "
+            "Executes IMMEDIATELY — no confirmation step — so call it only when the support "
+            "agent in this chat explicitly asks to cancel / take the action. Stripe only "
+            "(Apple/Google requests stay manual). The customer is resolved server-side from "
+            "the ticket; there is nothing to pass. After an 'applied' or 'already_off' result, "
+            "ALWAYS update_draft so the reply states what is now true (access continues "
+            "through the returned date — never say 'will renew')."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "propose_policy_update",
         "description": (
             "Propose an edit to a policy doc in policies/. NOT applied — it renders as a "
@@ -241,6 +255,53 @@ def _handle_update_draft(store: SessionStore, cid: str, session_data: dict, html
     session_data["draft_text"] = html
     store.add_ui_message(cid, "event", "Draft created — open the reply editor to see it.")
     return "Draft created in the Help Scout reply editor."
+
+
+def _handle_cancel_subscription(store: SessionStore, cid: str, session_data: dict) -> str:
+    """Execute cancel-at-period-end for the ticket's own Stripe customer.
+
+    The customer id comes ONLY from the hydrated server-side context — never
+    from the model — so this tool cannot act outside the open ticket.
+    """
+    ctx = session_data.get("ctx") or {}
+    stripe_ctx = ctx.get("stripe_ctx") or {}
+    customer_id = (stripe_ctx.get("stripe_customer_id") or "").strip()
+    if not customer_id:
+        return (
+            "No Stripe customer is attached to this ticket's context (customer may be on "
+            "Apple/Google or unmatched) — cannot execute. Handle as a manual action instead."
+        )
+
+    actor = f"sidebar:{_agent_user_id() or 'unknown'}"
+    result = bert_actions.cancel_subscription(customer_id, cid, actor=actor)
+    status = result.get("status")
+
+    if status == "applied":
+        store.add_ui_message(
+            cid, "event",
+            f"✅ Auto-renew turned off on {result.get('subscription_id')} — access continues "
+            f"through {result.get('access_continues_through')}. Audit note posted.",
+        )
+        notes = "; ".join(result.get("notes") or [])
+        return (
+            f"Executed: auto-renew is OFF on {result.get('subscription_id')} "
+            f"({customer_id}). Access continues through {result.get('access_continues_through')} — "
+            f"no further charges. {('Plan notes: ' + notes) if notes else ''} "
+            "Now update the draft so the reply states this outcome."
+        )
+    if status == "already_off":
+        return (
+            f"No write needed — auto-renew is already off; access continues through "
+            f"{result.get('period_end_display', 'the period end')}. Update the draft to confirm "
+            "they're all set (say 'access continues through …', never 'will renew')."
+        )
+    # refused / disabled / error — relay the reason, never claim success.
+    store.add_ui_message(cid, "event", f"⚠️ Cancellation not executed: {result.get('reason', status)}")
+    return (
+        f"NOT executed ({status}): {result.get('reason', 'unknown')} "
+        "Do not tell the customer the cancellation is done. If this needs a human, keep it as "
+        "an 'Actions needed' item in the note and draft accordingly."
+    )
 
 
 def _handle_propose_policy(store: SessionStore, cid: str, session_data: dict, args: dict) -> str:
@@ -317,6 +378,8 @@ def run_turn(store: SessionStore, cid: str, user_text: str, client=None) -> None
                                                    (tu.input or {}).get("html", ""))
                     elif tu.name == "propose_policy_update":
                         out = _handle_propose_policy(store, cid, session_data, tu.input or {})
+                    elif tu.name == "cancel_subscription":
+                        out = _handle_cancel_subscription(store, cid, session_data)
                     else:
                         out = f"Unknown tool: {tu.name}"
                 except Exception as e:

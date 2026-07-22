@@ -30,6 +30,7 @@ import requests
 import orchestrator
 import policy_updater
 import research_agent
+from bert import actions as bert_actions
 from bert import fanout as bert_fanout
 from bert import pipeline as bert_pipeline
 from bert import summarize as bert_summarize
@@ -168,8 +169,31 @@ def hydrate_ticket(conversation_id: int) -> dict:
         "conversation_history": ctx.get("conversation_history", ""),
         "account_blob": ctx.get("account_blob", ""),
         "stripe_block": ctx.get("stripe_block", ""),
+        "stripe_customer_id": (ctx.get("stripe_ctx") or {}).get("stripe_customer_id"),
         "existing_tags": ctx.get("existing_tags", []),
     }
+
+
+def cancel_subscription(conversation_id: int) -> dict:
+    """Execute cancel-at-period-end for the ticket's own Stripe customer.
+
+    The customer is resolved SERVER-SIDE by re-hydrating the conversation —
+    a client-supplied customer id is never accepted, so this tool cannot act
+    outside the named ticket. Eligibility, env gates, audit line, and the
+    executed-note all come from bert.actions (same pipeline as the CLI).
+    """
+    session = _hs_session()
+    ctx = bert_pipeline.hydrate_ticket(session, int(conversation_id))
+    customer_id = ((ctx.get("stripe_ctx") or {}).get("stripe_customer_id") or "").strip()
+    if not customer_id:
+        return {
+            "status": "refused",
+            "reason": "no Stripe customer attached to this ticket "
+            "(customer may be on Apple/Google or unmatched) — manual action.",
+        }
+    return bert_actions.cancel_subscription(
+        customer_id, str(conversation_id), actor="mcp", hs=session
+    )
 
 
 def research(question: str, account_summary: str = "", platform_hint: str | None = None) -> dict:
