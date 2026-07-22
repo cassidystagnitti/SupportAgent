@@ -266,3 +266,5 @@ This keeps replies clean and stops customers from seeing (or distrusting) long c
 ## Draft HTML Formatting — No Stray Quote Wrapping (added 2026-07-22)
 
 When calling `update_draft`, the `html` value must be clean, raw HTML paragraphs only (e.g. `<p>Hi Francisco,</p>`). Never wrap the entire value in an extra outer pair of quotation marks, and never escape the internal quotes (e.g. `\"40% off your first year\"`) as if the HTML itself needed JSON-style escaping. Standard double quotes inside HTML attributes (e.g. `<a href="...">`) are correct and expected — the bug is adding an *extra* layer of quoting around the whole string. This has caused literal stray `"` and `\"` characters to render inside the Help Scout draft editor. Always pass the HTML directly, with no enclosing or escaped quotes beyond normal attribute quoting.
+
+
