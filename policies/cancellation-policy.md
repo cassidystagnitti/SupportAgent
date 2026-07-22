@@ -88,7 +88,7 @@ Bert executes Stripe cancel-at-period-end itself with the first Stripe write ski
 
 **Once the cancellation is EXECUTED (`applied`) or confirmed already off (`already_off`), there is no remaining human action** — the ticket moves to the auto-send bucket:
 
-- Treat the result as `needs_action = false`, `auto_sendable = true`; no "Actions needed" internal note is posted (the audit log records the write).
+- Treat the result as `needs_action = false`, `auto_sendable = true`; no "Actions needed" internal note is posted. Instead, an **"Action executed"** informational note goes on the ticket (subscription id, access-continues-through date, actor — `bert/actions.py` posts it automatically on the sidebar/MCP rails; post the equivalent manually on CLI executions), and the audit log records the write.
 - The draft's past tense ("I've turned off auto-renewal…") must be TRUE at post time — **execute before posting/verifying**, so the verifier's deterministic Stripe truth check sees `cancel_at_period_end = true` on the live subscription.
 - The standard reply rules still apply: confirmation + expiration date in natural language, and the 40% retention offer when the customer was renewing at full price.
 - The normal do-not-auto-send conditions below still override (refund component, claims of being charged after cancelling, escalating frustration, app-quality complaint combos) — execution removes the ACTION barrier, not the judgment barriers.
