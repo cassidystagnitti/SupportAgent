@@ -66,20 +66,20 @@ def draft_all(records, session, client, brief, *, model, max_workers: int = 6) -
 
 
 def should_auto_send(result: dict) -> bool:
-    """True when a drafted result qualifies for the ``auto_send`` review tag.
+    """True when a drafted result belongs to the AUTO-SEND bucket.
 
-    Bert passes Claude's raw ``auto_sendable`` through (unlike the orchestrator,
-    which forces it false for escalations / multi-subscriber tickets), so the
-    gate is reconstructed explicitly: only high/medium-confidence, genuinely
-    auto-sendable drafts that need no human action and aren't escalated.
+    Three-bucket model (Cassidy 2026-07-22): every ok draft that needs no human
+    action and is not escalated IS the auto-send bucket — the draft brain's
+    per-ticket ``auto_sendable``/``confidence`` no longer gate it. The VERIFIER
+    is the quality gate: an ERROR verdict moves the ticket to the needs-action
+    bucket (``verify_and_tag`` + the ERROR note in ``apply_result``) instead of
+    leaving it untagged in this one. Close-candidates are excluded because they
+    get CLOSED during the review, not sent.
     """
     if not result.get("ok"):
         return False
     parsed = result.get("parsed") or {}
-    if not parsed.get("auto_sendable"):
-        return False
-    confidence = (result.get("confidence") or parsed.get("confidence") or "").strip().lower()
-    if confidence not in ("high", "medium"):
+    if _close_no_reply(result):
         return False
     if result.get("escalate") or parsed.get("escalate"):
         return False
@@ -91,12 +91,13 @@ def should_auto_send(result: dict) -> bool:
 def reconcile_auto_send_tag(session, cid, verdict) -> str | None:
     """Make the conversation's ``auto_send`` tag match the verifier verdict.
 
-    SEND_AS_IS → tag applied ("tagged", or "already" if present). Any other
-    verdict — MINOR, ERROR, or None (unverified / not a candidate / verifier
-    failure) — → an existing tag is stripped ("removed", or None if it wasn't
-    there; "remove_failed" when the strip itself errored, because a lingering
-    tag the verdict forbids must be visible). Never raises — a tagging error
-    must not break the post that already landed.
+    SEND_AS_IS or MINOR → tag applied ("tagged", or "already" if present) —
+    the lowered bar (Cassidy 2026-07-22): minor imperfections don't hold a
+    bucket-1 draft back. ERROR or None (not a candidate / conversation-over) →
+    an existing tag is stripped ("removed", or None if it wasn't there;
+    "remove_failed" when the strip itself errored, because a lingering tag the
+    verdict forbids must be visible). Never raises — a tagging error must not
+    break the post that already landed.
     """
     try:
         convo = orchestrator.fetch_conversation(session, int(cid))
@@ -105,7 +106,7 @@ def reconcile_auto_send_tag(session, cid, verdict) -> str | None:
         log.warning("auto_send reconcile: could not read tags for %s", cid, exc_info=True)
         return None
     try:
-        if verdict == "SEND_AS_IS":
+        if verdict in ("SEND_AS_IS", "MINOR"):
             if AUTO_SEND_TAG in existing:
                 return "already"
             orchestrator._update_conversation_tags(session, str(cid), existing, [AUTO_SEND_TAG])
@@ -119,7 +120,7 @@ def reconcile_auto_send_tag(session, cid, verdict) -> str | None:
     except Exception:
         log.warning("auto_send reconcile: tag write failed for %s (verdict=%s)",
                     cid, verdict, exc_info=True)
-        return "remove_failed" if verdict != "SEND_AS_IS" else None
+        return "remove_failed" if verdict not in ("SEND_AS_IS", "MINOR") else None
 
 
 def move_to_apple_mailbox(session, conversation_id) -> str | None:
@@ -224,7 +225,12 @@ def verify_and_tag(session, client, result: dict, *, brief: str = "",
     except Exception as e:
         log.warning("verifier failed for conversation %s", cid, exc_info=True)
         out["error"] = str(e)
-    out["tag"] = reconcile_auto_send_tag(session, cid, out["verdict"])
+    # Fail-OPEN on a verifier crash (Cassidy 2026-07-22): bucket membership
+    # governs the tag; a crashed verifier doesn't demote a bucket-1 draft.
+    # A real ERROR verdict still strips (and apply_result moves the ticket to
+    # the needs-action bucket with a findings note).
+    tag_verdict = out["verdict"] if out["verdict"] else ("SEND_AS_IS" if out["error"] else None)
+    out["tag"] = reconcile_auto_send_tag(session, cid, tag_verdict)
     return out
 
 
@@ -251,16 +257,29 @@ def apply_result(session, result: dict, *, timestamp: str | None = None,
               "auto_send_tagged": None, "verify_verdict": None,
               "verify_initial_verdict": None, "verify_initial_findings": [],
               "verify_repairs": 0, "verify_findings": [], "verify_error": None,
-              "error": None}
+              "verifier_error_note": False, "error": None}
     if not result.get("ok"):
         status["error"] = result.get("error") or "draft generation failed"
         return status
     if _close_no_reply(result):
-        # Conversation is over (thanks-only follow-up): no draft, no verifier —
-        # the ticket surfaces as a close candidate for the human. A stale
-        # auto_send tag from an earlier run must still be stripped.
-        status["draft_action"] = "skipped_close_no_reply"
+        # Conversation is over (thanks-only follow-up): no draft, no verifier.
+        # Three-bucket model (Cassidy 2026-07-22): close candidates are CLOSED
+        # during the initial review, not held for approval. A stale auto_send
+        # tag from an earlier run is stripped first.
         status["auto_send_tagged"] = reconcile_auto_send_tag(session, cid, None)
+        try:
+            pipeline.post_plain_note(
+                session, cid,
+                "<p>Closed during morning review — conversation over (thanks-only / "
+                "resolution-confirmed follow-up); nothing to answer.</p>")
+        except Exception:
+            log.warning("close note failed for %s — closing anyway", cid, exc_info=True)
+        try:
+            pipeline.close_conversation(session, cid)
+            status["draft_action"] = "closed_no_reply"
+        except Exception as e:
+            status["draft_action"] = "skipped_close_no_reply"
+            status["error"] = f"close failed: {e}"
         return status
     ts = timestamp or datetime.now(timezone.utc).isoformat()
     errors = []
@@ -316,6 +335,22 @@ def apply_result(session, result: dict, *, timestamp: str | None = None,
             status["verify_findings"] = v["findings"]
             status["verify_error"] = v["error"]
             status["auto_send_tagged"] = v["tag"]
+            if v["verdict"] == "ERROR":
+                # Three-bucket invariant: an ERROR draft leaves the auto-send
+                # bucket by carrying the needs-action marker — never untagged
+                # limbo. The note tells the rep what the verifier found.
+                try:
+                    items = "".join(
+                        f"<li>{orchestrator._html_escape((f.get('detail') or '')[:300])}</li>"
+                        for f in (v["findings"] or [])[:4]
+                    ) or "<li>Verifier ERROR — see morning-review state for details</li>"
+                    pipeline.post_plain_note(
+                        session, cid,
+                        f"<p><strong>Actions needed</strong> — verifier flagged this draft "
+                        f"(not auto-sendable as-is):</p><ul>{items}</ul>")
+                    status["verifier_error_note"] = True
+                except Exception:
+                    log.warning("verifier ERROR note failed for %s", cid, exc_info=True)
         else:
             status["auto_send_tagged"] = reconcile_auto_send_tag(session, cid, None)
 

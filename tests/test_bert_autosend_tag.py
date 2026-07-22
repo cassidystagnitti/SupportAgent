@@ -33,7 +33,7 @@ def _capture_tag_put(monkeypatch):
     return puts
 
 
-# --- should_auto_send: the gate ---
+# --- should_auto_send: bucket membership (three-bucket model, 2026-07-22) ---
 
 def test_high_confidence_auto_sendable_qualifies():
     assert fanout.should_auto_send(_result(confidence="high")) is True
@@ -43,16 +43,18 @@ def test_medium_confidence_auto_sendable_qualifies():
     assert fanout.should_auto_send(_result(confidence="medium")) is True
 
 
-def test_low_confidence_does_not_qualify():
-    assert fanout.should_auto_send(_result(confidence="low")) is False
+def test_low_confidence_still_qualifies():
+    # Lowered bar: confidence no longer gates the bucket — the verifier does.
+    assert fanout.should_auto_send(_result(confidence="low")) is True
 
 
-def test_blank_confidence_does_not_qualify():
-    assert fanout.should_auto_send(_result(confidence="")) is False
+def test_blank_confidence_still_qualifies():
+    assert fanout.should_auto_send(_result(confidence="")) is True
 
 
-def test_not_auto_sendable_does_not_qualify():
-    assert fanout.should_auto_send(_result(auto_sendable=False)) is False
+def test_not_auto_sendable_flag_still_qualifies():
+    # Lowered bar: the draft brain's auto_sendable no longer gates the bucket.
+    assert fanout.should_auto_send(_result(auto_sendable=False)) is True
 
 
 def test_escalate_does_not_qualify():
@@ -65,6 +67,12 @@ def test_needs_action_does_not_qualify():
 
 def test_failed_result_does_not_qualify():
     assert fanout.should_auto_send(_result(ok=False)) is False
+
+
+def test_close_no_reply_does_not_qualify():
+    r = _result()
+    r["close_no_reply"] = True
+    assert fanout.should_auto_send(r) is False
 
 
 # --- reconcile_auto_send_tag: tag follows the verifier verdict (fail-soft) ---
@@ -98,15 +106,15 @@ def test_reconcile_idempotent_when_tag_present(monkeypatch):
     assert calls["n"] == 0
 
 
-def test_reconcile_removes_tag_on_downgrade(monkeypatch):
+def test_reconcile_tags_on_minor_verdict(monkeypatch):
+    # Lowered bar (2026-07-22): MINOR keeps a bucket-1 draft tagged.
+    captured = {}
     monkeypatch.setattr(fanout.orchestrator, "fetch_conversation",
-                        lambda session, cid: {"tags": [{"tag": "billing"}, {"tag": "auto_send"}]})
-    puts = _capture_tag_put(monkeypatch)
-    ret = fanout.reconcile_auto_send_tag(object(), 42, "MINOR")
-    assert ret == "removed"
-    url, body = puts[0]
-    assert url.endswith("/conversations/42/tags")
-    assert body == {"tags": ["billing"]}
+                        lambda session, cid: {"tags": [{"tag": "billing"}]})
+    monkeypatch.setattr(fanout.orchestrator, "_update_conversation_tags",
+                        lambda session, cid, existing, to_add: captured.update(to_add=to_add))
+    assert fanout.reconcile_auto_send_tag(object(), 42, "MINOR") == "tagged"
+    assert captured["to_add"] == ["auto_send"]
 
 
 def test_reconcile_removes_tag_on_error_verdict(monkeypatch):
@@ -154,7 +162,7 @@ def _quiet_reconcile(monkeypatch):
     def fake(session, cid, verdict):
         seen["cid"] = cid
         seen["verdict"] = verdict
-        return "tagged" if verdict == "SEND_AS_IS" else "removed"
+        return "tagged" if verdict in ("SEND_AS_IS", "MINOR") else "removed"
 
     monkeypatch.setattr(fanout, "reconcile_auto_send_tag", fake)
     return seen
@@ -240,7 +248,10 @@ def test_verify_and_tag_clean_verdict_tags(monkeypatch):
     assert seen["verdict"] == "SEND_AS_IS"
 
 
-def test_verify_and_tag_nonrepairable_minor_removes_tag_without_repair(monkeypatch):
+def test_verify_and_tag_nonrepairable_minor_keeps_tag_without_repair(monkeypatch):
+    # Lowered bar (2026-07-22): a MINOR verdict — even non-repairable — keeps
+    # the bucket-1 tag; only ERROR demotes. The repair loop still must not run
+    # on non-rewrite findings.
     monkeypatch.setattr(fanout.pipeline, "hydrate_ticket",
                         lambda s, cid: {"conversation_id": cid, "email": "a@b.com"})
     monkeypatch.setattr(fanout.verify, "find_sibling_conversations", lambda *a, **k: [])
@@ -257,7 +268,7 @@ def test_verify_and_tag_nonrepairable_minor_removes_tag_without_repair(monkeypat
     seen = _quiet_reconcile(monkeypatch)
 
     out = fanout.verify_and_tag(object(), object(), _result())
-    assert out["verdict"] == "MINOR" and out["tag"] == "removed"
+    assert out["verdict"] == "MINOR" and out["tag"] == "tagged"
     assert out["repairs"] == 0
     assert seen["verdict"] == "MINOR"
 
@@ -313,7 +324,8 @@ def test_verify_and_tag_repair_capped_at_two_iterations(monkeypatch):
     out = fanout.verify_and_tag(object(), object(), _result())
     assert out["repairs"] == 2
     assert len(repair_calls) == 2
-    assert out["verdict"] == "MINOR" and out["tag"] == "removed"
+    # Repair cap reached with MINOR standing — lowered bar keeps the tag.
+    assert out["verdict"] == "MINOR" and out["tag"] == "tagged"
 
 
 def test_verify_and_tag_repairs_prelint_hit(monkeypatch):
@@ -336,12 +348,13 @@ def test_verify_and_tag_repair_aborts_without_draft_thread(monkeypatch):
     monkeypatch.setattr(fanout.pipeline, "find_draft_threads", lambda s, cid: [])
     _quiet_reconcile(monkeypatch)
     out = fanout.verify_and_tag(object(), object(), _result())
-    # nothing to rewrite in Help Scout → no repair, verdict stands, no tag
+    # nothing to rewrite in Help Scout → no repair, MINOR stands — tag stays
+    # (lowered bar: only ERROR demotes).
     assert out["repairs"] == 0 and repair_calls == []
-    assert out["verdict"] == "MINOR" and out["tag"] == "removed"
+    assert out["verdict"] == "MINOR" and out["tag"] == "tagged"
 
 
-def test_verify_and_tag_fails_soft_when_verifier_errors(monkeypatch):
+def test_verify_and_tag_fails_open_when_verifier_errors(monkeypatch):
     monkeypatch.setattr(fanout.pipeline, "hydrate_ticket",
                         lambda s, cid: {"conversation_id": cid, "email": "a@b.com"})
     monkeypatch.setattr(fanout.verify, "find_sibling_conversations", lambda *a, **k: [])
@@ -356,8 +369,9 @@ def test_verify_and_tag_fails_soft_when_verifier_errors(monkeypatch):
     out = fanout.verify_and_tag(object(), object(), _result())
     assert out["verdict"] is None
     assert "anthropic down" in out["error"]
-    # an unverified candidate must not carry the tag → reconcile ran with no verdict
-    assert seen["verdict"] is None and out["tag"] == "removed"
+    # Fail-OPEN (2026-07-22): a crashed verifier doesn't demote a bucket-1
+    # draft — reconcile runs with the pass sentinel and the tag stays.
+    assert seen["verdict"] == "SEND_AS_IS" and out["tag"] == "tagged"
 
 
 # --- apply_result integration: verifier drives the tag ---

@@ -186,10 +186,25 @@ def _customer_name(convo: dict) -> str:
     return orchestrator._customer_display_name(orchestrator._customer_from_conversation(convo))
 
 
+def _default_mailbox_id() -> int | None:
+    """MAIN_MAILBOX_ID from the environment, or None when unset/invalid."""
+    raw = os.getenv("MAIN_MAILBOX_ID", "").strip()
+    try:
+        return int(raw) if raw else None
+    except ValueError:
+        return None
+
+
 def fetch_open_tickets(session, mailbox_id: int | None = None, *, status: str = "active") -> list[dict]:
-    """Return open conversations as ticket dicts: {conversation_id, customer, subject, body, tags}."""
+    """Return open conversations as ticket dicts: {conversation_id, customer, subject, body, tags}.
+
+    Defaults to the MAIN mailbox (``MAIN_MAILBOX_ID``): the HS API user has had
+    Apple-mailbox visibility since 2026-07-20, so an unfiltered listing crosses
+    into that team's queue (2 Apple-queue tickets leaked into the 2026-07-22
+    review this way). Pass ``mailbox_id`` explicitly to target another mailbox.
+    """
     tickets = []
-    for convo in _list_conversations(session, mailbox_id, status):
+    for convo in _list_conversations(session, mailbox_id or _default_mailbox_id(), status):
         cid = convo.get("id")
         tickets.append({
             "conversation_id": cid,

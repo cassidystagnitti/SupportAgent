@@ -9,17 +9,26 @@ You are running the attended morning review of the Happier Meditation Help Scout
 
 Keep the morning-review state file (`bert.state`) as your working memory: it holds the ticket index (`records`), the standing brief (`brief`), and per-ticket `statuses`. Load today's state at the start; save after each step that changes it.
 
-## The three buckets (standing model — minted 2026-07-22)
+## The three buckets (standing model — minted 2026-07-22, tightened same day)
 
-Every drafted ticket lands in exactly one bucket by the end of the review. Cassidy does not restate this each morning; it is the default frame.
+Every open ticket is in exactly ONE bucket at all times — **the highest-priority invariant of the review is that the mailbox always lines up with these three buckets, with nothing in limbo.** Cassidy does not restate this each morning; it is the default frame.
 
-1. **AUTO-SEND** — should be the MAJORITY. Definition: **no internal note on it and not escalated to a support agent** — nothing left for a human to do but send. Includes:
-   - all reply-only tickets (known-bug good news, how-to, already-cancelled confirms, redirects), and
-   - tickets whose only required action was a **Stripe cancel-at-period-end that Bert has ALREADY EXECUTED** via `scripts/stripe_cancel_subscription.py` (see `policies/cancellation-policy.md` → "Bert Execution"). After a successful `applied`/`already_off` run, flip the drafted result — `needs_action=false`, `parsed.needs_action=false`, `parsed.auto_sendable=true` — so it joins this bucket and no "Actions needed" note is posted; post the "Action executed" informational note instead (`bert.actions._executed_note_html` + `pipeline.post_plain_note`; the sidebar/MCP rails do this automatically). The bucket marker is specifically the "Actions needed" note — an "Action executed" note does NOT pull a ticket out of auto-send.
-2. **NEEDS-ACTION (notes)** — a human must still perform an action Bert cannot execute: refunds, Google Play cancels, coupons, account changes, immediate/dunning cancellations, anything the write skill refused. These get the "Actions needed" internal note; the draft is written as if the action is already done (per `bert_system_prompt.txt`).
-3. **ESCALATED** — routed to a human support agent per `policies/escalation-policy.md`: escalation tag + internal note, NO customer draft. Talk these through with Cassidy.
+1. **AUTO-SEND** — the MAJORITY. Definition: **no unresolved "Actions needed" note and not escalated** — these replies go out without a human read. Membership IS the `auto_send` tag: every drafted bucket-1 conversation carries the tag (`should_auto_send` = ok draft, not needs-action, not escalated; the draft brain's per-ticket `auto_sendable`/`confidence` do NOT gate it). Includes reply-only tickets of every kind, clarifying-question replies, and tickets whose only action Bert already executed (cancel-at-period-end — the "Action executed" note does NOT pull a ticket out; only an unresolved "Actions needed" note does, and a later "Resolved" note supersedes an earlier "Actions needed" note).
+2. **NEEDS-ACTION (notes)** — a human must still perform an action Bert cannot execute: refunds, Google Play cancels, coupons, account changes, dunning cancellations, anything the write skill refused — plus any draft the **VERIFIER hit with an ERROR verdict** (`apply_result` posts an "Actions needed" note carrying the findings, which moves the ticket here). The draft is written as if the action is already done (per `bert_system_prompt.txt`).
+3. **ESCALATED** — routed to a human support agent per `policies/escalation-policy.md`: escalation tag + internal note, NO customer draft.
 
-**Order of operations:** execute eligible cancel-at-period-end actions and settle buckets 2 and 3 first (notes added, escalations discussed), **then run the VERIFIER over the whole auto-send bucket** (`apply_result` with `verify_client` — the `auto_send` tag follows the verdict). Take the run as far as possible — drafts posted, notes on, verifier done — before coming back to Cassidy for review; bring policy questions and unclarity with you.
+**The verifier's role under the lowered bar (Cassidy 2026-07-22):** it runs over every bucket-1 draft at post time and REPAIRS what it can, but it never leaves a ticket untagged in bucket 1 — `SEND_AS_IS` and `MINOR` keep the tag; a verifier crash fails OPEN (tag stays); only an `ERROR` verdict demotes, and demotion means MOVING the ticket to bucket 2 with a findings note. Per-policy "Do Not Auto-Send Conditions" are enforced this same way — as verifier criteria, not as pre-gates on the bucket.
+
+**Not tickets, handled during the initial review (never left open):**
+- **Close candidates** (`close_no_reply` thanks-only follow-ups) are **closed immediately** by `apply_result` (note + close) — not held for approval.
+- **Spam/bots** (gibberish senders, unsolicited marketing) are noted and closed during the review.
+- **Mindful Minute Challenge / Apple-org tickets** are moved to the Apple mailbox.
+- **Duplicates** (same customer, same issue) are consolidated into the keeper.
+- **Pending-status conversations** (waiting on the customer) are out of scope until the customer replies.
+
+**Stale drafts:** every open ticket is re-drafted fresh each morning — when a customer has replied since an unsent draft was written, the draft is REDRAFTED against the latest message (never left stale). Escalated tickets keep no draft; note any stale one for the support agent to discard.
+
+**Order of operations:** execute eligible cancel-at-period-end actions, move/close/consolidate the non-tickets, settle buckets 2 and 3 (notes added, escalations tagged+noted), **then run the VERIFIER over the whole auto-send bucket** (`apply_result` with `verify_client`). Take the run as far as possible before coming back to Cassidy; bring policy questions and unclarity with you. End state every day: bucket 1 fully tagged, bucket 2 fully noted, bucket 3 fully escalation-tagged — three buckets, zero leftovers.
 
 ## The loop
 

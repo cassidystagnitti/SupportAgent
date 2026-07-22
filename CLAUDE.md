@@ -106,10 +106,13 @@ orchestrator.py (invoked per ticket by Bert skills / sidebar chat hydration)
 ```
 
 **Auto-send VERIFIER (Bert apply path).** When Bert posts/updates a draft
-(`bert/fanout.apply_result`) and the result qualifies for auto-send
-(`should_auto_send`), a VERIFIER stage runs (`bert/verify.py`): deterministic
-pre-lint → mechanical same-customer sibling check (other open conversations →
-automatic ERROR, consolidate) → deterministic Stripe truth check
+(`bert/fanout.apply_result`) and the result is in the AUTO-SEND bucket
+(`should_auto_send` = ok draft, not needs-action, not escalated, not
+close_no_reply — the three-bucket model, Cassidy 2026-07-22; the draft brain's
+per-ticket `auto_sendable`/`confidence` no longer gate it), a VERIFIER stage
+runs (`bert/verify.py`): deterministic pre-lint → mechanical same-customer
+sibling check (other open conversations → automatic ERROR, consolidate) →
+deterministic Stripe truth check
 (`stripe_research.verify_claimed_stripe_objects`: any Stripe object the draft
 references — subscription id, "I've cancelled", "refund processed" — must
 exist read-only in Stripe AND belong to the ticket's customer email; a miss is
@@ -121,13 +124,19 @@ finding is a pure `rewrite` (fixable from documented truths — never external
 facts, human action, or consolidation), a bounded REPAIR loop
 (`prompts/repair_system_prompt.txt`, max 2 iterations) revises the draft,
 updates the Help Scout draft in place, and re-verifies. The `auto_send` tag in
-Help Scout follows the FINAL verdict: applied only on `SEND_AS_IS`, removed
-otherwise (including on any verifier failure — and the verifier is the tag's
-ONLY owner: `orchestrator.compute_tags` no longer applies it). Fail-soft — a
-verifier error never blocks the draft; the draft just stays untagged. Verdicts
-+ findings come back in the `apply_result` status dict (`verify_verdict`,
-`verify_initial_verdict`, `verify_initial_findings`, `verify_repairs`,
-`verify_findings`, `verify_error`) and are recorded into the day's
+Help Scout follows the FINAL verdict under the LOWERED BAR (Cassidy
+2026-07-22): applied on `SEND_AS_IS` or `MINOR`, and on a verifier crash
+(fail-OPEN — bucket membership governs the tag); stripped only on `ERROR`,
+which also posts an "Actions needed" findings note so the ticket MOVES to the
+needs-action bucket rather than sitting untagged (three-bucket invariant:
+nothing in limbo). The verifier is the tag's ONLY owner:
+`orchestrator.compute_tags` no longer applies it. Per-policy "Do Not
+Auto-Send Conditions" are enforced as verifier criteria, not as pre-gates.
+`close_no_reply` results are CLOSED during the review by `apply_result`
+(note + close), not held for approval. Verdicts + findings come back in the
+`apply_result` status dict (`verify_verdict`, `verify_initial_verdict`,
+`verify_initial_findings`, `verify_repairs`, `verify_findings`,
+`verify_error`, `verifier_error_note`) and are recorded into the day's
 morning-review state via `bert.state.set_status`, so the scorecard can show
 "clean on first pass" vs. "dirty → repaired → clean".
 
@@ -138,8 +147,8 @@ morning-review state via `bert.state.set_status`, so the scorecard can show
 - **All policy docs are loaded into every prompt (no RAG).** The corpus is ~17 docs, ~15-20k tokens. Full context is more reliable than retrieval at this scale. Revisit if corpus exceeds ~40 docs.
 - **Stripe enrichment only runs for Stripe subscribers.** Apple/Google subscribers are skipped — their billing data isn't in Stripe. (This is about API enrichment only, NOT rep capability: a human rep CAN cancel Google Play subscriptions via the Play admin console — see policies/cancellation-policy.md. Apple subscriptions are self-serve only.)
 - **Classification and draft come from one Claude call.** No separate classifier. One call returns: `draft_reply`, `needs_action`, `auto_sendable`, `confidence`, `referenced_policies`, `reasoning`.
-- **`auto_sendable` is captured but not acted on.** Auto-send is a future feature gated by env var. Right now everything goes to draft.
-- **Default to safe classifications.** If uncertain: `needs_action = true`, `auto_sendable = false`. A false positive (unnecessary human review) is far less costly than a false negative.
+- **`auto_sendable`/`confidence` no longer gate the auto-send bucket (2026-07-22).** The three-bucket model governs: not needs-action + not escalated = auto-send bucket; the VERIFIER is the quality gate and an ERROR moves the ticket to needs-action. The flags remain useful signals for review emphasis (`partition`).
+- **Default to safe classifications for ACTIONS.** If uncertain whether a human action is required: `needs_action = true`. A false positive (unnecessary note) is far less costly than a false claim of completed work.
 
 ---
 
@@ -190,6 +199,10 @@ HELPSCOUT_WEBHOOK_SECRET      # for signature verification
 HELPSCOUT_NOTE_USER_ID        # HS user id AI-authored notes are attributed to. REQUIRED for notes:
                               # if unset, internal notes (incl. "Actions needed" lists) are silently
                               # SKIPPED — drafts still post. Set to the Support Automations agent user id.
+MAIN_MAILBOX_ID               # HS mailbox id of the main support queue (185235 = "1. Happier Support").
+                              # bert/summarize.fetch_open_tickets filters to it by default — the API user
+                              # has had Apple-mailbox visibility since 2026-07-20, so an unfiltered listing
+                              # sweeps that team's queue too (2 Apple tickets leaked into the 2026-07-22 review).
 APPLE_MAILBOX_ID              # HS mailbox id of the Apple mailbox (Mindful Minute Challenge routing —
                               # policies/mindful-minute-challenge.md; bert.fanout.move_to_apple_mailbox).
                               # 201086 = "3. Happier Apple Support". Works since 2026-07-20, when the

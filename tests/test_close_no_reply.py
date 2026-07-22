@@ -44,24 +44,44 @@ def test_partition_always_has_close_key():
 
 # --- apply_result ------------------------------------------------------------
 
-def test_apply_result_skips_draft_for_close_no_reply(monkeypatch):
+def test_apply_result_closes_close_no_reply(monkeypatch):
+    # Three-bucket model (2026-07-22): close candidates are CLOSED during the
+    # review — note posted, conversation closed, stale tag stripped, no draft.
     monkeypatch.setattr(fo.pipeline, "find_draft_threads",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not touch drafts")))
     monkeypatch.setattr(fo, "reconcile_auto_send_tag", lambda session, cid, verdict: "removed")
+    notes, closes = [], []
+    monkeypatch.setattr(fo.pipeline, "post_plain_note",
+                        lambda session, cid, html: notes.append((cid, html)) or "posted")
+    monkeypatch.setattr(fo.pipeline, "close_conversation",
+                        lambda session, cid: closes.append(cid) or True)
     s = fo.apply_result(object(), _result(close_no_reply=True))
-    assert s["draft_action"] == "skipped_close_no_reply"
+    assert s["draft_action"] == "closed_no_reply"
+    assert closes == [1] and len(notes) == 1
     assert s["auto_send_tagged"] == "removed"  # stale tag stripped
     assert s["error"] is None
 
 
+def test_apply_result_close_failure_falls_back_to_skip(monkeypatch):
+    monkeypatch.setattr(fo, "reconcile_auto_send_tag", lambda *a: None)
+    monkeypatch.setattr(fo.pipeline, "post_plain_note", lambda *a: "posted")
+    monkeypatch.setattr(fo.pipeline, "close_conversation",
+                        lambda *a: (_ for _ in ()).throw(RuntimeError("HS 500")))
+    s = fo.apply_result(object(), _result(close_no_reply=True))
+    assert s["draft_action"] == "skipped_close_no_reply"
+    assert "close failed" in s["error"]
+
+
 def test_apply_result_close_no_reply_never_verifies(monkeypatch):
     monkeypatch.setattr(fo, "reconcile_auto_send_tag", lambda *a: None)
+    monkeypatch.setattr(fo.pipeline, "post_plain_note", lambda *a: "posted")
+    monkeypatch.setattr(fo.pipeline, "close_conversation", lambda *a: True)
     called = {"verify": False}
     monkeypatch.setattr(fo, "verify_and_tag", lambda *a, **k: called.__setitem__("verify", True))
     s = fo.apply_result(object(), _result(close_no_reply=True,
                                           parsed={"auto_sendable": True, "confidence": "high"}),
                         verify_client=object())
-    assert s["draft_action"] == "skipped_close_no_reply"
+    assert s["draft_action"] == "closed_no_reply"
     assert called["verify"] is False
 
 
