@@ -61,7 +61,7 @@ Stable across the live scan and both eval runs:
 
 All scripts share the common harness (see Guardrail architecture). Frequency-ordered:
 
-### 1. `stripe_cancel_subscription.py` — highest volume
+### 1. `stripe_cancel_subscription.py` — highest volume — SHIPPED 2026-07-22 (PR #22 + rails 58a7594)
 Turn off auto-renew (`cancel_at_period_end=true`).
 - Default is ALWAYS at period end. `--immediately` is accepted only when
   `subscription.status ∈ {past_due, unpaid}` (the dunning rule in
@@ -80,7 +80,7 @@ Apply the 40/50% renewal discount (Paths 1 & 3, forever variants).
   different discount without `--replace-existing`; single email per invocation
   (`--emails-file` batch mode is human-run only, not exposed to the skill).
 
-### 3. `stripe_refund.py` — full refund, window-enforced
+### 3. `stripe_refund.py` — full refund, window-enforced — SHIPPED 2026-07-22 (PR #23; refusal→draft mapping in policies/refund-policy.md "Bert Execution")
 - Window computed by the script from the Stripe charge timestamp — never from
   model-supplied dates: 30 days annual / 24 hours monthly, `--boundary-grace`
   allows exactly +1 day/hour (the "be generous at day 30" rule).
