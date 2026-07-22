@@ -4,6 +4,8 @@
 
 The Mindful Minute Challenge — internally also called the **Apple challenge** — is a month-long meditation challenge event we run every year for **Apple employees**. It is not a general Happier Meditation product feature, and the main support team does not own it. Tickets that reference the challenge are handled by the team behind the dedicated **Apple mailbox** in Help Scout (`3. Happier Apple Support`, id 201086 — not the main `1. Happier Support` mailbox). The correct handling for a Mindful Minute Challenge ticket is to **move the conversation to the Apple mailbox**, not to answer it from the main support queue. Support does not answer its logistics questions (registration windows, pre-registration, eligibility, prizes, dates) because the answers live with the challenge team.
 
+**Answering inside the Apple mailbox is documented separately (2026-07-22):** the `apple-*` doc family — *Apple Mailbox Overview*, *Global Access (Apple Wellness Complimentary Subscription)*, *Mindful Minute Challenge — Registration & Join*, and *Mindful Minute Challenge — Minutes, Tracking, Medals & Prizes* — covers the programs in full, based on the Apple mailbox's own saved replies. This doc remains the main-mailbox routing rule only.
+
 **Scope — this policy is Apple-org only.** Happier runs other meditation challenges (e.g. the ENL join challenge and general in-app challenge events) that have nothing to do with Apple. Those are normal support tickets: answer them from the main mailbox under the relevant policy / saved reply, and never move them to the Apple mailbox. Only the Mindful Minute Challenge routes there.
 
 # Trigger Conditions
@@ -61,11 +63,11 @@ The Mindful Minute Challenge — internally also called the **Apple challenge** 
 
 - **High confidence areas:** identification (the challenge name is distinctive) and the routing rule (always move to the Apple mailbox).
 - **Judgment call areas:** mixed tickets — how much of the support portion to resolve before moving.
-- **Gaps:** challenge program details (dates, registration mechanics) are intentionally not documented here because the challenge team owns them. (Apple mailbox id confirmed 2026-07-20: 201086, `3. Happier Apple Support`.)
+- **Gaps:** none for routing. Challenge program details (registration mechanics, tokens, minutes, prizes, Global Access) are documented in the `apple-*` doc family as of 2026-07-22 — this doc intentionally stays routing-only. (Apple mailbox id confirmed 2026-07-20: 201086, `3. Happier Apple Support`.)
 
 # Saved Reply Mapping
 
-No saved reply in `data/saved_replies.json` covers the Mindful Minute Challenge — this is a **gap**, but a small one by design: the standard handling is a mailbox move with no reply, so at most a short "routing you to the right team" holding reply is ever needed. The adjacent reply below is for a different program and must not be used:
+No saved reply in `data/saved_replies.json` (main mailbox) covers the Mindful Minute Challenge — by design: the standard handling is a mailbox move with no reply, so at most a short "routing you to the right team" holding reply is ever needed. The Apple mailbox has its own corpus of 69 saved replies (`data/saved_replies_apple.json`, pulled 2026-07-22), mapped in the `apple-*` docs. The adjacent main-mailbox reply below is for a different program and must not be used:
 
 | Situation | Closest existing saved reply | Note |
 |---|---|---|
@@ -73,6 +75,8 @@ No saved reply in `data/saved_replies.json` covers the Mindful Minute Challenge 
 
 # Related Policies
 
+- *Apple Mailbox Overview (Apple Wellness Programs)* + the `apple-*` doc family (how tickets are answered after the move)
+- *Global Access (Apple Wellness Complimentary Subscription)* (the year-round benefit — current signup path while the join window is closed)
 - *Escalation Policy* (general routing/escalation principles)
 - *Account Lookup Data Model* (organizational-subscription signals)
 - *Non-Support Requests* (contrast: those get declined/closed; Mindful Minute Challenge tickets get **moved**, never declined)
