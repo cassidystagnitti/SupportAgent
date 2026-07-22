@@ -312,11 +312,14 @@ def _fetch_customer(customer_id: str) -> Any:
 
 
 def _fetch_subscriptions(customer_id: str) -> list[Any]:
+    # Only `schedule` needs expanding; items (with inline prices) come embedded,
+    # so the key needs no Products/Prices access — Customers:Read +
+    # Subscriptions:Write is the complete permission set for this script.
     subs = stripe.Subscription.list(
         customer=customer_id,
         status="all",
         limit=100,
-        expand=["data.schedule", "data.items.data.price"],
+        expand=["data.schedule"],
     )
     return list(subs.auto_paging_iter())
 
