@@ -126,22 +126,28 @@ Apply the 40/50% renewal discount (Paths 1 & 3, forever variants).
 
 ## Stripe restricted key (`STRIPE_WRITE_API_KEY`)
 
-Request a restricted key with exactly:
+Request a restricted key with exactly (row names per the dashboard UI —
+CORRECTED 2026-07-22: there is no standalone Refunds permission; refund creation
+is governed by the charges/refunds row):
 
-| Resource | Permission | Used by |
+| Dashboard row | Permission | Used by |
 |---|---|---|
 | Customers | Read | email → customer lookup |
-| Subscriptions | Write | cancel, coupon, reactivate, trial cancel |
-| Refunds | Write | full + partial refunds |
-| Charges | Read | window computation, refund targeting |
-| Invoices | Write | last-invoice guard (read) + dunning retry `invoice.pay` |
-| Coupons | Read | allowlist verification / nicer logging |
+| Subscriptions | Write | cancel, coupon apply, reactivate, trial cancel, schedule release |
+| Charges (charges / refunds) | **Write** | refund creation lives on this row; also charge lookup for window math |
+| Invoices | Read → Write later | Read now for the last-invoice guard; bump to Write only when the dunning-retry script ships (`invoice.pay`) |
+| Coupons | Read | allowlist verification (applying a coupon is Subscriptions: Write) |
 
 Everything else **None** — explicitly: no Customers Write, no PaymentMethods, no
 Payouts/Balance/Transfers, no Products/Prices Write, no Coupons Write (Claude can
 apply the four sanctioned coupons, never mint new ones), no PaymentIntents Write.
-Amount/velocity caps aren't expressible on Stripe keys, so those live in the
-script harness below.
+
+Because refunds and charge creation share one permission row, the key alone
+cannot express "refunds yes, new charges never" — that guarantee comes from the
+script layer (no script constructs a charge, ever) plus the audit log. This is
+the strongest argument for the wrapper-script design: Stripe's permission
+granularity bottoms out exactly where our scripts pick up. Amount/velocity caps
+are likewise inexpressible on keys and live in the script harness below.
 
 **Env-var naming (found 2026-07-21, resolved 2026-07-22):** exactly two names,
 by role — `STRIPE_READ_API_KEY` for enrichment (should hold a truly read-only

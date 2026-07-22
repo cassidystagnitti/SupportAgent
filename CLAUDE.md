@@ -237,8 +237,10 @@ HELPSCOUT_DOCS_COLLECTION_ID  # ID of the private/internal collection (run push_
 # Stripe write actions (scripts/stripe_*.py, apply_renewal_coupon.py, action_executor.py — SUP-457)
 STRIPE_WRITE_API_KEY          # write-skills key, read ONLY by the write scripts. LIVE since 2026-07-22
                                # (first prod run: cancel for HS #3391134628). Restricted key scopes:
-                               # Customers Read + Subscriptions Write + Refunds Write + Charges Read
-                               # (+ Coupons Read / Invoices Write as later skills land). Never a full sk_ key.
+                               # Customers Read + Subscriptions Write + Charges (charges/refunds) Write —
+                               # refund creation rides on the charges row; there is NO separate Refunds
+                               # permission — plus Coupons Read + Invoices Read (→ Write only when the
+                               # dunning-retry skill ships). Never a full sk_ key.
 ACTION_EXECUTION_ENABLED      # "true" arms Stripe writes on THIS deployment; unset/false = every write
                                # script refuses --apply. Per-deployment kill switch — set it (plus the write
                                # key) only where actions should execute. Local dev: armed 2026-07-22.
