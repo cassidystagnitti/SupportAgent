@@ -19,6 +19,7 @@ import logging
 import os
 
 import orchestrator
+import stripe_research
 import triage_tickets
 
 log = logging.getLogger(__name__)
@@ -87,6 +88,25 @@ def hydrate_ticket(session, conversation_id: int) -> dict:
     else:
         stripe_block = f"N/A — customer is on {platform or 'unknown'} (not Stripe web billing)"
 
+    # Step 3 charge hunt (policies/no-account-found-troubleshooting.md):
+    # signal-gated, read-only, pre-approved to run autonomously (2026-07-20).
+    # Findings ride in stripe_block so they reach the draft prompt (and the
+    # verifier's ticket context) exactly like the enrichment block does.
+    research = None
+    try:
+        # Scan the whole thread, not just the latest message — the payment
+        # details usually arrive in an earlier customer reply.
+        thread_text = f"{body}\n\n{conversation_history}".strip()
+        research = stripe_research.run_charge_hunt_for_ticket(
+            body=thread_text, email=email, customer_name=customer_name,
+            account_blob=account_blob)
+        if research:
+            hunt_block = stripe_research.format_charge_hunt_block(research)
+            if hunt_block:
+                stripe_block = f"{stripe_block}\n\n{hunt_block}" if stripe_block else hunt_block
+    except Exception:
+        research = None
+
     return {
         "conversation_id": cid,
         "subject": subject,
@@ -99,6 +119,7 @@ def hydrate_ticket(session, conversation_id: int) -> dict:
         "account_blob": account_blob,
         "stripe_block": stripe_block,
         "stripe_ctx": stripe_ctx,
+        "stripe_research": research,
         "existing_tags": existing_tags,
     }
 

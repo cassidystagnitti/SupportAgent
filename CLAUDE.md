@@ -22,6 +22,7 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `account_context.py` | Built, not connected | Fetches customer/account data from Happier Maven API |
 | `maven_customer_context.py` | Built | HTTP client for Maven API (user lookup, subscription, normalization) |
 | `stripe_context.py` | Built | Stripe subscription, pricing, discount, upcoming invoice enrichment |
+| `stripe_research.py` | Live | Read-only Stripe charge hunt (policies/no-account-found-troubleshooting.md Step 3): charges by card last4, customers by email / name~, decisive factual roll-up (`summarize_charge_hunt`); plus the pre-send truth check `verify_claimed_stripe_objects` (draft-referenced Stripe objects must exist and belong to the ticket's customer — class A/C verifier findings). Signal-gated during Bert hydration; uses `STRIPE_READ_API_KEY` only. Read-only Stripe research is pre-approved to run autonomously (Cassidy, 2026-07-20). Fail-soft: any Stripe error → "research unavailable", never an exception. |
 | `pull_policy_docs.py` | Vestigial | (Notion policy sync abandoned 2026-07-14) formerly synced policy docs from Notion into `policies/` |
 | `pull_saved_replies.py` | Standalone CLI | Fetches Help Scout saved replies |
 | `build_saved_reply_embeddings.py` | Standalone CLI | Embeds saved replies for semantic search |
@@ -80,6 +81,13 @@ orchestrator.py (invoked per ticket by Bert skills / sidebar chat hydration)
         1. triage_tickets.py          — tags / team / priority / tier (skipped in reply mode)
         2. account_context.py         — Maven customer + subscription data
         3. stripe_context.py          — Stripe pricing / discount / invoice (Stripe subscribers only)
+        3a. stripe_research.py         — Step 3 charge hunt (Bert hydration path,
+                                          bert/pipeline.hydrate_ticket): when the thread carries
+                                          charge-hunt signals (card last-4, a claimed charge with no
+                                          subscribed account), read-only Stripe searches run
+                                          autonomously (pre-approved 2026-07-20) and the factual
+                                          findings ride in the draft's Stripe block — drafts are
+                                          written from real findings, never assumed search success
         4. policies/*.md              — all policy docs loaded as full text
         5. Claude (draft_system_prompt.txt) — draft reply + classification JSON
         5a. research_agent.py          — two-pass codebase + Linear research, only when the first
@@ -100,7 +108,12 @@ orchestrator.py (invoked per ticket by Bert skills / sidebar chat hydration)
 (`bert/fanout.apply_result`) and the result qualifies for auto-send
 (`should_auto_send`), a VERIFIER stage runs (`bert/verify.py`): deterministic
 pre-lint → mechanical same-customer sibling check (other open conversations →
-automatic ERROR, consolidate) → one adversarial Claude review against the full
+automatic ERROR, consolidate) → deterministic Stripe truth check
+(`stripe_research.verify_claimed_stripe_objects`: any Stripe object the draft
+references — subscription id, "I've cancelled", "refund processed" — must
+exist read-only in Stripe AND belong to the ticket's customer email; a miss is
+an automatic ERROR with class A/C findings, `fix_type: "none"` so the repair
+loop never touches them) → one adversarial Claude review against the full
 policy corpus, ticket context, and standing brief (error rubric A–I in
 `prompts/verify_system_prompt.txt`). When the verdict is MINOR/ERROR and every
 finding is a pure `rewrite` (fixable from documented truths — never external
@@ -208,8 +221,12 @@ HAPPIER_BEARER_TOKEN          # REQUIRED for account lookup (fallback name: ACCO
                               # "Account lookup failed" context and no Stripe enrichment.
 HAPPIER_MAVEN_BASE_URL        # optional — defaults to https://my.happierapp.com/api/maven/v1
 
-# Stripe (optional enrichment)
-STRIPE_READ_API_KEY           # read-only restricted key
+# Stripe (optional enrichment + read-only research)
+STRIPE_READ_API_KEY           # read-only restricted key. Also powers stripe_research.py (charge
+                              # hunt + pre-send truth check) — both use the Stripe search API,
+                              # which the pinned SDK (stripe>=10.0.0; 15.x installed) supports.
+                              # Read-only research is pre-approved to run autonomously
+                              # (Cassidy 2026-07-20); writes stay gated (see STRIPE_WRITE_API_KEY).
 
 # Linear (product prioritization)
 LINEAR_API_KEY                # personal API key from Linear settings
