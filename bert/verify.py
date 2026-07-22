@@ -259,7 +259,11 @@ def verify_draft(client, result: dict, ctx: dict, brief: str, policies: str, *,
         policies=policies,
         dynamic=dynamic,
         model=model or DEFAULT_VERIFY_MODEL,
-        max_tokens=4000,
+        # 16000, matching repair_draft: the model emits thinking before the JSON
+        # verdict, and on hard tickets thinking alone can blow through a 4000
+        # budget — the call then returns thinking-only content with empty text
+        # ("empty assistant text" failures, 3/13 candidates on 2026-07-22).
+        max_tokens=16000,
     )
     return _normalize_verdict(parsed)
 
