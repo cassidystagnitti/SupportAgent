@@ -221,12 +221,16 @@ HAPPIER_BEARER_TOKEN          # REQUIRED for account lookup (fallback name: ACCO
                               # "Account lookup failed" context and no Stripe enrichment.
 HAPPIER_MAVEN_BASE_URL        # optional — defaults to https://my.happierapp.com/api/maven/v1
 
-# Stripe (optional enrichment + read-only research)
-STRIPE_READ_API_KEY           # read-only restricted key. Also powers stripe_research.py (charge
-                              # hunt + pre-send truth check) — both use the Stripe search API,
-                              # which the pinned SDK (stripe>=10.0.0; 15.x installed) supports.
+# Stripe — exactly TWO keys, named by role. (STRIPE_API_KEY is RETIRED as of 2026-07-22:
+# nothing reads it; the old rk_live_…zdTH key should be deactivated in the dashboard.)
+STRIPE_READ_API_KEY           # enrichment key, used automatically on every ticket (stripe_context.py).
+                              # Also powers stripe_research.py (charge hunt + pre-send truth check) via
+                              # the Stripe search API (pinned SDK stripe>=10.0.0; 15.x installed).
                               # Read-only research is pre-approved to run autonomously
                               # (Cassidy 2026-07-20); writes stay gated (see STRIPE_WRITE_API_KEY).
+                              # Should be a truly READ-ONLY restricted key. (2026-07-22: temporarily
+                              # holds the same write-scoped key as STRIPE_WRITE_API_KEY — mint a
+                              # read-only key and swap it in, REQUIRED before Render gets write vars.)
 
 # Linear (product prioritization)
 LINEAR_API_KEY                # personal API key from Linear settings
