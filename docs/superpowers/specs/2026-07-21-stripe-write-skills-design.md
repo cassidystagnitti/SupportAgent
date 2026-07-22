@@ -111,12 +111,26 @@ Apply the 40/50% renewal discount (Paths 1 & 3, forever variants).
   don't keep retrying a failing card; send them to their bank.
 
 ### Deferred (phase 2, or never)
-- **Update-card path (billing portal session)** — surfaced live 2026-07-21
-  (#3387811788: in-app update option missing for the customer). A
-  `stripe_billing_portal_link.py` creating a real Stripe-hosted portal session
-  would satisfy the "never invent web URLs" rule (policy 2026-07-21) because
-  Stripe generates the URL — but it needs a Billing Portal write scope and a
-  policy-doc update first. Phase 2 candidate.
+- **Update-card path (billing portal)** — surfaced live 2026-07-21
+  (#3387811788: in-app update option missing for the customer). Researched
+  2026-07-22, two flavors:
+  1. **Per-customer deep link** — `BillingPortal.Session.create(customer=…,
+     flow_data={type: "payment_method_update"})` lands directly on the
+     update-card screen. Needs **Customer portal: Write** on the write key
+     (session creation is a POST; Read only covers portal configurations).
+     Session URLs are documented as **short-lived**, so links must be minted
+     at SEND time (sidebar chat button), never embedded in drafts that sit
+     for hours. Precedent: the platform's own admin API already mints plain
+     portal sessions (changecollective
+     api/admin/v1/user/billing_portal_sessions_controller.rb).
+  2. **No-code permanent login link** — one static Stripe-hosted URL per
+     portal configuration (Dashboard → Settings → Billing → Customer portal;
+     `login_page` on the configuration object). Customer enters their email,
+     Stripe sends a sign-in link. Zero API scopes, never expires — safe to
+     bake into policy docs / saved replies immediately.
+  Either way, policies/failed-payment-dunning-stripe.md's "never invent web
+  URLs" rule needs an explicit carve-out for Stripe-generated portal URLs
+  before Bert drafts may include them.
 - **Refund-and-resubscribe / plan switch** — creates subscriptions; needs price
   IDs and more thought. Keep human for now.
 - **Comp subscriptions / extensions** — granted via the internal admin tool, not
