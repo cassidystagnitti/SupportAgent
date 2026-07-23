@@ -230,3 +230,11 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 - *No Account Found — Troubleshooting* — used for the investigation reply path whenever we can't locate the subscribed account the customer is claiming
 - *Account Lookup Data Model* — defines `Subscribed`, `Subscription Platform`, and the lookup behavior
 - *Subscription & Billing Overview* — provider context if the login issue surfaces a billing question
+
+## Try Restore Purchases early (Apple/Google entitlement mismatches)
+
+When a customer is on Apple or Google (or platform is unclear but they're on a mobile device), and account lookup shows no subscription despite the customer believing they have one, have them try **Restore Purchases** in-app (Profile → Settings → Account) as a first, low-friction step — before or alongside asking for receipts, last-4 card digits, or other identifying info.
+
+Restore Purchases can silently re-link an existing Apple or Google subscription to the signed-in account without any support action, and it costs the customer almost nothing to try. This is the same mechanism used in *Multi-Account Merge* to re-link a subscription after a wrong-account sign-in — it's worth surfacing proactively here too, not just after a merge is diagnosed.
+
+This does not replace the investigation reply (receipt / last-4 / other emails) — include both so the customer isn't stuck waiting on a reply-and-forth if Restore Purchases doesn't resolve it.
