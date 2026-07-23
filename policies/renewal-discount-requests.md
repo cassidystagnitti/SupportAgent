@@ -125,6 +125,51 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
     - How we track the pattern across years — relies on account history / past tickets being readable. If customer has switched email addresses or accounts, this is hard to verify.
     - Whether the forever discount survives a subscription gap (customer cancels and resubscribes later).
 
+# Bert Execution: Apply Renewal Coupon (Stripe) — added 2026-07-23
+
+Bert applies renewal discount coupons itself (`scripts/stripe_apply_coupon.py`). **Use it starting immediately** for eligible Stripe annual renewal-discount tickets during the morning review or a sidebar session. This covers the **coupon-application** paths only:
+
+- **Path 1 (pre-renewal)** and **Path 3 (post-renewal past 30 days, applied to the next renewal)** → default `--duration once`: discounts the upcoming renewal invoice.
+- **Forever / ongoing discount** (explicit ongoing-need ask, fixed income, or 3+ year pattern) → `--forever`: recurring discount on every renewal.
+
+It does **not** do **Path 2** (retroactive 40% partial refund within 30 days) — that rides on a charge, not the subscription; it is still a human action / separate skill. It is **annual-only**: a monthly customer is refused (route to *Monthly Discount Requests* — offer 50% annual as the counter).
+
+## Pre-flight: check eligibility BEFORE running the script
+
+Screen from context you already have — never post a draft promising a discount you haven't applied:
+
+1. **Platform must be Stripe.** Apple/Google → migration reply (pre-built Stripe 40% link), not this script.
+2. **Plan must be annual.** Monthly → *Monthly Discount Requests*.
+3. **Rate:** 40% is standard; ladder to 50% only if the customer pushes back or clearly needs it. **50% is the ceiling — never more.**
+4. **Duration:** one renewal (`once`) by default; `--forever` only when a forever-discount trigger is met (explicit ongoing ask, fixed income, or 3+ years of asking).
+5. **Two or more subscribed accounts anywhere in the ticket → escalate, do not run the script or reply.**
+
+## How to run it
+
+1. **Dry-run first** (read-only, always safe): `python3 scripts/stripe_apply_coupon.py <cus_…> --json` (add `--percent 50` and/or `--forever` as the case requires). The plan shows the single eligible annual subscription, the current → estimated discounted renewal price, the coupon id, and whether that coupon will be created.
+2. **Ladder up:** to raise an existing 40% to 50%, add `--percent 50 --replace-existing`. The script refuses to overwrite a different discount without `--replace-existing` (guards against silently lowering a customer's better discount).
+3. **Apply**: `python3 scripts/stripe_apply_coupon.py <cus_…> [--percent 50] [--forever] --apply --conversation-id <HS id> --json`. Same env gates and audit line as the cancel/refund skills. The coupon is reusable across customers (keyed by percent+duration); it is created on first use — this needs the write key's **Coupons:Write** scope.
+
+## Refusals are eligibility answers — map them into the draft
+
+The script refuses (exit 2) rather than guessing. **Each refusal tells you what the reply should say** — never leave a draft claiming a discount that was refused:
+
+| Refusal | Meaning | Draft response | Remaining action |
+|---|---|---|---|
+| `bills every month … annual-only` | monthly plan | *Monthly Discount Requests* — offer 50% annual as the counter | none (reply-only) |
+| `already set to cancel … retention save` | sub is cancelling | Retention save: decide whether to un-cancel + discount | human judgment |
+| `not an active, renewing subscription` (unpaid/past_due) | dunning | Resolve the failed payment first (dunning), not a coupon | human |
+| `N subscriptions are active … escalation signal` | multiple live subs | Do not reply | escalate to leadership |
+| `no Stripe subscriptions … Apple/Google` | not a Stripe sub | Migration offer (Stripe 40% link) per *Apple/Google → Stripe Migration* | reply-only |
+| `already carries N% off` (no-op success, exit 0) | discount already there | Confirm the discount already in place; promise nothing new | none |
+| `already carries a different discount … --replace-existing` | conflicting discount | Only ladder UP (40%→50%); rerun with `--replace-existing` if correct | rerun |
+| `coupon … exists but is not N% off` | canonical coupon mismatch | Fix `--coupon`/canonical coupon before applying | human |
+| Stripe permission error (Coupons:Write) | key scope gap | Grant Coupons:Write on the write key (CLAUDE.md) | human, one-time |
+
+## Auto-sendability after execution
+
+Mirrors the cancel/refund skills. Once the coupon is **`applied`** (or already-applied) there is no remaining human action: `needs_action = false`, the ticket joins the auto-send bucket (verifier conditions still apply). The draft's present/past tense ("I've applied a 40% discount to your renewal…") must be TRUE at post/verify time — **execute before posting**. An **"Action executed"** note goes on the ticket (sidebar/MCP rails post it automatically; post the equivalent manually on CLI executions). If the script **refused**, the ticket stays a needs-action or escalation ticket per the table above.
+
 # Related Policies
 
 - *Subscription & Billing Overview*
