@@ -243,9 +243,9 @@ STRIPE_READ_API_KEY           # enrichment key, used automatically on every tick
                               # the Stripe search API (pinned SDK stripe>=10.0.0; 15.x installed).
                               # Read-only research is pre-approved to run autonomously
                               # (Cassidy 2026-07-20); writes stay gated (see STRIPE_WRITE_API_KEY).
-                              # Should be a truly READ-ONLY restricted key. (2026-07-22: temporarily
-                              # holds the same write-scoped key as STRIPE_WRITE_API_KEY — mint a
-                              # read-only key and swap it in, REQUIRED before Render gets write vars.)
+                              # A dedicated READ-ONLY restricted key. (2026-07-23: swapped in — no
+                              # longer shares STRIPE_WRITE_API_KEY. Clears the prerequisite that had
+                              # blocked Render from getting write vars.)
 
 # Linear (product prioritization)
 LINEAR_API_KEY                # personal API key from Linear settings
