@@ -37,6 +37,7 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `action_executor.py` | Built, execution gated | Prepared-action scaffold for Stripe-affecting actions (coupon, cancellation); builds the "Actions needed" note now, real writes wait on `STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED` |
 | `scripts/stripe_cancel_subscription.py` | Live (2026-07-22) | First Stripe write skill: cancel at period end for ONE customer. Dry-run by default; `--apply --conversation-id` behind both env gates; audit log `data/stripe_action_log.jsonl`. After `applied`/`already_off`, the ticket becomes reply-only + auto-sendable — see policies/cancellation-policy.md "Bert Execution" and the three-bucket model in `.claude/skills/bert-morning-review/SKILL.md` |
 | `scripts/stripe_refund.py` | Live (2026-07-22) | Second Stripe write skill: FULL refund of one charge for ONE customer, `--and-cancel-now` combo ends access immediately (refund-first ordering). Window (30d annual / 24h monthly), dispute, ownership, and $120-cap checks all enforced in code — no override flags; `--boundary-grace` capped at +1 day/hour. Pre-flight eligibility, dry-run→apply flow, and the refusal→draft-response mapping live in policies/refund-policy.md "Bert Execution" |
+| `scripts/stripe_apply_coupon.py` | Live (2026-07-23) | Third Stripe write skill: apply a renewal discount coupon (40% standard, 50% ceiling) to ONE customer's single ANNUAL subscription — `--forever` for the recurring forever-discount, else discounts the next renewal (Paths 1/3). Percent ceiling, annual-only, single-renewing-sub, and idempotency/`--replace-existing` ladder checks enforced in code. Coupon is reusable per (percent,duration), keyed by a canonical id (overridable via `COUPON_RENEWAL_<PCT>_<DURATION>`) and created on `--apply` — needs the write key's **Coupons:Write** scope. NOT Path 2 (retroactive partial refund) and NOT monthly. Pre-flight, dry-run→apply, and refusal→draft mapping in policies/renewal-discount-requests.md "Bert Execution" |
 | `draft_registry.py` | Live | Local JSON registry of conversation → drafted thread; prevents duplicate Help Scout drafts and drives the skip/supersede decision |
 | `eval_run.py` | Standalone CLI | Repeatable eval harness: batch-runs the draft pipeline over active tickets, writes `eval/<date>/results.json` |
 | `eval_draft_accuracy.py` | Standalone CLI | Compares Bert's draft against the reply a human agent actually sent, per eval run |
@@ -271,8 +272,12 @@ STRIPE_WRITE_API_KEY          # write-skills key, read ONLY by the write scripts
                                # (first prod run: cancel for HS #3391134628). Restricted key scopes:
                                # Customers Read + Subscriptions Write + Charges (charges/refunds) Write —
                                # refund creation rides on the charges row; there is NO separate Refunds
-                               # permission — plus Coupons Read + Invoices Read (→ Write only when the
-                               # dunning-retry skill ships). Never a full sk_ key.
+                               # permission — plus Coupons Read + Invoices Read. Coupons WRITE is now
+                               # REQUIRED by scripts/stripe_apply_coupon.py (2026-07-23): it creates the
+                               # canonical percent-off coupon on first use and attaches it to the
+                               # subscription. Grant Coupons:Write on the restricted key; until then
+                               # apply_coupon dry-runs fine but --apply raises a clean PermissionError.
+                               # (Invoices → Write still pending the dunning-retry skill.) Never a full sk_ key.
 ACTION_EXECUTION_ENABLED      # "true" arms Stripe writes on THIS deployment; unset/false = every write
                                # script refuses --apply. Per-deployment kill switch — set it (plus the write
                                # key) only where actions should execute. Local dev: armed 2026-07-22.
