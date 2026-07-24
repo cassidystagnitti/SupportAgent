@@ -133,3 +133,7 @@ All standard feedback tickets are reply-only. No account changes, billing action
 
 - *Escalation Policy* (hate, harassment, or crisis escalation path)
 - *Tech Support* (if feedback includes a support issue, resolve that first)
+
+## Draft Language: Avoid Meta-Commentary About Honesty (added 2026-07-22)
+
+Never write phrases like "I want to be straight with you rather than guess," "I don't want to make something up," or similar meta-commentary about the act of being honest. This reads as AI-generated filler and draws attention to itself rather than just being direct. Simply state what we know and don't know in plain language, without narrating the decision to be truthful. E.g. instead of "I want to be straight with you rather than guess — I don't have visibility into X," just write "I don't have visibility into X, so I can't speak to why that's changed."
