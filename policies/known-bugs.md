@@ -112,11 +112,12 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 
 ## 9. UI Theme / Visual Design Changes (and Accessibility)
 
-- **Status:** Not a bug — treat as feedback (accessibility concerns taken seriously)
+- **Status:** Legibility/contrast issue (light/thin text on light backgrounds) FIXED as of 2026-07-22 — confirmed by support team. General theme/visual-preference feedback (colors, "I liked the old look") remains Not a bug — treat as feedback.
 - **Platforms:** New app (Hotwire Native v2)
 - **What to tell the customer:**
-  - **General theme / visual-preference complaints** (colors, white background, "I liked the old look"): treat as feedback, not a technical issue. Acknowledge kindly, validate that preferences differ, and let them know we've passed it to the team. There is currently no user-facing setting to change the theme. Do not apologize as though something broke. Log the sentiment as feedback (see `feedback-policy.md`).
-  - **Accessibility concerns** (readability, contrast, text size, hard to see/use for low-vision or other accessibility needs): take these seriously. Acknowledge the concern genuinely, let them know accessibility matters to us and that we'll work on improvements, and log it as high-priority feedback. Do not dismiss an accessibility concern as mere preference.
+  - **Legibility/contrast complaints** (light or thin text on light backgrounds, hard to read especially in low light): the fix has shipped — tell the customer contrast/readability has been improved and ask them to check the app and report back if anything still looks off. Do not offer the old "no setting to change theme" language for this specific contrast issue anymore.
+  - **General theme / visual-preference complaints** (colors, white background, "I liked the old look" — not a readability/contrast complaint): still treat as feedback, not a technical issue. Acknowledge kindly, validate that preferences differ, and let them know we've passed it to the team. There is currently no user-facing setting to change the theme. Do not apologize as though something broke. Log the sentiment as feedback (see `feedback-policy.md`).
+  - **Accessibility concerns beyond the fixed contrast issue** (text size, other low-vision needs): take these seriously. Acknowledge the concern genuinely, let them know accessibility matters to us and that we'll work on improvements, and log it as high-priority feedback. Do not dismiss an accessibility concern as mere preference.
 - **Linear ticket:** N/A — routed as feedback
 - **Date added:** 2026-07-02
 - **Date resolved:** —
