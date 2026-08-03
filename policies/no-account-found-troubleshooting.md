@@ -239,3 +239,14 @@ These examples share the same account trigger (`Account Found: false`) — what 
 ## Note on Family Sharing as a troubleshooting suggestion
 
 When investigating an Apple-billed subscription that can't be matched (merchant descriptor `APPLE.COM/BILL`), don't default to suggesting the customer check whether the subscription is under a family member's Apple ID via Family Sharing. Many customers don't have Family Sharing set up at all, and offering it as a blanket step wastes their time. Only raise the Family Sharing possibility if the customer has indicated they use Family Sharing, or after confirming with them that it's enabled. The standard, generally-applicable checks remain: Settings → [name] → Subscriptions on the device itself, and checking for a hidden Sign in with Apple relay address.
+
+## Checking Deleted Users for a Sign in with Apple Address (added 2026-07-22)
+
+When a customer provides a **Sign in with Apple relay address** (`...@privaterelay.appleid.com`) specifically, and the standard account lookup returns `Account Found: false` for that address, don't treat this as a dead end the same way a plain "no account" result would be. A support rep should **search for that address in deleted users** in the admin tool.
+
+This search can turn up one of two useful outcomes:
+
+- **The address matches a deleted account** — this confirms the account existed and was deleted, and typically the subscription tied to it is already canceled/ended. Support can confirm this directly to the customer (canceled, no further charges) without needing further identifying info (receipt, last-4, etc.).
+- **The deleted account points to a locatable Stripe subscription** — even if the app-side account was deleted, the Stripe subscription record may still be findable via the deleted account's history, giving a clue for the Step 3 Stripe charge hunt.
+
+This is a **human action** (admin tool access required) — the AI cannot search deleted users directly. When a customer supplies a Sign in with Apple relay address that returns no account, a support rep should check deleted users before sending another round of the standard investigation template asking for receipts/card digits — the deleted-user record may resolve the ticket outright.
