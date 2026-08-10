@@ -140,8 +140,7 @@ async def draft_state(cid: str, secret: str = ""):
     _check_secret(secret)
     cid = _require_cid(cid)
     hs = sidebar_chat._hs_session()
-    draft_ids = bert_pipeline.find_draft_threads(hs, cid)
-    thread_id = draft_ids[-1] if draft_ids else None
+    thread_id = sidebar_chat.newest_draft_thread(hs, cid)
     return {"exists": thread_id is not None, "thread_id": thread_id}
 
 
@@ -229,10 +228,13 @@ async def chat_send(request: Request):
 
     sent = False
     if not close_only:
-        draft_ids = bert_pipeline.find_draft_threads(hs, cid)
+        draft_ids = sidebar_chat.live_draft_threads(hs, cid)
         if not draft_ids:
             raise HTTPException(status_code=400, detail="no draft to send on this conversation")
-        thread_id = draft_ids[-1]
+        # Newest first: index 0 is the draft the agent is looking at. This used to
+        # read [-1], the OLDEST draft, so on a ticket carrying more than one draft
+        # Send & close published a superseded reply.
+        thread_id = draft_ids[0]
 
         sess = sidebar_chat.STORE.peek(cid)
         chat_draft = (sess or {}).get("draft_text") or ""

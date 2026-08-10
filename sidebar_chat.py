@@ -138,12 +138,29 @@ def _thread_body(hs, cid: int, thread_id) -> str:
     return ""
 
 
+def live_draft_threads(hs, cid) -> list:
+    """Every live draft thread on the conversation, NEWEST FIRST.
+
+    ``find_draft_threads`` preserves Help Scout's thread order, and Help Scout
+    returns threads newest-first (the invariant ``triage_tickets`` relies on in
+    ``get_conversation_text``). So the newest draft is index 0 — indexing ``[-1]``
+    picks the OLDEST one, which is what the sidebar used to do while claiming the
+    opposite.
+    """
+    return bert_pipeline.find_draft_threads(hs, int(cid))
+
+
+def newest_draft_thread(hs, cid):
+    """The draft thread Help Scout's reply editor is showing, or None."""
+    ids = live_draft_threads(hs, cid)
+    return ids[0] if ids else None
+
+
 def hydrate(session_data: dict, cid: str) -> None:
     """Populate ctx + live draft info. Read-only against Help Scout."""
     hs = _hs_session()
     session_data["ctx"] = bert_pipeline.hydrate_ticket(hs, int(cid))
-    draft_ids = bert_pipeline.find_draft_threads(hs, int(cid))
-    thread_id = draft_ids[-1] if draft_ids else None  # newest live draft wins
+    thread_id = newest_draft_thread(hs, int(cid))
     session_data["draft_thread_id"] = thread_id
     session_data["draft_text"] = _thread_body(hs, int(cid), thread_id) if thread_id else ""
 
@@ -234,12 +251,38 @@ def _handle_update_draft(store: SessionStore, cid: str, session_data: dict, html
     if not html:
         return "update_draft failed: empty html"
     hs = _hs_session()
-    thread_id = session_data.get("draft_thread_id")
-    if thread_id:
-        bert_pipeline.update_draft(hs, int(cid), int(thread_id), html)
+    # Re-resolve the live drafts on EVERY call rather than trusting the id cached
+    # at hydrate time. ``hydrate`` runs once per session and sessions outlive the
+    # draft: once it has been sent, discarded, or replaced (by the morning review,
+    # by Send & close, or by the agent in the Help Scout UI), the cached id points
+    # at a thread that is no longer the draft. Patching it still succeeded, so the
+    # sidebar reported "Draft updated" while nothing in the reply editor changed —
+    # the "sometimes it doesn't update at all" report.
+    thread_ids = live_draft_threads(hs, int(cid))
+    if thread_ids:
+        # Update EVERY live draft, the way bert.fanout.apply_result does. Help Scout
+        # has no DELETE for draft threads, so duplicates do accumulate, and leaving
+        # the others stale is how a superseded reply gets sent later.
+        updated, failures = 0, []
+        for tid in thread_ids:
+            try:
+                bert_pipeline.update_draft(hs, int(cid), int(tid), html)
+                updated += 1
+            except Exception as e:  # noqa: BLE001 — one bad thread must not lose the rest
+                log.warning("draft update failed for cid=%s thread=%s", cid, tid, exc_info=True)
+                failures.append(f"{tid}: {e}")
+        if not updated:
+            raise RuntimeError("no draft thread could be updated: " + "; ".join(failures))
+        session_data["draft_thread_id"] = thread_ids[0]
         session_data["draft_text"] = html
-        store.add_ui_message(cid, "event", "Draft updated — refresh the reply editor to see it.")
-        return "Draft updated in place in the Help Scout reply editor."
+        extra = f" ({updated} draft threads on this ticket)" if updated > 1 else ""
+        store.add_ui_message(
+            cid, "event", f"Draft updated{extra} — refresh the reply editor to see it.")
+        if failures:
+            store.add_ui_message(
+                cid, "error", f"{len(failures)} draft thread(s) could not be updated: "
+                              + "; ".join(failures)[:200])
+        return f"Draft updated in place in the Help Scout reply editor{extra}."
 
     ctx = session_data["ctx"]
     payload: dict = {"customer": {"id": int(ctx["hs_customer_id"])}, "text": html, "draft": True}
