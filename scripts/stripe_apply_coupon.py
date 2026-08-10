@@ -199,8 +199,41 @@ def existing_discounts(sub: Any) -> list[Any]:
     return [single] if single else []
 
 
+_COUPON_CACHE: dict[str, Any] = {}
+
+
+def _resolve_coupon(coupon: Any) -> Any | None:
+    """A coupon object, retrieving it when Stripe handed us a bare id string."""
+    if not isinstance(coupon, str):
+        return coupon
+    if coupon not in _COUPON_CACHE:
+        try:
+            _COUPON_CACHE[coupon] = stripe.Coupon.retrieve(coupon)
+        except Exception:  # noqa: BLE001 — an unreadable coupon must not break a plan
+            _COUPON_CACHE[coupon] = {"id": coupon}
+    return _COUPON_CACHE[coupon]
+
+
 def _discount_coupon(discount: Any) -> Any | None:
-    return _g(discount, "coupon") if discount else None
+    """The coupon carried by a discount, across Stripe API shapes.
+
+    Older shapes nest the coupon object under ``coupon``. The shape Stripe
+    returns now (seen live 2026-08-10 on sub_1Pr7jUEELzdEgNUIZr9W3dgY) has no
+    ``coupon`` key at all — it carries ``source: {"type": "coupon", "coupon":
+    "<id>"}`` with the coupon as a bare id. Reading only ``coupon`` made a
+    coupon that HAD attached look missing, so ``_verify_applied`` raised after
+    the write already landed (and the audit line was never written). It also
+    made an existing discount undetectable, which is the mis-ladder trap the
+    standing brief warns about.
+    """
+    if not discount:
+        return None
+    coupon = _g(discount, "coupon")
+    if not coupon:
+        source = _g(discount, "source") or {}
+        if _g(source, "type") in (None, "coupon"):
+            coupon = _g(source, "coupon")
+    return _resolve_coupon(coupon) if coupon else None
 
 
 def _describe_discount(discount: Any) -> str:
@@ -424,7 +457,14 @@ def execute_plan(plan: dict[str, Any], conversation_id: str, actor: str | None =
         plan["subscription_id"], discounts=[{"coupon": coupon_id}]
     )
     if not existing_discounts(updated):
-        updated = stripe.Subscription.retrieve(plan["subscription_id"])  # re-read if not expanded
+        # Re-read WITH the discounts expanded. An unexpanded read returns
+        # ``discounts`` as bare ``di_…`` id strings, which ``existing_discounts``
+        # drops — so the verification below saw "discounts=none" and raised on a
+        # coupon that had in fact attached (hit live 2026-08-10). Discounts have
+        # no standalone retrieve endpoint; expansion is the only way to read them.
+        updated = stripe.Subscription.retrieve(
+            plan["subscription_id"], expand=["discounts.coupon"]
+        )
     _verify_applied(updated, coupon_id)
 
     result = {
