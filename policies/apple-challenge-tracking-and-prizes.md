@@ -40,7 +40,7 @@ Date-attribution rules (`Support MinutesWhyDidn'tMyMinutesRegister`):
 
 1. **Connection/settings check:** both articles — *Connect Your Health and Happier Apps* (21) and *Use the Apple Health App to Add Minutes* (87); all settings must match → `Minutes CheckHealthAppSettings`.
 2. **Health permission broken/disabled:** delete the Happier app **fully** (not App Library), reinstall from the App Store, sign back into the same account (registration + method go in the reply), reconnect Health via article 21 → `Support MinutesHealthAppDisabledDelAndReinstallApp FILLIN`; the variant that also covers the under-60s rule and re-adding via Health → `Minutes Under60SecondsAddYourOwn`.
-3. **Support-side fix:** an agent can add a missed meditation to the customer's history directly; confirm with → `Minutes MeditationAdded`.
+3. **Support-side fix:** an agent can add a missed meditation to the customer's history directly; confirm with → `Minutes MeditationAdded`. This is the mailbox's single most-performed action during an event — 34 of the last 200 tickets — so plan for it as the default challenge-season workload.
 
 ## Calendar
 
@@ -58,8 +58,9 @@ Reply also lists every way to log more/fewer minutes than the featured session (
 
 ## Prizes & completion status
 
-- **Prizes are handled entirely by the Apple Wellness team** — after the event ends, Wellness communicates prize info; direct questions to `wellness@apple.com`. We never confirm prize eligibility, timelines, or contents → `Support PrizeAfterChallenge`.
-- **"Am I on track?"** — give their verified numbers: sessions completed out of 25, the ≥1-full-minute rule, and the Health-app correction path → `Support PrizeAccountInfo FILLIN`.
+- **Prizes are handled entirely by the Apple Wellness team** — after the event ends, Wellness communicates prize info; direct questions to `wellness@apple.com`. We never confirm prize eligibility, timelines, or contents → `Support PrizeAfterChallenge`. In practice the short hand-written handoff was sent 4× in the 2025 cycle: "Thanks for participating! Apple Wellness will reach out with next steps for your prize." (proposed saved reply — see *Apple Mailbox — Ticket Intake & Link Recognition*).
+- **Wellness answers reward-status questions themselves, in our threads** (via the shared Google Group). 2025-cycle facts they stated — theirs to state, not ours to promise: the reward (a journal) ships from a fulfillment center ~9–11 weeks after the challenge ends, tracking at `signups.apple.com/orders` once shipped (#306427); rewards only for ≥25 logged days (#306586). Expect a reward-question wave ~January after an October event.
+- **"Am I on track?" / "Why no reward?"** — give their verified numbers: sessions completed out of 25, the ≥1-full-minute rule, and the Health-app correction path → `Support PrizeAccountInfo FILLIN`. Real-sent phrasing for a shortfall: "It looks like you completed #DAYS out of the 25 days needed to receive the prize this year."
 - Post-event, remind them the **Global Access subscription is theirs year-round** (see *Global Access*).
 
 ## Edge Cases & Exceptions
@@ -94,7 +95,7 @@ Reply also lists every way to log more/fewer minutes than the featured session (
 
 - **High confidence:** the 25-day / ≥1-minute rule, under-60s exclusion, date-attribution rules, medal thresholds, Wellness-owns-prizes — verbatim from saved replies (pulled 2026-07-22).
 - **Judgment call:** whether a "missing day" is correctable (session happened, add via Health) vs. not (no session that day).
-- **Gaps / known copy inconsistency:** one reply says "25 out of the 30 days" (`Support MinutesCan'tRedoMissedDay`) while others say 31 (`Support PrizeAccountInfo FILLIN`, `SNIPPET KeepMeditating`) — treat **25 required days** as the constant and the month length as 31 unless the team says otherwise for a given cycle.
+- **Gaps / known copy inconsistency:** one reply says "25 out of the 30 days" (`Support MinutesCan'tRedoMissedDay`) while others say 31 (`Support PrizeAccountInfo FILLIN`, `SNIPPET KeepMeditating`) — treat **25 required days** as the constant. The 2025 event month was October (31 days), confirmed by real tickets, so 31 is right for October cycles.
 
 # Saved Reply Mapping
 
@@ -117,6 +118,7 @@ All names from `data/saved_replies_apple.json` (mailbox 201086), quoted exactly.
 
 # Related Policies
 
+- *Apple Mailbox — Ticket Intake & Link Recognition* — intake forms, Wellness-in-thread convention, proposed saved replies
 - *Mindful Minute Challenge — Registration & Join (Apple Mailbox)* — join problems, token issues
 - *Global Access (Apple Wellness Complimentary Subscription)* — the year-round subscription after the event
 - *Apple Mailbox Overview (Apple Wellness Programs)* — links, conventions, account identification

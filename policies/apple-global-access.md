@@ -8,8 +8,8 @@ Global Access is the **year-round complimentary Happier Meditation subscription*
 
 **We are in the Global Access period now (as of 2026-07-22): the challenge join window is closed.** The defining ticket of this period: a user tries to sign up with a **challenge link** — an event registration page, or the unique link/QR from a challenge confirmation email — and it fails or does nothing. They must instead claim through the **Global Access link**, which is different:
 
-- **Global Access (correct, always works): `https://wellness.apple.com/content/804`**
-- Challenge links (wrong right now): `people.apple.com/page/11893`, `signups.apple.com/event/...` pages, or a tokenized link/QR from a challenge email
+- **Global Access (correct, always works): `https://wellness.apple.com/content/804`** — registering there gets the user a Wellness email ("Unlock Happier Meditation") with a personal tokenized link: `my.meditatehappier.com/challenges?org=apple&token=…&event=719`
+- Challenge links (wrong right now): `people.apple.com/page/11893`, `signups.apple.com/event/...` registration pages, or a tokenized link/QR from a challenge confirmation email — recognizable by the `challenge=apple-challenge-<year>` parameter (see *Apple Mailbox — Ticket Intake & Link Recognition*)
 
 Never troubleshoot a challenge link while the join window is closed — switch the user to the Global Access flow.
 
@@ -49,6 +49,11 @@ Explain that the challenge join window has closed, and give them the Global Acce
 Do not promise late enrollment, prize eligibility, or exceptions — the window is owned by Apple Wellness, not us.
 
 ## Troubleshooting ladder (claim not working)
+
+Named errors seen in real tickets, before the ladder:
+
+- **"Failed to Join Organization — There was an issue with your unique link."** (in-app; arrives as a "Help joining organization" ticket with pre-filled `Email:`/`Token:` fields) — usually a sign-in mismatch; jump to step 5, using the report's `Email:` line against the registration on file. An `…@privaterelay.appleid.com` value = hidden SIWA account → `Support GlobalAccessLoginSIWA`.
+- **"Safari cannot open the page because the address is invalid."** (tapping the link from Mail) — recurring 2026 report with no confirmed root cause yet; run steps 1–3, and flag as a possible deep-link bug if multiple reports cluster.
 
 Work in order; each step maps to a saved reply:
 
@@ -98,7 +103,7 @@ Work in order; each step maps to a saved reply:
 
 # Confidence Notes
 
-- **High confidence:** the Global Access URL, claim steps, cancel-and-re-register recovery, iOS-only limitation, Android manual apply, trial-page X, Apple-only refunds, October renewal, family code — all verbatim from saved replies (pulled 2026-07-22).
+- **High confidence:** the Global Access URL, claim steps, cancel-and-re-register recovery, iOS-only limitation, Android manual apply, trial-page X, Apple-only refunds, October renewal, family code — all verbatim from saved replies (re-pulled 2026-08-11, unchanged since 2026-07-22). Ticket data backs the ladder: `Support GlobalAccessTapLinkAgain` was the period's most-sent Global Access reply (16× in the last 200 tickets), and the cancel-and-re-register recovery is customer-confirmed ("the instructions you gave (cancel and register) got me all sorted out", #305675).
 - **Judgment call:** whether a vague "can't sign up" ticket is a challenge-link case (closed-window redirect) or a genuine Global Access claim failure — ask for the link if not obvious.
 - **Gaps:** precise eligibility rules and the shape of the Wellness-issued Global Access email aren't documented in saved replies; the `APPLEFAM-X83B4` code and the Oct-30 renewal date are period-specific facts that should be re-confirmed each cycle.
 
@@ -125,6 +130,7 @@ All names from `data/saved_replies_apple.json` (mailbox 201086), quoted exactly.
 
 # Related Policies
 
+- *Apple Mailbox — Ticket Intake & Link Recognition* — classifying the link/ticket, intake forms, error taxonomy
 - *Apple Mailbox Overview (Apple Wellness Programs)* — program split, key links, conventions
 - *Mindful Minute Challenge — Registration & Join (Apple Mailbox)* — when the join window is open
 - *Refund Policy* — Apple purchases are refunded only by Apple

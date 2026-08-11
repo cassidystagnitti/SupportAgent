@@ -6,7 +6,9 @@
 
 How Apple employees register for and join the annual Mindful Minute Challenge, and the full troubleshooting taxonomy for when a join fails. The join is a **token handshake**: register on Wellness Web → Wellness emails a confirmation with a **unique link and/or QR code (the token)** → on the same iPhone that has the Happier app, tap the link (or scan the QR) → tap **Open in Happier** → follow the prompts → the event screen pops up in the app. A join is only complete when the token is *connected* to a Happier account.
 
-**Status check first (as of 2026-07-22 the join window is CLOSED).** While closed, do not troubleshoot joins — use `Support JoinClosed` / `Join TryingToJoinLateNeverJoined` and pivot to Global Access (see *Global Access (Apple Wellness Complimentary Subscription)*). Everything below applies while a join window is open; it stays documented so Bert is ready when the next event starts.
+**Status check first (as of 2026-08-11 the join window is CLOSED).** While closed, do not troubleshoot joins — use `Support JoinClosed` / `Join TryingToJoinLateNeverJoined` and pivot to Global Access (see *Global Access (Apple Wellness Complimentary Subscription)*). Everything below applies while a join window is open; it stays documented so Bert is ready when the next event starts.
+
+**Known cadence (from real 2025-cycle tickets):** registration confirmations went out from ~2025-09-16; the event month was **October 2025** (31 days, 25 needed to complete). Expect the mmc 2026 registration window around September 2026 — confirm exact dates with the team. The challenge token link is recognizable by its `challenge=apple-challenge-<year>` parameter (`my.meditatehappier.com/challenges?org=apple&challenge=apple-challenge-2025&token=…&event=3167`); see *Apple Mailbox — Ticket Intake & Link Recognition*.
 
 # Trigger Conditions
 
@@ -83,6 +85,7 @@ The app must be signed into the account **Apple Wellness has on record** before 
 
 ## Edge Cases & Exceptions
 
+- **Pre-registration for the next cycle:** no known mechanism — registration windows are owned by Apple Wellness. Don't promise or improvise (open example: ticket #318146, an employee traveling through the expected September window). Check with Wellness.
 - **Android:** the Challenge is iPhone/iPad-only. If they have an iOS device, they can join there; either way they get the free subscription (Android manual apply) → `Support AndroidNoAccount` (see *Global Access*).
 - **Bought a subscription while trying to join:** enrollment gives them the free subscription; the purchase is refunded via Apple only → `Support RefundRequest` (see *Global Access*).
 - **Mixed challenge + unrelated support issue:** handle the support issue under its own policy; keep join troubleshooting in the same thread.
@@ -114,7 +117,7 @@ The app must be signed into the account **Apple Wellness has on record** before 
 
 - **High confidence:** the join handshake, the error→reply taxonomy, token states, password flows — all verbatim from the Apple mailbox saved replies (pulled 2026-07-22).
 - **Judgment call:** picking between sign-in-mismatch vs. token-state explanations when the error text is vague — ask via `Support JoinMoreInfo` rather than guessing.
-- **Gaps:** exact join-window dates and this cycle's registration URL are period-specific (not in saved replies); confirm from the team each event. The challenge-signup URLs seen in replies: `people.apple.com/page/11893`, `signups.apple.com/event/1712-fda4`.
+- **Gaps:** each cycle's exact join-window dates and registration URL are period-specific; confirm from the team each event. 2025-cycle facts from real tickets: registration confirmations ~2025-09-16, event month October 2025, registration pages `people.apple.com/page/11893` / `signups.apple.com/event/1712-fda4`. Whether pre-registration will exist for 2026 is unknown (Wellness owns it).
 
 # Saved Reply Mapping
 
@@ -122,6 +125,7 @@ All names from `data/saved_replies_apple.json` (mailbox 201086), quoted exactly 
 
 # Related Policies
 
+- *Apple Mailbox — Ticket Intake & Link Recognition* — telling challenge tokens from Global Access links, intake forms, error texts
 - *Global Access (Apple Wellness Complimentary Subscription)* — the closed-window redirect, Android access, refunds
 - *Mindful Minute Challenge — Minutes, Tracking, Medals & Prizes (Apple Mailbox)* — after the join succeeds
 - *Apple Mailbox Overview (Apple Wellness Programs)* — links, conventions, account identification

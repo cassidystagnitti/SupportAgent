@@ -11,7 +11,9 @@ The Apple mailbox handles Happier's partnership with **Apple Wellness**. There a
 | **Mindful Minute Challenge** | Annual month-long meditation event for Apple employees (≥1 mindful minute/day, 25 days out of the month) | One month per year; join window opens/closes around it | Challenge registration on Wellness Web → confirmation email with a **unique link/QR (token)** → tap on iPhone → "Open in Happier" |
 | **Global Access** | Year-round complimentary Happier subscription — a wellness benefit for Apple employees | Always available | **Global Access page on Wellness Web: `https://wellness.apple.com/content/804`** → register → tap the issued link on iPhone → "Open in Happier" |
 
-**Current period (as of 2026-07-22): the challenge join window is CLOSED; Global Access is the active signup path.** The most common ticket right now: someone trying to sign up with a **challenge link** (a `people.apple.com` / `signups.apple.com` event link or their old token email) when they need the **Global Access link** (`wellness.apple.com/content/804`). Never troubleshoot a challenge link during the closed period — redirect to Global Access. See *Global Access (Apple Wellness Complimentary Subscription)*.
+**Current period (as of 2026-08-11): the challenge join window is CLOSED; Global Access is the active signup path.** The 2025 cycle ran registration from mid-September 2025 with October 2025 as the event month, so expect **mmc 2026 registration to open around September 2026** — re-confirm dates with the team as it approaches. During the closed period, never troubleshoot a challenge link/token — redirect to Global Access. See *Global Access (Apple Wellness Complimentary Subscription)*.
+
+Both programs issue personal tokenized deep links on the same base URL (`my.meditatehappier.com/challenges?org=apple&…`); classify by query string — `challenge=apple-challenge-<year>` = challenge token, bare `token=…&event=719` = Global Access. Full recognition rules, intake formats, and error taxonomy: *Apple Mailbox — Ticket Intake & Link Recognition*.
 
 # Trigger Conditions
 
@@ -28,6 +30,7 @@ The Apple mailbox handles Happier's partnership with **Apple Wellness**. There a
 
 ## Program routing (which doc to use)
 
+- Which program is a link/ticket even about, structured intake forms ("Unlock Happier Meditation" / "Help joining organization"), error-message taxonomy, tagging → *Apple Mailbox — Ticket Intake & Link Recognition*
 - Signup, locked content, subscription claim, link confusion, Android access, accidental purchase, renewal, family code → *Global Access (Apple Wellness Complimentary Subscription)*
 - Challenge registration/join errors, tokens, password resets while joining, friends/Circle → *Mindful Minute Challenge — Registration & Join (Apple Mailbox)*
 - Minutes not counting, Health app, calendar, medals, prizes, completion → *Mindful Minute Challenge — Minutes, Tracking, Medals & Prizes (Apple Mailbox)*
@@ -37,6 +40,7 @@ The Apple mailbox handles Happier's partnership with **Apple Wellness**. There a
 | Purpose | Link |
 |---|---|
 | **Global Access signup (Wellness Web)** | `https://wellness.apple.com/content/804` |
+| Issued personal deep links (both programs; unique token per person — never reuse) | `https://my.meditatehappier.com/challenges?org=apple&token=…&event=719` (Global Access) / `…&challenge=apple-challenge-<year>&token=…&event=<id>` (challenge) |
 | Challenge signup (period-specific; do NOT send while join is closed) | `https://people.apple.com/page/11893`; also seen: `https://signups.apple.com/event/1712-fda4` |
 | Mindful Minute Challenge FAQ (footer link on challenge replies) | `https://www.meditatehappier.com/support/apple-challenge-faq` |
 | Password reset | `https://my.meditatehappier.com/passwords/new` |
@@ -70,6 +74,7 @@ The fix for most tickets is aligning three things: the address **Apple Wellness 
 
 ## Edge Cases & Exceptions
 
+- **Apple Wellness replies inside our threads.** Tickets flow through the `apple@meditatehappier.com` Google Group, and the Wellness team (`wellness@apple.com`) answers directly in the same threads (rendered as customer-type posts from "Apple Wellness"). If Wellness already answered — rewards, eligibility, token re-sends — don't answer again on their behalf; the ticket may only need closing.
 - **Past incident:** playback failures in parts of China, fall 2025 — resolved; remedy was Force Quit (`Bug PlaybackChinaFall2025`). Only relevant if someone references that outage.
 - **Positive/closing messages:** use the `General Glad*` family; feedback gets forwarded and acknowledged (`Feedback PassedOn`).
 
@@ -121,6 +126,7 @@ Saved replies for this mailbox live in `data/saved_replies_apple.json` (mailbox 
 
 # Related Policies
 
+- *Apple Mailbox — Ticket Intake & Link Recognition* — link formats, intake forms, error taxonomy, tagging (from the last 200 real tickets)
 - *Global Access (Apple Wellness Complimentary Subscription)* — the current period's main doc
 - *Mindful Minute Challenge — Registration & Join (Apple Mailbox)*
 - *Mindful Minute Challenge — Minutes, Tracking, Medals & Prizes (Apple Mailbox)*
