@@ -57,12 +57,12 @@ If a report doesn't clearly match any entry below, do not assume it's a known is
 
 ## 3. Streaks Broken or Reset
 
-- **Status:** Fix in progress (bug identified as of 2026-07-06)
+- **Status:** FIXED — root cause identified: streaks were breaking because podcast episodes weren't being counted correctly toward the streak. Fixed by support directly on individual affected accounts as reports come in (not a mass backfill) as of 2026-07-23.
 - **Platforms:** New app (Hotwire Native v2)
-- **What to tell the customer:** Acknowledge the report and let them know we've found a bug affecting streaks and are actively working on a fix. Reassure them that their meditation history is safe even if the streak display looks wrong. Do not promise a specific fix date.
+- **What to tell the customer:** Acknowledge the report, confirm we've corrected their streak count so it reflects their actual practice, and reassure them their meditation history itself was never affected — only the streak display. No need to explain the podcast root cause to the customer unless it's directly relevant to their question.
 - **Linear ticket:** T-786
 - **Date added:** 2026-07-02
-- **Date resolved:** —
+- **Date resolved:** 2026-07-23
 
 ## 4. Downloads / Offline Meditations Unavailable (Android v2)
 
