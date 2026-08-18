@@ -93,6 +93,44 @@ async def cancel_subscription(conversation_id: int) -> dict:
 
 
 @mcp.tool()
+async def reactivate_subscription(conversation_id: int) -> dict:
+    """Turn auto-renew back ON (un-cancel) for this ticket's Stripe customer.
+
+    EXECUTES IMMEDIATELY when eligible. This RE-ARMS a charge on the renewal
+    date, so call it ONLY when the customer has said they want to stay — never
+    to "fix" a cancellation they actually asked for. This is the first half of
+    a retention save: a renewal coupon is inert while a subscription is set to
+    cancel, so reactivate BEFORE applying any discount. The customer is
+    resolved server-side from the conversation (no customer id is accepted).
+    Eligibility is enforced in code — an already-ended subscription, dunning,
+    paused collection, or multiple candidates are refused with a reason.
+    Returns {"status": "applied" | "already_on" | "refused" | "disabled" |
+    "error", ...}. After applied: redraft the reply to state the real renewal
+    date and amount. An audit note is posted to the ticket automatically.
+    """
+    return await _run(tools.reactivate_subscription, conversation_id)
+
+
+@mcp.tool()
+async def link_email(conversation_id: int, email: str) -> dict:
+    """Attach another email address to this ticket's Help Scout CONTACT record.
+
+    Use when the customer writes from (or names) a second address that is
+    theirs, so every address lands on one contact with one history. If a
+    separate contact record already owns the address, the two are merged into
+    this ticket's contact — its conversations move over and become visible.
+    Role addresses (support@, no-reply@) and our own domains are refused.
+
+    Help Scout CRM housekeeping ONLY: this does NOT merge the customer's
+    Happier accounts, move a subscription, or copy meditation history — those
+    are admin actions (policies/multi-account-merge.md). Never tell a customer
+    their accounts were merged on the strength of this. Returns
+    {"status": "linked" | "merged" | "refused" | "disabled" | "error", ...}.
+    """
+    return await _run(tools.link_email, conversation_id, email)
+
+
+@mcp.tool()
 async def research(question: str, account_summary: str = "", platform_hint: str | None = None) -> dict:
     """Investigate a product question across the codebases + Linear.
 

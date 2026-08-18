@@ -175,6 +175,40 @@ Handle case by case:
 |---|---|---|
 | Customer deleted one account; subscription and/or history may be lost | `Use DeletedAccountLostSubscriptionAccess` | Attach PDF; help locate subscription by receipt or last-4 card digits |
 
+# Help Scout Contact Linking (internal, automatic) — added 2026-08-18
+
+Separate from everything above, the pipeline keeps the **Help Scout contact record** tidy on its own (`helpscout_identity.py`). When a customer writes in from one address and their ticket shows another that is verifiably theirs, that address is added to the same Help Scout contact; if a *second* Help Scout contact record already owns it, the two records are consolidated into the one this ticket is on — its conversations move over and its addresses come with them.
+
+**This is CRM housekeeping and nothing more.** It makes one person's history readable in one place. It does **not**:
+
+- merge their Happier accounts,
+- move a subscription between accounts,
+- copy meditation history,
+- change any email address on a Happier account.
+
+Every one of those is still the admin work described above, and still human action.
+
+> **Never tell a customer their accounts were merged because of this.** A reply that says "I've merged your accounts" when only the Help Scout contact was linked is a false claim of completed work — the customer will sign in and find their history still split. Describe only what was actually done to their Happier account.
+
+## What gets linked automatically, and what waits for a human
+
+An address is added on its own **only** with ownership evidence: the customer claims it in their own words ("my other email is …", "I signed up with …"), or a Happier account under that address carries the same first name as the contact. Anything else is written into the internal note as a suggestion and left alone.
+
+Addresses are never linked automatically when:
+
+- someone else is described as the owner — "my wife's email", "send the gift to …", a recipient. **This is the case that matters most**: a gift buyer's ticket names the recipient, and fusing the two contacts would put a stranger's history on the buyer's record.
+- the address is a role mailbox (`support@`, `no-reply@`), one of our own domains, or a vendor's (Apple, Stripe, Google receipts).
+- the two contact records carry different first names — a shared payment method usually means a household, not one person.
+- the duplicate contact has more conversations than the merge cap (default 25) — Help Scout's own UI merge is one click and safer at that size.
+
+Each of those lands in the ticket's internal note with the reason. When the note asks about an address you can confirm from the thread, act on it: the sidebar's `link_email` (or `python3 scripts/helpscout_link_emails.py --conversation <id> --email <address> --apply`) links it and merges the duplicate, treating your instruction as the evidence.
+
+`HELPSCOUT_IDENTITY_WRITES=false` turns the automatic writes off on a deployment; the suggestions still appear in the note.
+
+## How this changes the tickets above
+
+A merge ticket now often arrives with the customer's other address **already on the contact**, and their earlier conversations already visible. Read that history before drafting — it frequently contains the second email address, the platform, or an earlier answer to the same question. It does not, however, tell you anything about the state of their Happier accounts: check those with the account lookup as always.
+
 # Related Policies
 
 - *Account Deletion*

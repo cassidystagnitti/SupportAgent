@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 import os
 
+import helpscout_identity
 import orchestrator
 import stripe_research
 import triage_tickets
@@ -61,6 +62,7 @@ def hydrate_ticket(session, conversation_id: int) -> dict:
         body = o.get_conversation_text(session, cid, threads=threads) or "(empty)"
 
     account_blob = ""
+    emails_checked: list = []
     try:
         hs_emails = o.fetch_customer_emails_from_helpscout(session, hs_customer_id) if hs_customer_id else []
         ctx = o.fetch_account_contexts_for_ticket(
@@ -69,10 +71,28 @@ def hydrate_ticket(session, conversation_id: int) -> dict:
             extra_emails=hs_emails,
         )
         account_blob = ctx.get("combined_blob", "")
+        emails_checked = ctx.get("emails_checked") or []
         if not account_blob.strip():
             account_blob = "Account lookup failed — could not retrieve customer data."
     except Exception:
         account_blob = "Account lookup failed — could not retrieve customer data."
+
+    # Contact-record plan: which other addresses belong to this human, and does
+    # a duplicate Help Scout contact already own one. Read-only, like the rest
+    # of hydration — ``bert.fanout.apply_result`` is what executes it.
+    try:
+        identity_plan = helpscout_identity.plan_ticket_identity(
+            session,
+            conversation_id=cid,
+            hs_customer_id=hs_customer_id,
+            primary_email=email,
+            contact_name=customer_name,
+            customer_text=helpscout_identity.customer_text_from_threads(threads),
+            account_emails=emails_checked,
+        )
+    except Exception:
+        log.warning("identity plan failed for %s", cid, exc_info=True)
+        identity_plan = None
 
     platform = o._subscription_platform(account_blob)
     is_stripe = bool(platform) and platform.lower() == "stripe"
@@ -121,6 +141,7 @@ def hydrate_ticket(session, conversation_id: int) -> dict:
         "stripe_ctx": stripe_ctx,
         "stripe_research": research,
         "existing_tags": existing_tags,
+        "identity_plan": identity_plan,
     }
 
 

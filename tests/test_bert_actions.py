@@ -252,3 +252,180 @@ def test_mcp_cancel_refuses_without_stripe_customer(monkeypatch):
                         lambda *a, **k: pytest.fail("must not execute"))
     got = mcp_tools.cancel_subscription(3391134628)
     assert got["status"] == "refused" and "Apple/Google" in got["reason"]
+
+
+# --- reactivate_subscription rails ------------------------------------------
+
+def cancelling_sub(**overrides):
+    return eligible_sub(cancel_at_period_end=True,
+                        items={"data": [{"current_period_end": 4_000_000_000,
+                                         "price": {"unit_amount": 9999, "currency": "usd"}}]},
+                        current_period_end=4_000_000_000, **overrides)
+
+
+def _arm_write_gates(monkeypatch):
+    monkeypatch.setenv("STRIPE_WRITE_API_KEY", "rk_live_x")
+    monkeypatch.setenv("ACTION_EXECUTION_ENABLED", "true")
+
+
+def test_reactivate_rejects_a_non_customer_id():
+    got = actions.reactivate_subscription("sub_1", "3390692208", actor="test")
+    assert got["status"] == "error" and "customer ID" in got["reason"]
+
+
+def test_reactivate_requires_a_conversation_id():
+    got = actions.reactivate_subscription("cus_ABC", "", actor="test")
+    assert got["status"] == "error" and "conversation id" in got["reason"]
+
+
+def test_reactivate_is_disabled_without_the_gates(monkeypatch):
+    monkeypatch.delenv("STRIPE_WRITE_API_KEY", raising=False)
+    monkeypatch.delenv("ACTION_EXECUTION_ENABLED", raising=False)
+    got = actions.reactivate_subscription("cus_ABC", "3390692208", actor="test")
+    assert got["status"] == "disabled"
+    assert "NOT performed" in got["reason"]
+
+
+def test_reactivate_applies_and_posts_the_audit_note(monkeypatch):
+    _arm_write_gates(monkeypatch)
+    notes = []
+    monkeypatch.setattr(actions.reactivate_script, "_configure_stripe_key", lambda apply: None)
+    monkeypatch.setattr(actions.reactivate_script, "_fetch_customer",
+                        lambda cid: {"id": cid, "email": "a@b.com"})
+    monkeypatch.setattr(actions.reactivate_script, "_fetch_subscriptions",
+                        lambda cid: [cancelling_sub()])
+    monkeypatch.setattr(actions.reactivate_script, "execute_plan",
+                        lambda plan, cid, actor=None: {"subscription_id": plan["subscription_id"],
+                                                       "renews_on": "June 1, 2027",
+                                                       "renewal_amount_display": "$99.99",
+                                                       "actor": actor})
+    monkeypatch.setattr(actions, "_post_executed_note",
+                        lambda cid, result, hs=None, render=None: notes.append(render(result)) or True)
+
+    got = actions.reactivate_subscription("cus_ABC", "3390692208", actor="mcp")
+    assert got["status"] == "applied"
+    assert got["renews_on"] == "June 1, 2027"
+    assert "back ON" in notes[0] and "stripe_reactivate_subscription" in notes[0]
+
+
+def test_reactivate_reports_already_renewing(monkeypatch):
+    _arm_write_gates(monkeypatch)
+    monkeypatch.setattr(actions.reactivate_script, "_configure_stripe_key", lambda apply: None)
+    monkeypatch.setattr(actions.reactivate_script, "_fetch_customer", lambda cid: {"id": cid})
+    monkeypatch.setattr(actions.reactivate_script, "_fetch_subscriptions",
+                        lambda cid: [eligible_sub()])
+
+    got = actions.reactivate_subscription("cus_ABC", "3390692208", actor="test")
+    assert got["status"] == "already_on"
+
+
+def test_reactivate_relays_a_refusal(monkeypatch):
+    _arm_write_gates(monkeypatch)
+    monkeypatch.setattr(actions.reactivate_script, "_configure_stripe_key", lambda apply: None)
+    monkeypatch.setattr(actions.reactivate_script, "_fetch_customer", lambda cid: {"id": cid})
+    monkeypatch.setattr(actions.reactivate_script, "_fetch_subscriptions",
+                        lambda cid: [cancelling_sub(status="canceled")])
+
+    got = actions.reactivate_subscription("cus_ABC", "3390692208", actor="test")
+    assert got["status"] == "refused" and "already ENDED" in got["reason"]
+
+
+def test_reactivate_never_raises_into_the_chat_turn(monkeypatch):
+    _arm_write_gates(monkeypatch)
+    monkeypatch.setattr(actions.reactivate_script, "_configure_stripe_key", lambda apply: None)
+
+    def _boom(cid):
+        raise RuntimeError("stripe exploded")
+
+    monkeypatch.setattr(actions.reactivate_script, "_fetch_customer", _boom)
+    got = actions.reactivate_subscription("cus_ABC", "3390692208", actor="test")
+    assert got["status"] == "error"
+
+
+# --- link_customer_email rails ----------------------------------------------
+
+class _IdentityHS:
+    def __init__(self, existing=(), owner=None):
+        self.existing = [{"id": i, "value": v, "type": "home"}
+                         for i, v in enumerate(existing, start=1)]
+        self.owner = owner
+
+
+def _patch_identity(monkeypatch, hs, *, owner=None, added=None, merged=None):
+    added = [] if added is None else added
+    merged = {} if merged is None else merged
+    monkeypatch.setattr(actions.helpscout_identity, "list_customer_emails",
+                        lambda s, cid: hs.existing)
+    monkeypatch.setattr(actions.helpscout_identity, "find_customer_by_email",
+                        lambda s, email: owner)
+    monkeypatch.setattr(actions.helpscout_identity, "add_email",
+                        lambda s, cid, email: added.append((cid, email)))
+    monkeypatch.setattr(actions.helpscout_identity, "audit", lambda entry: None)
+    monkeypatch.setattr(actions.helpscout_identity, "merge_contacts",
+                        lambda s, keep_id, dup_id, conversation_id, actor: merged)
+
+
+def test_link_email_refuses_a_role_address():
+    got = actions.link_customer_email("3390692208", "support@acme.com", 1, actor="test",
+                                      hs=object())
+    assert got["status"] == "refused" and "role address" in got["reason"]
+
+
+def test_link_email_refuses_our_own_domain():
+    got = actions.link_customer_email("3390692208", "cassidy@meditatehappier.com", 1,
+                                      actor="test", hs=object())
+    assert got["status"] == "refused"
+
+
+def test_link_email_needs_a_conversation_id():
+    got = actions.link_customer_email("", "a@b.com", 1, actor="test", hs=object())
+    assert got["status"] == "error"
+
+
+def test_link_email_honours_the_deployment_switch(monkeypatch):
+    monkeypatch.setenv("HELPSCOUT_IDENTITY_WRITES", "false")
+    got = actions.link_customer_email("3390692208", "a@b.com", 1, actor="test", hs=object())
+    assert got["status"] == "disabled" and "Help Scout UI" in got["reason"]
+
+
+def test_link_email_attaches_when_unowned(monkeypatch):
+    monkeypatch.delenv("HELPSCOUT_IDENTITY_WRITES", raising=False)
+    added = []
+    _patch_identity(monkeypatch, _IdentityHS(existing=["jane@example.net"]), added=added)
+
+    got = actions.link_customer_email("3390692208", "Jane@Old.com ", 1, actor="test", hs=object())
+    assert got["status"] == "linked" and got["already_present"] is False
+    assert added == [(1, "jane@old.com")]
+
+
+def test_link_email_is_idempotent(monkeypatch):
+    monkeypatch.delenv("HELPSCOUT_IDENTITY_WRITES", raising=False)
+    added = []
+    _patch_identity(monkeypatch, _IdentityHS(existing=["jane@old.com"]), added=added)
+
+    got = actions.link_customer_email("3390692208", "jane@old.com", 1, actor="test", hs=object())
+    assert got["status"] == "linked" and got["already_present"] is True
+    assert added == []
+
+
+def test_link_email_merges_a_conflicting_contact(monkeypatch):
+    monkeypatch.delenv("HELPSCOUT_IDENTITY_WRITES", raising=False)
+    _patch_identity(
+        monkeypatch, _IdentityHS(existing=["jane@example.net"]),
+        owner={"id": 2},
+        merged={"keep_id": 1, "dup_id": 2, "conversations_moved": [7, 8],
+                "emails_moved": ["jane@old.com"], "errors": []},
+    )
+    got = actions.link_customer_email("3390692208", "jane@old.com", 1, actor="test", hs=object())
+    assert got["status"] == "merged" and got["conversations_moved"] == [7, 8]
+
+
+def test_link_email_never_raises(monkeypatch):
+    monkeypatch.delenv("HELPSCOUT_IDENTITY_WRITES", raising=False)
+
+    def _boom(*a, **k):
+        raise RuntimeError("help scout is down")
+
+    monkeypatch.setattr(actions.helpscout_identity, "list_customer_emails", _boom)
+    got = actions.link_customer_email("3390692208", "a@b.com", 1, actor="test", hs=object())
+    assert got["status"] == "error"

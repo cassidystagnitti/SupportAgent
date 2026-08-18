@@ -266,3 +266,45 @@ def test_move_to_apple_mailbox_failed_move(monkeypatch):
     monkeypatch.setenv("APPLE_MAILBOX_ID", "246810")
     monkeypatch.setattr(fo.pipeline, "move_conversation", lambda *a, **k: False)
     assert fo.move_to_apple_mailbox(object(), 1) is None
+
+
+# --- contact records: apply_identity ---------------------------------------
+
+def test_apply_identity_runs_the_plan_and_notes_it(monkeypatch):
+    notes = []
+    monkeypatch.setattr(fo.pipeline, "post_plain_note",
+                        lambda s, cid, html: notes.append((cid, html)))
+    monkeypatch.setattr(fo.helpscout_identity, "apply_identity_plan",
+                        lambda s, plan, actor: {"linked": ["a@b.com"], "merged": [],
+                                                "errors": [], "skipped_disabled": []})
+    status = {}
+    result = {"conversation_id": 5,
+              "identity_plan": {"actions": [{"action": "link", "email": "a@b.com"}]}}
+    fo.apply_identity(object(), result, status)
+
+    assert status["identity_linked"] == ["a@b.com"]
+    assert status["identity_summary"] == "linked 1"
+    assert notes and notes[0][0] == 5
+
+
+def test_apply_identity_is_a_noop_without_a_plan(monkeypatch):
+    def _fail(*a, **k):
+        raise AssertionError("must not run with no plan")
+
+    monkeypatch.setattr(fo.helpscout_identity, "apply_identity_plan", _fail)
+    status = {}
+    fo.apply_identity(object(), {"conversation_id": 5, "identity_plan": None}, status)
+    fo.apply_identity(object(), {"conversation_id": 5, "identity_plan": {"actions": []}}, status)
+    assert status == {}
+
+
+def test_apply_identity_never_costs_the_draft(monkeypatch):
+    """A Help Scout CRM failure must not take down the drafting path."""
+    def _boom(*a, **k):
+        raise RuntimeError("help scout is down")
+
+    monkeypatch.setattr(fo.helpscout_identity, "apply_identity_plan", _boom)
+    status = {}
+    fo.apply_identity(object(), {"conversation_id": 5,
+                                 "identity_plan": {"actions": [{"action": "link"}]}}, status)
+    assert "contact sync failed" in status["identity_summary"]

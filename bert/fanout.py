@@ -13,6 +13,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+import helpscout_identity
 import orchestrator
 import stripe_research
 import triage_tickets
@@ -46,6 +47,7 @@ def draft_all(records, session, client, brief, *, model, max_workers: int = 6) -
                 "hs_customer_id": ctx.get("hs_customer_id"),
                 "stripe_block": ctx.get("stripe_block", ""),
                 "stripe_ctx": ctx.get("stripe_ctx"),
+                "identity_plan": ctx.get("identity_plan"),
                 "ok": True,
                 "error": None,
             }
@@ -257,10 +259,17 @@ def apply_result(session, result: dict, *, timestamp: str | None = None,
               "auto_send_tagged": None, "verify_verdict": None,
               "verify_initial_verdict": None, "verify_initial_findings": [],
               "verify_repairs": 0, "verify_findings": [], "verify_error": None,
-              "verifier_error_note": False, "error": None}
+              "verifier_error_note": False, "identity_summary": "",
+              "identity_linked": [], "identity_merged": [], "error": None}
     if not result.get("ok"):
         status["error"] = result.get("error") or "draft generation failed"
         return status
+
+    # --- contact records: execute the plan hydration built (link verified
+    # addresses onto this contact, fold duplicate contacts in). Runs before the
+    # draft work and on every bucket — consolidating a customer's records is
+    # right whether or not this ticket gets a reply. Never blocks the draft.
+    apply_identity(session, result, status)
     if _close_no_reply(result):
         # Conversation is over (thanks-only follow-up): no draft, no verifier.
         # Three-bucket model (Cassidy 2026-07-22): close candidates are CLOSED
@@ -373,6 +382,30 @@ def apply_result(session, result: dict, *, timestamp: str | None = None,
     if errors:
         status["error"] = "; ".join(errors)
     return status
+
+
+def apply_identity(session, result: dict, status: dict) -> None:
+    """Execute one ticket's contact-record plan and note what changed.
+
+    Fail-soft by contract: a Help Scout CRM hiccup must never cost us the
+    draft, so every outcome (including the errors) is reported into ``status``
+    and, when there is something a human should see, an internal note.
+    """
+    plan = result.get("identity_plan")
+    if not plan or not plan.get("actions"):
+        return
+    cid = result.get("conversation_id")
+    try:
+        applied = helpscout_identity.apply_identity_plan(session, plan, actor="bert")
+        status["identity_summary"] = helpscout_identity.summary_line(plan, applied)
+        status["identity_linked"] = applied["linked"]
+        status["identity_merged"] = [m["dup_id"] for m in applied["merged"]]
+        note_html = helpscout_identity.identity_note_html(plan, applied)
+        if note_html:
+            pipeline.post_plain_note(session, cid, note_html)
+    except Exception as e:
+        status["identity_summary"] = f"contact sync failed: {e}"
+        log.warning("identity apply failed for %s", cid, exc_info=True)
 
 
 def _close_no_reply(result: dict) -> bool:

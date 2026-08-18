@@ -221,6 +221,42 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {}},
     },
     {
+        "name": "reactivate_subscription",
+        "description": (
+            "Turn auto-renew back ON (un-cancel) for THIS ticket's Stripe customer — the "
+            "retention save for 'I cancelled, but I'll stay if you can help on the price'. "
+            "Executes IMMEDIATELY — no confirmation step. This RE-ARMS a charge on the renewal "
+            "date, so call it ONLY when the customer has said they want to stay, never to "
+            "'fix' a cancellation they asked for. A renewal coupon does nothing while a "
+            "subscription is set to cancel, so run this BEFORE applying a discount. Stripe only. "
+            "After an 'applied' result, ALWAYS update_draft so the reply states the real renewal "
+            "date and amount."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "link_email",
+        "description": (
+            "Add another email address to THIS ticket's Help Scout CONTACT record, so every "
+            "address this person writes from lands on one contact with one history. If a "
+            "separate contact record already owns the address, the two are merged into this "
+            "one (its conversations move over). Use when the customer says they also use "
+            "another address, or you can see they wrote in before from a different one. "
+            "This is Help Scout CRM housekeeping ONLY — it does NOT merge their Happier "
+            "accounts, move a subscription, or copy meditation history (those are admin "
+            "actions, see multi-account-merge.md), so never tell the customer their accounts "
+            "were merged because of this."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "email": {"type": "string",
+                          "description": "The other address belonging to this same person."},
+            },
+            "required": ["email"],
+        },
+    },
+    {
         "name": "propose_policy_update",
         "description": (
             "Propose an edit to a policy doc in policies/. NOT applied — it renders as a "
@@ -347,6 +383,91 @@ def _handle_cancel_subscription(store: SessionStore, cid: str, session_data: dic
     )
 
 
+def _handle_reactivate_subscription(store: SessionStore, cid: str, session_data: dict) -> str:
+    """Restore auto-renew for the ticket's own Stripe customer.
+
+    Like the cancel handler, the customer id comes ONLY from the hydrated
+    server-side context — never from the model — so this cannot act outside
+    the open ticket.
+    """
+    ctx = session_data.get("ctx") or {}
+    stripe_ctx = ctx.get("stripe_ctx") or {}
+    customer_id = (stripe_ctx.get("stripe_customer_id") or "").strip()
+    if not customer_id:
+        return (
+            "No Stripe customer is attached to this ticket's context (customer may be on "
+            "Apple/Google or unmatched) — cannot execute. Handle as a manual action instead."
+        )
+
+    actor = f"sidebar:{_agent_user_id() or 'unknown'}"
+    result = bert_actions.reactivate_subscription(customer_id, cid, actor=actor)
+    status = result.get("status")
+
+    if status == "applied":
+        store.add_ui_message(
+            cid, "event",
+            f"✅ Auto-renew restored on {result.get('subscription_id')} — renews "
+            f"{result.get('renews_on')} for {result.get('renewal_amount_display')}. Audit note posted.",
+        )
+        return (
+            f"Executed: auto-renew is back ON for {result.get('subscription_id')} ({customer_id}). "
+            f"It renews {result.get('renews_on')} at {result.get('renewal_amount_display')} before "
+            "any discount. If this is a retention save, apply the discount next — otherwise the "
+            "customer pays full price. Now update the draft to state the real renewal date and price."
+        )
+    if status == "already_on":
+        return (
+            "No write needed — this subscription already renews. Update the draft to confirm "
+            "they're all set; do not imply anything was changed."
+        )
+    store.add_ui_message(cid, "event", f"⚠️ Reactivation not executed: {result.get('reason', status)}")
+    return (
+        f"NOT executed ({status}): {result.get('reason', 'unknown')} "
+        "Do not tell the customer their subscription was restored. If this needs a human, keep it "
+        "as an 'Actions needed' item in the note and draft accordingly."
+    )
+
+
+def _handle_link_email(store: SessionStore, cid: str, session_data: dict, args: dict) -> str:
+    """Attach another address to this ticket's Help Scout contact."""
+    ctx = session_data.get("ctx") or {}
+    result = bert_actions.link_customer_email(
+        cid,
+        (args or {}).get("email", ""),
+        ctx.get("hs_customer_id"),
+        actor=f"sidebar:{_agent_user_id() or 'unknown'}",
+    )
+    status, email = result.get("status"), result.get("email")
+
+    if status == "linked":
+        if result.get("already_present"):
+            return f"{email} was already on this contact — nothing changed."
+        store.add_ui_message(cid, "event", f"🔗 Linked {email} to this contact.")
+        return (
+            f"Linked {email} to this Help Scout contact — future emails from it land here. "
+            "This changed Help Scout only: their Happier accounts, subscription, and meditation "
+            "history are untouched, so do not say anything to the customer about merged accounts."
+        )
+    if status == "merged":
+        moved = len(result.get("conversations_moved") or [])
+        store.add_ui_message(
+            cid, "event",
+            f"🔗 Merged the separate contact for {email} into this one ({moved} conversation(s) moved).")
+        errors = "; ".join(result.get("errors") or [])
+        return (
+            f"{email} belonged to a separate Help Scout contact — merged into this one: "
+            f"{moved} conversation(s) moved, addresses consolidated. "
+            f"{('Problems: ' + errors) if errors else ''} "
+            "Help Scout records only — their Happier accounts were NOT merged and no subscription "
+            "or history moved. Read the newly visible history before you finish the reply."
+        )
+    store.add_ui_message(cid, "event", f"⚠️ Contact not updated: {result.get('reason', status)}")
+    return (
+        f"NOT linked ({status}): {result.get('reason', 'unknown')} "
+        "Leave the contact as it is and mention it in the internal note if a human should look."
+    )
+
+
 def _handle_propose_policy(store: SessionStore, cid: str, session_data: dict, args: dict) -> str:
     try:
         proposal = policy_updater.build_proposal(
@@ -423,6 +544,10 @@ def run_turn(store: SessionStore, cid: str, user_text: str, client=None) -> None
                         out = _handle_propose_policy(store, cid, session_data, tu.input or {})
                     elif tu.name == "cancel_subscription":
                         out = _handle_cancel_subscription(store, cid, session_data)
+                    elif tu.name == "reactivate_subscription":
+                        out = _handle_reactivate_subscription(store, cid, session_data)
+                    elif tu.name == "link_email":
+                        out = _handle_link_email(store, cid, session_data, tu.input or {})
                     else:
                         out = f"Unknown tool: {tu.name}"
                 except Exception as e:

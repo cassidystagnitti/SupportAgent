@@ -25,6 +25,7 @@ load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
 import bug_registry  # noqa: E402
 import draft_registry  # noqa: E402
+import helpscout_identity  # noqa: E402
 import notion_bridge  # noqa: E402
 from account_context import fetch_account_contexts_for_ticket, fetch_customer_emails_from_helpscout  # noqa: E402
 from action_executor import format_actions_note  # noqa: E402
@@ -700,6 +701,9 @@ def process_ticket_sync(
         "stripe_platform": None,
         "multiple_subscribed": False,
         "emails_checked": [],
+        "identity_linked": [],
+        "identity_merged": [],
+        "identity_summary": "",
         "claude_model": os.getenv("CLAUDE_DRAFT_MODEL", DEFAULT_CLAUDE_MODEL),
         "escalated": False,
         "escalate_reason": None,
@@ -864,6 +868,29 @@ def process_ticket_sync(
             account_blob = f"Account lookup failed — could not retrieve customer data ({e})"
             out["account_lookup_success"] = False
             log.exception("account_context failed")
+
+        # --- Contact records (helpscout_identity): link every address this
+        # human has verifiably written from or claimed onto ONE Help Scout
+        # contact, folding duplicate contact records into it. Planning is
+        # read-only and always runs; the writes obey create_draft exactly like
+        # the tag/draft writes below, so a dry-run stays read-only.
+        identity = helpscout_identity.sync_ticket_identity(
+            session,
+            conversation_id=cid,
+            hs_customer_id=hs_customer_id,
+            primary_email=email,
+            contact_name=customer_name,
+            customer_text=helpscout_identity.customer_text_from_threads(threads),
+            account_emails=out["emails_checked"],
+            actor="orchestrator",
+            apply=bool(create_draft),
+        )
+        identity_note_block = identity["note_html"]
+        out["identity_linked"] = identity["applied"]["linked"]
+        out["identity_merged"] = [m["dup_id"] for m in identity["applied"]["merged"]]
+        out["identity_summary"] = identity["summary"]
+        if identity["summary"]:
+            log.info("Contact records for conversation %s: %s", cid, identity["summary"])
 
         platform = _subscription_platform(account_blob)
         out["stripe_platform"] = platform
@@ -1093,7 +1120,8 @@ def process_ticket_sync(
 
         # --- Internal note (escalations, needs_action tickets, and superseding
         # drafts; skipped in dry-run — Help Scout POST) ---
-        if create_draft and (should_post_note(is_escalation, parsed) or out["supersedes_existing_draft"]):
+        if create_draft and (should_post_note(is_escalation, parsed)
+                             or out["supersedes_existing_draft"] or identity_note_block):
             note_user_id = os.getenv("HELPSCOUT_NOTE_USER_ID", "").strip()
             if note_user_id:
                 note_html = _format_internal_note_html(
@@ -1104,6 +1132,8 @@ def process_ticket_sync(
                     research_sources=out["research_sources"],
                     supersedes_existing_draft=out["supersedes_existing_draft"],
                 )
+                if identity_note_block:
+                    note_html = f"{note_html}{identity_note_block}"
                 note_url = f"{BASE_URL}/conversations/{cid}/notes"
                 try:
                     r2 = _helpscout_post(session, note_url, {"text": note_html, "user": int(note_user_id)})

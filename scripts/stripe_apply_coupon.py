@@ -74,6 +74,11 @@ from typing import Any
 import stripe
 from dotenv import load_dotenv
 
+try:  # imported as ``scripts.stripe_apply_coupon``
+    from scripts import stripe_reactivate_subscription as reactivate_script
+except ImportError:  # run directly: ``python3 scripts/stripe_apply_coupon.py``
+    import stripe_reactivate_subscription as reactivate_script
+
 _SUPPORT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(_SUPPORT_DIR, ".env"))
 
@@ -258,10 +263,17 @@ def _estimate_discounted(amount: int | None, percent: int) -> int | None:
 
 # --- eligibility -------------------------------------------------------------
 
-def classify_subscription(sub: Any, percent: int, duration: str) -> dict[str, Any]:
+def classify_subscription(
+    sub: Any, percent: int, duration: str, *, allow_cancelling: bool = False
+) -> dict[str, Any]:
     """Apply the eligibility checks to one subscription for a coupon apply.
 
     Returns {"state": ELIGIBLE | ALREADY_APPLIED | INELIGIBLE, "reason": str, ...}.
+
+    ``allow_cancelling`` (the CLI's --reactivate) keeps a subscription that is
+    set to cancel in play: the coupon alone would be inert, but restoring
+    auto-renew first makes it real. The subscription is marked
+    ``needs_reactivation`` and still has to clear every other check.
     """
     sub_id = _g(sub, "id")
     status = _g(sub, "status")
@@ -280,15 +292,25 @@ def classify_subscription(sub: Any, percent: int, duration: str) -> dict[str, An
         return info
 
     if _g(sub, "cancel_at_period_end") or _g(sub, "cancel_at"):
-        info.update(
-            state=INELIGIBLE,
-            reason=(
-                "already set to cancel at period end — it will not renew, so a renewal "
-                "discount is moot. If the customer wants to stay AND get the discount, that is a "
-                "retention save (un-cancel + discount) — human judgment, not this script."
-            ),
-        )
-        return info
+        if not allow_cancelling:
+            info.update(
+                state=INELIGIBLE,
+                reason=(
+                    "already set to cancel at period end — it will not renew, so a renewal "
+                    "discount is moot. If the customer asked to stay AND get the discount, that is "
+                    "a retention save: re-run with --reactivate to restore auto-renew first "
+                    "(scripts/stripe_reactivate_subscription.py does the same thing on its own)."
+                ),
+            )
+            return info
+        # Reactivation is requested — check that it is actually possible before
+        # promising a discount on a renewal that cannot be restored.
+        reactivation = reactivate_script.classify_subscription(sub)
+        if reactivation["state"] == reactivate_script.INELIGIBLE:
+            info.update(state=INELIGIBLE,
+                        reason=f"set to cancel and cannot be reactivated — {reactivation['reason']}")
+            return info
+        info["needs_reactivation"] = True
 
     interval = subscription_interval(sub)
     if interval != ANNUAL_INTERVAL:
@@ -371,6 +393,15 @@ def build_plan(
     discounted = _estimate_discounted(amount, percent)
 
     notes: list[str] = []
+    reactivation = None
+    if classified.get("needs_reactivation"):
+        reactivation = reactivate_script.build_plan(customer, sub)
+        notes.append(
+            "auto-renew is currently OFF — it will be RESTORED first, then the coupon attached. "
+            f"The customer will be charged on {reactivation['renews_on']} "
+            f"({reactivation['renewal_amount_display']} before this discount). "
+            "Only correct if they asked to stay."
+        )
     if _g(sub, "status") == "trialing":
         notes.append("subscription is trialing — the coupon discounts the first real renewal charge.")
     conflicting = classified.get("conflicting_discount")
@@ -387,6 +418,7 @@ def build_plan(
 
     return {
         "action": "apply_renewal_coupon",
+        "reactivate": reactivation,
         "customer_id": _g(customer, "id"),
         "customer_email": _g(customer, "email"),
         "subscription_id": _g(sub, "id"),
@@ -447,6 +479,15 @@ def execute_plan(plan: dict[str, Any], conversation_id: str, actor: str | None =
     Creates the coupon if it does not exist yet, attaches it to the subscription,
     verifies it stuck, then appends the audit line.
     """
+    # Restore auto-renew BEFORE attaching the coupon: a discount on a
+    # subscription that is set to cancel is inert, and doing it in this order
+    # means a failure here stops the whole action rather than leaving a coupon
+    # attached to a subscription that will never renew.
+    reactivated = None
+    if plan.get("reactivate"):
+        reactivated = reactivate_script.execute_plan(
+            plan["reactivate"], conversation_id, actor=actor)
+
     coupon_id = plan["coupon_id"]
     created_coupon = False
     if plan.get("will_create_coupon"):
@@ -475,6 +516,7 @@ def execute_plan(plan: dict[str, Any], conversation_id: str, actor: str | None =
         "percent_off": plan["percent_off"],
         "duration": plan["duration"],
         "coupon_created": created_coupon,
+        "reactivated": reactivated,
         "replaced_discount": plan.get("conflicting_discount") if plan.get("replace_existing") else None,
         "conversation_id": conversation_id,
         "actor": actor or "cli",
@@ -537,6 +579,11 @@ def main(argv: list[str] | None = None) -> int:
         "--replace-existing", action="store_true",
         help="Overwrite a DIFFERENT existing discount (the sanctioned 40%%→50%% ladder)",
     )
+    parser.add_argument(
+        "--reactivate", action="store_true",
+        help="Retention save: restore auto-renew first if the subscription is set to cancel, "
+             "then apply the coupon. Without this, a cancelling subscription is refused.",
+    )
     parser.add_argument("--apply", action="store_true", help="Execute the change (default: dry run)")
     parser.add_argument(
         "--conversation-id",
@@ -584,7 +631,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         customer = _fetch_customer(args.customer_id)
         raw_subs = _fetch_subscriptions(args.customer_id)
-        classified = [classify_subscription(s, args.percent, duration) for s in raw_subs]
+        classified = [classify_subscription(s, args.percent, duration,
+                                           allow_cancelling=args.reactivate)
+                      for s in raw_subs]
         decision = select_target(classified)
 
         email = _g(customer, "email") or "no email on record"
@@ -644,6 +693,8 @@ def main(argv: list[str] | None = None) -> int:
             f"\nAPPLIED: {result['percent_off']}% off attached to {result['subscription_id']} "
             f"({plan['duration_label']}) via coupon {result['coupon_id']}."
         )
+        if result["reactivated"]:
+            print(f"  restored auto-renew first — renews {result['reactivated']['renews_on']}.")
         if result["coupon_created"]:
             print(f"  created coupon {result['coupon_id']} first.")
         if result["replaced_discount"]:

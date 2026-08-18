@@ -196,6 +196,41 @@ def cancel_subscription(conversation_id: int) -> dict:
     )
 
 
+def reactivate_subscription(conversation_id: int) -> dict:
+    """Restore auto-renew (un-cancel) for the ticket's own Stripe customer.
+
+    Same server-side customer resolution as ``cancel_subscription``: the
+    conversation is re-hydrated and a client-supplied customer id is never
+    accepted. Unlike cancelling, this RE-ARMS a renewal charge — the caller is
+    responsible for having the customer's word that they want to stay.
+    """
+    session = _hs_session()
+    ctx = bert_pipeline.hydrate_ticket(session, int(conversation_id))
+    customer_id = ((ctx.get("stripe_ctx") or {}).get("stripe_customer_id") or "").strip()
+    if not customer_id:
+        return {
+            "status": "refused",
+            "reason": "no Stripe customer attached to this ticket "
+            "(customer may be on Apple/Google or unmatched) — manual action.",
+        }
+    return bert_actions.reactivate_subscription(
+        customer_id, str(conversation_id), actor="mcp", hs=session
+    )
+
+
+def link_email(conversation_id: int, email: str) -> dict:
+    """Add another address to this ticket's Help Scout contact (merging if needed).
+
+    Help Scout CRM only — it does not merge Happier accounts, move a
+    subscription, or copy meditation history.
+    """
+    session = _hs_session()
+    ctx = bert_pipeline.hydrate_ticket(session, int(conversation_id))
+    return bert_actions.link_customer_email(
+        str(conversation_id), email, ctx.get("hs_customer_id"), actor="mcp", hs=session
+    )
+
+
 def research(question: str, account_summary: str = "", platform_hint: str | None = None) -> dict:
     """Investigate a product question across the codebases + Linear.
 

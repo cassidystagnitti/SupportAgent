@@ -12,7 +12,7 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 |---|---|---|
 | `orchestrator.py` | Built | Main pipeline: sequences all steps, creates HS draft + note |
 | `sidebar_server.py` | Live | FastAPI app for the HS sidebar: serves the chat UI, chat endpoints, policy confirm, send-and-close |
-| `sidebar_chat.py` | Live | Per-ticket chat sessions with Bert: hydration via bert/pipeline, Anthropic tool loop (update_draft, propose_policy_update) |
+| `sidebar_chat.py` | Live | Per-ticket chat sessions with Bert: hydration via bert/pipeline, Anthropic tool loop (update_draft, cancel_subscription, reactivate_subscription, link_email, propose_policy_update) |
 | `policy_updater.py` | Live | Confirmed policy updates: live apply + GitHub commit (`[skip render]`); git is the single source of truth |
 | `mcp_server.py` | Live | Bert MCP server (FastMCP, streamable HTTP): exposes the morning-review pipeline as MCP tools for the `support` marketplace plugin; Bearer-token auth (`SUPPORT_MCP_TOKEN`). Deployed on Render alongside the sidebar. Requires Python ≥3.10. |
 | `bert/mcp_tools.py` | Live | Adapter behind `mcp_server.py`: thin wrappers over `bert.summarize`/`pipeline`/`fanout`, `research_agent`, `policy_updater`; keeps heavy draft results in an ephemeral server-side run store, returns compact views. No MCP import (unit-testable on any Python). |
@@ -38,6 +38,9 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `scripts/stripe_cancel_subscription.py` | Live (2026-07-22) | First Stripe write skill: cancel at period end for ONE customer. Dry-run by default; `--apply --conversation-id` behind both env gates; audit log `data/stripe_action_log.jsonl`. After `applied`/`already_off`, the ticket becomes reply-only + auto-sendable — see policies/cancellation-policy.md "Bert Execution" and the three-bucket model in `.claude/skills/bert-morning-review/SKILL.md` |
 | `scripts/stripe_refund.py` | Live (2026-07-22) | Second Stripe write skill: FULL refund of one charge for ONE customer, `--and-cancel-now` combo ends access immediately (refund-first ordering). Window (30d annual / 24h monthly), dispute, ownership, and $120-cap checks all enforced in code — no override flags; `--boundary-grace` capped at +1 day/hour. Pre-flight eligibility, dry-run→apply flow, and the refusal→draft-response mapping live in policies/refund-policy.md "Bert Execution" |
 | `scripts/stripe_apply_coupon.py` | Live (2026-07-23) | Third Stripe write skill: apply a renewal discount coupon (40% standard, 50% ceiling) to ONE customer's single ANNUAL subscription — `--forever` for the recurring forever-discount, else discounts the next renewal (Paths 1/3). Percent ceiling, annual-only, single-renewing-sub, and idempotency/`--replace-existing` ladder checks enforced in code. Coupon is reusable per (percent,duration), keyed by a canonical id (overridable via `COUPON_RENEWAL_<PCT>_<DURATION>`) and created on `--apply` — needs the write key's **Coupons:Write** scope. NOT Path 2 (retroactive partial refund) and NOT monthly. Pre-flight, dry-run→apply, and refusal→draft mapping in policies/renewal-discount-requests.md "Bert Execution" |
+| `scripts/stripe_reactivate_subscription.py` | Live (2026-08-18) | Fourth Stripe write skill and the exact inverse of the cancel skill: clears `cancel_at_period_end` / `cancel_at` so a lapsing subscription renews again. The retention save's first half — a renewal coupon is INERT on a subscription set to cancel, so `stripe_apply_coupon.py --reactivate` runs both in order (reactivate, then discount). **Re-arms a charge**, so it needs the customer's word that they want to stay; the plan states the date and amount. Refuses an already-ended subscription (`canceled` → resubscribe link, not a modify), dunning, paused collection, a lapsed period, and multiple candidates. Releases an attached subscription schedule first, like cancel. Pre-flight, consent rule, and refusal→draft mapping in policies/renewal-discount-requests.md "Bert Execution: Retention Save" |
+| `helpscout_identity.py` | Live (2026-08-18) | One Help Scout contact per human: links a customer's other VERIFIED addresses onto the contact they wrote in from, and consolidates duplicate contact records. `plan_ticket_identity` is read-only (candidates → evidence → conflict lookup); `apply_identity_plan` writes. Auto-links only on ownership evidence — a first-person claim in the customer's own words, or a Happier account under that address with the same first name; third-party markers ("my wife's email", gift recipients), role mailboxes, our own/vendor domains, and Apple per-sender reply relays are refused outright. Merges are composed by hand (no merge endpoint exists): `PATCH /v2/conversations/{id}` → `/primaryCustomer.id`, then the addresses move one at a time (delete-then-add, with rollback). NEVER deletes a contact. Audit log `data/helpscout_identity_log.jsonl`. **Help Scout CRM only — it does not merge Happier accounts, move subscriptions, or copy history** (policies/multi-account-merge.md) |
+| `scripts/helpscout_link_emails.py` | Standalone CLI | Manual counterpart to the above: `--conversation <id>` shows/executes the plan the pipeline would run; `--conversation <id> --email <addr>` links one named address (your instruction is the evidence), merging a conflicting contact into this ticket's. Dry-run by default |
 | `draft_registry.py` | Live | Local JSON registry of conversation → drafted thread; prevents duplicate Help Scout drafts and drives the skip/supersede decision |
 | `eval_run.py` | Standalone CLI | Repeatable eval harness: batch-runs the draft pipeline over active tickets, writes `eval/<date>/results.json` |
 | `eval_draft_accuracy.py` | Standalone CLI | Compares Bert's draft against the reply a human agent actually sent, per eval run |
@@ -91,6 +94,14 @@ orchestrator.py (invoked per ticket by Bert skills / sidebar chat hydration)
                                           autonomously (pre-approved 2026-07-20) and the factual
                                           findings ride in the draft's Stripe block — drafts are
                                           written from real findings, never assumed search success
+        3b. helpscout_identity.py      — contact records: link every address this human
+                                          verifiably owns onto ONE Help Scout contact, folding
+                                          duplicate contact records into it. Planning is read-only
+                                          and always runs; the writes follow create_draft (and the
+                                          HELPSCOUT_IDENTITY_WRITES switch). Anything without
+                                          ownership evidence is reported in the internal note
+                                          instead of written. Help Scout CRM only — never a
+                                          Happier account merge
         4. policies/*.md              — all policy docs loaded as full text
         5. Claude (draft_system_prompt.txt) — draft reply + classification JSON
         5a. research_agent.py          — two-pass codebase + Linear research, only when the first
@@ -248,6 +259,15 @@ STRIPE_READ_API_KEY           # enrichment key, used automatically on every tick
                               # longer shares STRIPE_WRITE_API_KEY. Clears the prerequisite that had
                               # blocked Render from getting write vars.)
 
+# Help Scout contact records (helpscout_identity.py)
+HELPSCOUT_IDENTITY_WRITES     # optional kill switch, DEFAULT ON. Set to "false"/"0"/"off" to stop all
+                              # contact writes on a deployment — the read-only plan still runs and every
+                              # action is reported in the ticket's internal note as a proposal.
+HELPSCOUT_IDENTITY_MERGE_MAX_CONVERSATIONS
+                              # optional, default 25. A duplicate contact with more conversations than
+                              # this is PROPOSED rather than merged automatically — Help Scout's own UI
+                              # merge is one click and safer at that size.
+
 # Linear (product prioritization)
 LINEAR_API_KEY                # personal API key from Linear settings
 LINEAR_PRODUCT_TEAM_ID        # UUID of the product prioritization team; run `python product_prioritization.py` to list all team IDs
@@ -278,6 +298,9 @@ STRIPE_WRITE_API_KEY          # write-skills key, read ONLY by the write scripts
                                # subscription. Grant Coupons:Write on the restricted key; until then
                                # apply_coupon dry-runs fine but --apply raises a clean PermissionError.
                                # (Invoices → Write still pending the dunning-retry skill.) Never a full sk_ key.
+                               # scripts/stripe_reactivate_subscription.py needs no NEW scope —
+                               # restoring auto-renew rides on the same Subscriptions Write row as
+                               # cancellation.
 ACTION_EXECUTION_ENABLED      # "true" arms Stripe writes on THIS deployment; unset/false = every write
                                # script refuses --apply. Per-deployment kill switch — set it (plus the write
                                # key) only where actions should execute. Local dev: armed 2026-07-22.
@@ -297,6 +320,8 @@ AUTO_SEND_ENABLED=false       # gate for UNATTENDED auto-send; currently always 
 - Notes: `POST /v2/conversations/{id}/notes` — notes cannot be saved as drafts
 - Auth: OAuth2 client credentials (`APP_ID` + `APP_SECRET` → bearer token)
 - Webhook verification: HMAC-SHA1 of request body against `HELPSCOUT_WEBHOOK_SECRET`, compared to `X-HelpScout-Signature` header
+- Contact records (verified live 2026-08-18): `GET /v2/customers?email=<addr>` returns the ONE contact that owns an address (0 or 1 results) — Help Scout enforces uniqueness, so this is the authoritative duplicate check before adding an address. `GET|POST /v2/customers/{id}/emails` list/add (`{"type": "home|other|work", "value": …}`, 201 + `Resource-Id`); `DELETE /v2/customers/{id}/emails/{emailId}` removes one. The customer object carries `firstName`, `lastName`, `conversationCount`
+- **There is NO customer-merge endpoint.** A merge is composed: find the duplicate's conversations with `GET /v2/conversations?query=(email:"…")&status=all`, re-point each with `PATCH /v2/conversations/{id}` `{"op": "replace", "path": "/primaryCustomer.id", "value": <keeper>}`, then move the addresses (delete from the duplicate, then add to the keeper — an address can only live on one contact). See `helpscout_identity.merge_contacts`
 
 ### Stripe API
 - Customer lookup by email: `stripe.Customer.search(query=f"email:'{email}'")`

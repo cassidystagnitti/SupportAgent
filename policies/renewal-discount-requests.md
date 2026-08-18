@@ -157,7 +157,7 @@ The script refuses (exit 2) rather than guessing. **Each refusal tells you what 
 | Refusal | Meaning | Draft response | Remaining action |
 |---|---|---|---|
 | `bills every month … annual-only` | monthly plan | *Monthly Discount Requests* — offer 50% annual as the counter | none (reply-only) |
-| `already set to cancel … retention save` | sub is cancelling | Retention save: decide whether to un-cancel + discount | human judgment |
+| `already set to cancel … --reactivate` | sub is cancelling | Retention save — see *Bert Execution: Retention Save* below. If the customer asked to stay, rerun with `--reactivate`; if they did not, the discount is moot and the cancellation stands | rerun (or reply-only) |
 | `not an active, renewing subscription` (unpaid/past_due) | dunning | Resolve the failed payment first (dunning), not a coupon | human |
 | `N subscriptions are active … escalation signal` | multiple live subs | Do not reply | escalate to leadership |
 | `no Stripe subscriptions … Apple/Google` | not a Stripe sub | Migration offer (Stripe 40% link) per *Apple/Google → Stripe Migration* | reply-only |
@@ -169,6 +169,37 @@ The script refuses (exit 2) rather than guessing. **Each refusal tells you what 
 ## Auto-sendability after execution
 
 Mirrors the cancel/refund skills. Once the coupon is **`applied`** (or already-applied) there is no remaining human action: `needs_action = false`, the ticket joins the auto-send bucket (verifier conditions still apply). The draft's present/past tense ("I've applied a 40% discount to your renewal…") must be TRUE at post/verify time — **execute before posting**. An **"Action executed"** note goes on the ticket (sidebar/MCP rails post it automatically; post the equivalent manually on CLI executions). If the script **refused**, the ticket stays a needs-action or escalation ticket per the table above.
+
+# Bert Execution: Retention Save (un-cancel + discount) — added 2026-08-18
+
+A customer who already cancelled and then writes back — *"I'll stay if you can do something about the price"* — needs **two** changes, in this order. A renewal coupon attached to a subscription that is set to cancel does nothing at all: there is no renewal for it to discount. So auto-renew goes back on first, then the coupon.
+
+Bert can do both (`scripts/stripe_reactivate_subscription.py`, or `scripts/stripe_apply_coupon.py --reactivate` to run them as one action).
+
+> **The consent rule.** Restoring auto-renew RE-ARMS a charge on the renewal date. Run it only when the customer has said, in the ticket, that they want to keep the subscription. Never "fix" a cancellation the customer actually asked for, and never reactivate speculatively while an offer is still unanswered — send the offer, wait for the yes, then act. If their intent is ambiguous, that is a human judgment call: draft the offer and leave the action to a rep.
+
+## How to run it
+
+1. **Dry-run first** (read-only): `python3 scripts/stripe_apply_coupon.py <cus_…> --reactivate --json`. The plan states the renewal date and the amount the customer will be charged, plus the discount that will land on it — read those out loud to yourself before applying.
+2. **Apply**: add `--apply --conversation-id <HS id>`. Auto-renew is restored, then the coupon is attached; if the reactivation fails, the coupon is never applied.
+3. **Reactivation alone** (they want to stay at full price, or the discount is handled separately): `python3 scripts/stripe_reactivate_subscription.py <cus_…> --apply --conversation-id <HS id>`.
+
+Same env gates (`STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED=true`) and the same audit line in `data/stripe_action_log.jsonl` as the other write skills. On the sidebar and MCP rails the same action is `reactivate_subscription`.
+
+## Refusals
+
+| Refusal | Meaning | Draft response |
+|---|---|---|
+| `already ENDED … resubscribe` | the subscription is fully cancelled, not just set to lapse | It cannot be revived — send the appropriate checkout link (*Account Lookup Data Model* → Standardized Stripe Links). A discount link is the natural retention offer here |
+| `in the failed-payment/dunning flow` | past_due / unpaid | Fix collection first per *Failed Payment / Dunning*; restoring renewal only queues another failed charge |
+| `the paid period ended …` | the cancellation already took effect | Same as ended — resubscribe via a link |
+| `payment collection is paused` | `pause_collection` set | Resolve the pause in the dashboard first (human) |
+| `N subscriptions are set to cancel … refusing to guess` | multiple live subs | Do not reply — escalate to leadership |
+| `auto-renew is already ON` (no-op success) | nothing was off | Confirm they are all set; do not imply anything was changed |
+
+## What the reply says
+
+Confirm the end state in the customer's terms: their subscription will continue, the date it renews, and the price they will actually pay with the discount applied. Do not describe the internal steps ("I un-cancelled and then applied a coupon") — one clean sentence about what happens next is the whole reply.
 
 # Related Policies
 

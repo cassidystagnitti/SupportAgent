@@ -187,6 +187,12 @@ The correct saved reply is determined by account and subscription data. Work thr
 | Active subscription, wants to cancel | `CancelRefund GoogleCancel` | Support cancels directly in Google Play admin |
 | Trial cancellation | `CancelRefund Stripe/GoogleCancel Trial` | Shared with Stripe trial reply |
 
+## Reactivating a cancellation (added 2026-08-18)
+
+Turning auto-renew back **on** is the mirror image of this policy and is also executable by Bert (`scripts/stripe_reactivate_subscription.py`; `reactivate_subscription` on the sidebar/MCP rails). It applies when a customer who cancelled writes back asking to stay — usually alongside a discount ask, in which case run it as one action with `scripts/stripe_apply_coupon.py --reactivate`. The full flow, consent rule, and refusal mapping live in *Renewal Discount Requests* → "Bert Execution: Retention Save".
+
+**The consent rule is absolute in this direction:** cancelling costs the customer nothing, so it can be done on a clear request; reactivating re-arms a charge, so it needs the customer to have said they want to stay. An unanswered retention offer is not consent — send the offer, wait for the yes, then act. Once a subscription has fully ended (status `canceled`, not merely set to lapse), it cannot be reactivated at all: that customer resubscribes through a checkout link.
+
 # Related Policies
 
 - *Subscription & Billing Overview*

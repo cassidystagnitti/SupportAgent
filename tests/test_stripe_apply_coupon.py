@@ -303,3 +303,104 @@ def test_execute_raises_when_coupon_not_attached(tmp_path, monkeypatch):
     monkeypatch.setattr(ac.stripe, "Subscription", _FakeSubs(subscription()))
     with pytest.raises(RuntimeError, match="does not report coupon"):
         ac.execute_plan(_plan(), "42")
+
+
+# --- --reactivate: the retention save (un-cancel, then discount) --------------
+
+def test_cancelling_sub_stays_ineligible_without_the_flag():
+    c = ac.classify_subscription(subscription(cancel_at_period_end=True), 40, "once")
+    assert c["state"] == ac.INELIGIBLE
+    assert "--reactivate" in c["reason"]
+
+
+def test_reactivate_flag_keeps_a_cancelling_sub_eligible():
+    c = ac.classify_subscription(subscription(cancel_at_period_end=True), 40, "once",
+                                 allow_cancelling=True)
+    assert c["state"] == ac.ELIGIBLE
+    assert c["needs_reactivation"] is True
+
+
+def test_reactivate_flag_still_enforces_annual_only():
+    c = ac.classify_subscription(monthly_sub(cancel_at_period_end=True), 40, "once",
+                                 allow_cancelling=True)
+    assert c["state"] == ac.INELIGIBLE
+    assert "annual-only" in c["reason"]
+
+
+def test_reactivate_flag_does_not_rescue_an_ended_subscription():
+    """An ended subscription has no renewal to discount, flag or not."""
+    c = ac.classify_subscription(subscription(status="canceled", cancel_at_period_end=True),
+                                 40, "once", allow_cancelling=True)
+    assert c["state"] == ac.INELIGIBLE
+
+
+def test_reactivate_flag_refuses_when_the_un_cancel_itself_would_fail():
+    """Don't promise a discount on a renewal that cannot actually be restored."""
+    c = ac.classify_subscription(
+        subscription(cancel_at_period_end=True, pause_collection={"behavior": "void"}),
+        40, "once", allow_cancelling=True)
+    assert c["state"] == ac.INELIGIBLE
+    assert "cannot be reactivated" in c["reason"]
+    assert "pause" in c["reason"]
+
+
+def test_plan_carries_the_reactivation_step_and_warns_about_the_charge():
+    sub = subscription(cancel_at_period_end=True)
+    classified = ac.classify_subscription(sub, 40, "once", allow_cancelling=True)
+    plan = ac.build_plan({"id": "cus_1"}, sub, classified, 40, "once",
+                         "happier_renewal_40_off_once", coupon(), False)
+    assert plan["reactivate"]["action"] == "reactivate_auto_renew"
+    assert any("RESTORED first" in n and "asked to stay" in n for n in plan["notes"])
+
+
+def test_plan_has_no_reactivation_step_for_a_renewing_sub():
+    sub = subscription()
+    classified = ac.classify_subscription(sub, 40, "once")
+    plan = ac.build_plan({"id": "cus_1"}, sub, classified, 40, "once",
+                         "happier_renewal_40_off_once", coupon(), False)
+    assert plan["reactivate"] is None
+
+
+def test_execute_reactivates_before_attaching_the_coupon(tmp_path, monkeypatch):
+    """Order matters: a coupon on a cancelling subscription would be inert."""
+    monkeypatch.setattr(ac, "AUDIT_LOG_PATH", str(tmp_path / "log.jsonl"))
+    calls = []
+
+    def fake_reactivate(plan, conversation_id, actor=None):
+        calls.append("reactivate")
+        return {"renews_on": "June 1, 2027", "subscription_id": plan["subscription_id"]}
+
+    applied_sub = subscription(discounts=[{"coupon": {"id": "happier_renewal_40_off_once",
+                                                      "percent_off": 40, "duration": "once"}}])
+
+    class _Subs:
+        @staticmethod
+        def modify(sub_id, **kwargs):
+            calls.append("coupon")
+            return applied_sub
+
+        @staticmethod
+        def retrieve(sub_id, **kwargs):
+            return applied_sub
+
+    monkeypatch.setattr(ac.reactivate_script, "execute_plan", fake_reactivate)
+    monkeypatch.setattr(ac.stripe, "Subscription", _Subs)
+
+    plan = _plan()
+    plan["reactivate"] = {"subscription_id": "sub_1", "action": "reactivate_auto_renew"}
+    result = ac.execute_plan(plan, "42")
+
+    assert calls == ["reactivate", "coupon"]
+    assert result["reactivated"]["renews_on"] == "June 1, 2027"
+
+
+def test_execute_skips_reactivation_when_not_planned(tmp_path, monkeypatch):
+    monkeypatch.setattr(ac, "AUDIT_LOG_PATH", str(tmp_path / "log.jsonl"))
+    monkeypatch.setattr(ac.reactivate_script, "execute_plan",
+                        lambda *a, **k: pytest.fail("must not reactivate a renewing sub"))
+    applied_sub = subscription(discounts=[{"coupon": {"id": "happier_renewal_40_off_once",
+                                                      "percent_off": 40, "duration": "once"}}])
+    monkeypatch.setattr(ac.stripe, "Subscription", _FakeSubs(applied_sub))
+
+    result = ac.execute_plan(_plan(), "42")
+    assert result["reactivated"] is None
