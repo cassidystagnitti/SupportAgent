@@ -204,3 +204,7 @@ No saved reply currently exists that matches the specific v2-launch bug scripts 
 - *Meditation History & Streaks* — entry 3 (streaks broken/reset) and any data-loss escalation overlap with this policy's standard case
 - *downloads-offline.md* — entry 4 (downloads/offline unavailable) is fully specified there; this doc only summarizes and cross-references it
 - *Escalation Policy* — for any report that doesn't match a listed entry or appears to be a new systemic issue
+
+## Do Not Ask Customers For Their App Version (added 2026-07-23)
+
+If we have the customer's account, don't ask them to look up or report their app version in a draft reply — support can find this directly from account/admin data. This supersedes any wording elsewhere in this doc (e.g. entries 7 and 8's "ask for platform and app version" scripts) or in other policy docs that instructs asking the customer for their app version as a first step. If the version isn't already present in the context provided to Bert, a human agent should look it up via internal tooling rather than the draft asking the customer directly.
