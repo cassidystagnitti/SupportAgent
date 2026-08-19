@@ -47,3 +47,7 @@ Every AI-drafted reply already passes through human review before it is sent —
 - "Someone will review this and get back to you."
 
 This creates a false expectation of a second review cycle that has, in effect, already happened by the time the draft reaches the customer. If a ticket genuinely can't be resolved without human judgment, either escalate properly (`escalate: true`, no draft — see above) so a human handles it directly, or draft the best supportable answer / a clarifying question. Never draft a stalling reply that promises a future internal check that is actually just this same draft-review step already in progress.
+
+## Draft Language: Avoid "Genuine" / "Genuinely"
+
+Do not use the words "genuine" or "genuinely" in customer-facing drafts (e.g. "a genuine bug," "genuinely frustrating"). It reads as stilted/AI-generated filler. State the fact plainly instead — e.g. "you've found a bug we hadn't caught yet" rather than "this is a genuine bug." This applies across all policy areas, not just escalations.
