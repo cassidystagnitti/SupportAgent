@@ -91,3 +91,11 @@ No saved reply in `data/saved_replies.json` matches podcast/guest pitches, partn
 
 - *Feedback Policy* (if a message is genuine user feedback rather than outreach/pitch — different conduit)
 - *Escalation Policy* (sensitive PR risk trigger applies to major-press and significant-partner cases)
+
+## Meditation Pedagogy Questions (added 2026-07-23)
+
+Support does not answer meditation pedagogy/practice questions — e.g., breath focus technique, how to handle restlessness, whether to switch focal points mid-session — even when a customer addresses the question by name to Dan, Sharon, or another teacher. We are a support team, not trained meditation teachers, and we do not offer teaching guidance ourselves.
+
+**Standard response:** Acknowledge the question briefly, explain that support isn't able to answer meditation practice questions directly, and redirect to existing content where our teachers have already answered similar questions — e.g. https://www.meditatehappier.com/faq and topic-specific pages such as https://www.meditatehappier.com/faq/feel-restless-in-meditation. Do not attempt to answer the pedagogy question ourselves, even partially or as a "here's what's generally true" gloss.
+
+If the question was addressed directly to a specific teacher, also briefly note that messages to this mailbox reach the support team rather than the teachers, and we can't pass along individual questions — but the FAQ pages are the closest thing to hearing it from them directly.
