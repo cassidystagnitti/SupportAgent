@@ -217,3 +217,12 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Linear ticket:** N/A
 - **Date added:** 2026-07-23
 - **Date resolved:** N/A (not a bug)
+
+## 13. Meditation Pausing / Freezing / Stopping During Playback (iOS)
+
+- **Status:** Investigating (newly reported)
+- **Platforms:** iOS. Distinct from Entry 1, which is the Android v2 (Hotwire Native) version of this symptom and is already FIXED (released 2026-07-08). Entry 1's "assume Android, don't ask platform" guidance no longer holds now that iOS reports exist — confirm platform when a customer reports playback pausing/stopping when the screen goes dark, since the correct response differs by platform (Android → fixed, update the app; iOS → investigating, no fix yet).
+- **What to tell the customer:** Acknowledge the report, confirm we're looking into it on iOS, and do not promise a fix date or workaround.
+- **Linear ticket:** Not yet filed
+- **Date added:** 2026-07-23
+- **Date resolved:** —
