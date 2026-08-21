@@ -208,3 +208,12 @@ No saved reply currently exists that matches the specific v2-launch bug scripts 
 ## Do Not Ask Customers For Their App Version (added 2026-07-23)
 
 If we have the customer's account, don't ask them to look up or report their app version in a draft reply — support can find this directly from account/admin data. This supersedes any wording elsewhere in this doc (e.g. entries 7 and 8's "ask for platform and app version" scripts) or in other policy docs that instructs asking the customer for their app version as a first step. If the version isn't already present in the context provided to Bert, a human agent should look it up via internal tooling rather than the draft asking the customer directly.
+
+## 12. Cory Muscara Content Removed (Not a Bug)
+
+- **Status:** Not a bug — confirmed product/roster change
+- **Platforms:** All
+- **What to tell the customer:** Cory Muscara is no longer a teacher on Happier Meditation, so his content (including previously popular sessions like his 5-minute sleep meditation) has been removed from the app. This is not a bug, glitch, or side effect of an app update — do not troubleshoot app version or search placement for missing Cory Muscara content. We don't currently have information on where his content is available elsewhere; don't speculate. Acknowledge the disappointment and offer to log it as feedback / recommend alternative content.
+- **Linear ticket:** N/A
+- **Date added:** 2026-07-23
+- **Date resolved:** N/A (not a bug)
