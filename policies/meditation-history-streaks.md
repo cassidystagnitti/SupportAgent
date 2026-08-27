@@ -14,6 +14,7 @@ Covers tickets where a customer reports a missing meditation session, a broken o
 
 - [ ] Account found on contact email (required before any action can be taken)
 - [ ] Which day(s) or session(s) are missing or incorrect — ask the customer if not stated
+- [ ] The calendar day immediately before and after the reported date, checked in admin Mindful Sessions (streak intact)
 - [ ] Platform (iOS or Android) — determines whether Apple Health integration is relevant
 - [ ] Whether the customer has already attempted any troubleshooting (force quit, app update, etc.)
 - [ ] Whether this appears to be a one-time glitch or a recurring/systemic issue
@@ -29,8 +30,9 @@ The customer reports a missing session or broken streak. We manually add the mis
 ### Steps
 
 1. **Identify the missing session(s)** — review the customer's message for the date(s) and approximate duration (if provided). If the customer doesn't specify, ask before taking action: we need at least the date(s) to make the correct edit.
-2. **Manually add the session(s) to their account** — this is done in the backend/admin tooling. Add each missing day with a reasonable session length if one was provided; if not, use a standard duration consistent with what the customer seems to describe.
-3. **Send the confirmation reply** — a short, warm note letting the customer know we've updated their history and what they should now see in the app.
+2. **Check the day before and the day after** — in admin Mindful Sessions, confirm the calendar day immediately before and after the reported date each have a session, so the streak is actually intact. A named date can already be present while a neighbor day is the real break. If a neighbor day is empty and the customer meditates daily, include it in the same fix (add it, or ask if the date is unclear). Do not skip this check even when the named date already has a row. (Taught 2026-08-27 on Diane #320027.)
+3. **Manually add the session(s) to their account** — this is done in the backend/admin tooling. Add each missing day with a reasonable session length if one was provided; if not, use a standard duration consistent with what the customer seems to describe.
+4. **Send the confirmation reply** — a short, warm note letting the customer know we've updated their history and what they should now see in the app.
 
 ### Confirmation reply template
 
@@ -49,6 +51,7 @@ Happier Meditation Support Team
 
 - **Customer provides a date range instead of a single day:** Add each day individually. Confirm the range in the reply (e.g., "I've added back the sessions for March 3–5").
 - **Customer doesn't know the exact date:** Ask in a brief reply before making any edits. Don't guess — an incorrect edit is harder to undo than a one-question follow-up.
+- **Named date already has a session:** Still check the day before and the day after before sending. The streak break may be a neighbor day.
 - **Streak shows the wrong number but all sessions appear to be in history:** This may be a display bug rather than a missing session. Acknowledge, investigate whether the count matches the actual sessions, and escalate to support engineering if the data looks correct but the counter is wrong.
 - **Android user:** Same process — manually add the session(s). Apple Health is not available on Android; do not suggest it.
 - **iOS user, recurring issue:** If the customer has reported the same glitch more than once, offer Apple Health integration as a fallback after fixing the current instance. See Apple Health section below.
