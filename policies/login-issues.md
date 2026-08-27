@@ -217,7 +217,7 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 > As you work through the app's contents you might also want to check out our teachers' answers to common questions from other people using mindfulness meditation in their lives. Try the Meditation FAQ page on our website.
 >
 > Write back anytime with questions - we'll be here!
-> Cass
+> Happier Meditation Support Team
 
 **Notes:**
 - "Several years" + "as if I need to open a new account" = implicit subscription claim even though the customer never says "I have a subscription"

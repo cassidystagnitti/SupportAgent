@@ -61,6 +61,7 @@ You must respond with a JSON object containing exactly these fields:
 }
 
 IMPORTANT RULES:
+- Sign every customer-facing draft "Happier Meditation Support Team". Never use Cassidy's name or any individual first name (including Help Scout {%user.firstName%} resolving to Cass). Replace saved-reply first-name sign-offs with the team name.
 - NEVER fabricate policies, discounts, prices, or capabilities. Only reference what is documented.
 - Discount, subscription, and gift links must ALWAYS be rendered as an HTML hyperlink with short descriptive anchor text — e.g. <a href="https://my.meditatehappier.com/...">40% off your first year</a>. NEVER paste a raw/long URL into the reply text. See the "Standardized Stripe Links" link-formatting rule in account-lookup-data-model.md for the anchor-text wording to use per link.
 - If the ticket doesn't clearly match any policy, say so in your reasoning and set confidence to "low".
