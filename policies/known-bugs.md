@@ -13,7 +13,7 @@ This doc is the **single source of truth for current bugs and product status** a
 
 - **Ticket signals:** customer reports something broken, missing, frozen, unresponsive, or changed unexpectedly after the app update; customer asks "is this a known issue?"; customer reports a bug that matches one of the entries below
 - **Account signals:** none required — these are app-level issues that occur regardless of subscription state
-- **Keywords / phrases:** "freezing," "frozen," "spinning," "won't respond," "broken," "not working," "reset," "missing," "disappeared," "white screen," "new app," "update," "glitch," "bug," "since the update"
+- **Keywords / phrases:** "freezing," "frozen," "spinning," "won't respond," "broken," "not working," "reset," "missing," "disappeared," "white screen," "new app," "update," "glitch," "bug," "since the update," "Shortcuts," "Siri," "Play a Sleep Meditation"
 
 # Required Context
 
@@ -226,3 +226,13 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Linear ticket:** Not yet filed
 - **Date added:** 2026-07-23
 - **Date resolved:** —
+
+## 14. iOS Shortcuts “Play a Sleep Meditation” Action Broken (v2)
+
+- **Status:** Investigating (newly reported). Regression after the iOS v2 rebuild; Help Scout ticket 320046. Internal note filed this as Linear **T-1697** (assigned Lynn Hurley; described as a regression from T-911). Support’s Linear API key currently only sees the Prod Prioritization team, so T-1697 cannot be re-opened from that key — do not file a duplicate on team P.
+- **Platforms:** iOS (reported on app `2026.817.1` / v2 rebuild). Apple Shortcuts action “Play a Sleep Meditation,” including as a standalone action.
+- **What to tell the customer:** This is not an intentional removal. The iOS app recently went through a major rebuild, and that timing lines up with the Shortcuts action stopping. We’ve flagged it to engineering. Do not promise a fix date. Sleep meditations still play from the Sleep tab inside the app; acknowledge that is not the one-tap shortcut they built. Nothing more they need to do on their end. Do not ask them for app version if we already have account/ticket data.
+- **Linear ticket:** T-1697
+- **Date added:** 2026-08-27
+- **Date resolved:** —
+
