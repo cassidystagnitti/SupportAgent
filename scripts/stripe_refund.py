@@ -13,14 +13,17 @@ Checks enforced in code (not prompt):
     the dispute in the Stripe dashboard per policies/refund-policy.md).
   * It has never been refunded, not even partially (any amount_refunded > 0 →
     refuse, human review). The only sanctioned partial refund is the Path-2
-    retroactive 40% discount (policies/renewal-discount-requests.md) —
-    scripts/stripe_path2_refund.py; this one is full refunds only.
+    retroactive 40% discount (policies/renewal-discount-requests.md) — a
+    SEPARATE future script; this one is full refunds only.
   * The refund window is computed from the charge's `created` timestamp
-    against the plan interval of the subscription the charge paid for:
-    30 days (annual) / 24 hours (monthly). --boundary-grace extends it by
+    to when the customer emailed support (first customer thread on the
+    Help Scout conversation), against the plan interval of the subscription
+    the charge paid for: 30 days (annual) / 24 hours (monthly). Running the
+    script later does not burn the window. --boundary-grace extends it by
     exactly 1 day / 1 hour — the policy's "be generous at the boundary" rule,
     never more. If the interval cannot be determined (one-off/gift charge,
-    no linked subscription), refuse — human review.
+    no linked subscription), refuse — human review. --conversation-id is
+    required so the email timestamp is read from Help Scout, not guessed.
   * Full amount only: Refund.create is called WITHOUT an `amount` param, so
     Stripe refunds the charge in full. Hard cap: any charge over $120.00
     (12000 cents) is refused as anomalous (annual is $99.99).
@@ -53,9 +56,10 @@ Safety:
   * Every apply appends an audit line to data/stripe_action_log.jsonl.
 
 Usage:
-    # dry run — inspect and print the plan, no writes possible:
-    python3 scripts/stripe_refund.py cus_ABC123
-    python3 scripts/stripe_refund.py cus_ABC123 --charge-id ch_XYZ789
+    # dry run — inspect and print the plan, no writes possible.
+    # --conversation-id is required so the window uses when they emailed:
+    python3 scripts/stripe_refund.py cus_ABC123 --conversation-id 3429285444
+    python3 scripts/stripe_refund.py cus_ABC123 --charge-id ch_XYZ789 --conversation-id 3429285444
 
     # the Finish Now combo, executed (both env gates must be set):
     python3 scripts/stripe_refund.py cus_ABC123 --and-cancel-now --apply --conversation-id 3390548887
@@ -89,7 +93,10 @@ CUSTOMER_ID_RE = re.compile(r"^cus_[A-Za-z0-9]+$")
 CHARGE_ID_RE = re.compile(r"^ch_[A-Za-z0-9]+$")
 
 # Refund windows per plan interval, measured from the charge `created`
-# timestamp (policies/refund-policy.md): 30 days annual, 24 hours monthly.
+# timestamp to the first customer email on the Help Scout ticket
+# (policies/refund-policy.md): 30 days annual, 24 hours monthly.
+# Wall-clock "now" is not the cutoff — processing delay must not refuse
+# an in-window email.
 WINDOW_SECONDS = {"year": 30 * 86400, "month": 24 * 3600}
 # --boundary-grace adds exactly one more day/hour — the policy's "be generous
 # at the boundary" rule (day 30 / hour 24). Never more than that.
@@ -146,6 +153,77 @@ def _fmt_age(seconds: int | float) -> str:
     return f"{seconds / 3600:.1f} hours"
 
 
+
+def _parse_iso_ts(value: str | None) -> int | None:
+    """Unix seconds from a Help Scout ISO-8601 timestamp."""
+    if not value:
+        return None
+    value = value.strip()
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    try:
+        return int(datetime.fromisoformat(value).timestamp())
+    except ValueError:
+        return None
+
+
+def first_customer_email_ts(conversation_id: str) -> int:
+    """When the customer first emailed on this Help Scout conversation.
+
+    policies/refund-policy.md gates the window on "emailed support within
+    30 days / 24 hours of the charge," not on when Bert runs this script.
+    """
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    app_id = os.getenv("HELPSCOUT_APP_ID", "").strip()
+    secret = os.getenv("HELPSCOUT_APP_SECRET", "").strip()
+    if not app_id or not secret:
+        raise RuntimeError(
+            "HELPSCOUT_APP_ID and HELPSCOUT_APP_SECRET are required to measure "
+            "the refund window from the ticket (when the customer emailed)."
+        )
+    token_body = urllib.parse.urlencode(
+        {"grant_type": "client_credentials", "client_id": app_id, "client_secret": secret}
+    ).encode()
+    token_req = urllib.request.Request(
+        "https://api.helpscout.net/v2/oauth2/token",
+        data=token_body,
+        method="POST",
+    )
+    with urllib.request.urlopen(token_req, timeout=20) as resp:
+        token = json.loads(resp.read().decode())["access_token"]
+    conv_req = urllib.request.Request(
+        f"https://api.helpscout.net/v2/conversations/{conversation_id}?embed=threads",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urllib.request.urlopen(conv_req, timeout=30) as resp:
+            conv = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(
+            f"Help Scout conversation {conversation_id} could not be loaded "
+            f"(HTTP {e.code}) — cannot measure the emailed-at refund window."
+        ) from e
+    times: list[int] = []
+    for thread in (conv.get("_embedded") or {}).get("threads") or []:
+        if thread.get("type") == "customer":
+            ts = _parse_iso_ts(thread.get("createdAt"))
+            if ts is not None:
+                times.append(ts)
+    if not times:
+        ts = _parse_iso_ts(conv.get("createdAt"))
+        if ts is not None:
+            times.append(ts)
+    if not times:
+        raise RuntimeError(
+            f"Help Scout conversation {conversation_id} has no customer-email "
+            "timestamp — cannot measure the refund window."
+        )
+    return min(times)
+
+
 def _schedule_info(sub: Any) -> dict[str, Any] | None:
     """Normalize the sub's schedule (expanded object or bare id) to a dict."""
     schedule = _g(sub, "schedule")
@@ -193,7 +271,7 @@ def check_charge(charge: Any, customer_id: str) -> str | None:
             f"charge {charge_id} already carries a partial refund "
             f"({_fmt_amount(amount_refunded, currency)} of {_fmt_amount(amount, currency)}) — human review. "
             "The only sanctioned partial refund is the Path-2 retroactive 40% discount "
-            "(policies/renewal-discount-requests.md / scripts/stripe_path2_refund.py), never this one."
+            "(policies/renewal-discount-requests.md), which is a separate script, never this one."
         )
 
     if amount > REFUND_CAP_CENTS:
@@ -298,7 +376,7 @@ def check_window(
     boundary_grace: bool = False,
     now_ts: int | None = None,
 ) -> dict[str, Any]:
-    """Apply the refund window to a charge age. All math from Stripe timestamps."""
+    """Apply the refund window. `now_ts` is when the customer emailed support, not wall clock."""
     now = now_ts if now_ts is not None else _now_ts()
     age = max(0, now - (charge_created or 0))
     limit = WINDOW_SECONDS[interval]
@@ -600,7 +678,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--apply", action="store_true", help="Execute the refund (default: dry run)")
     parser.add_argument(
         "--conversation-id",
-        help="Help Scout conversation this action serves (required with --apply)",
+        help="Help Scout conversation (required): window is first customer email on this ticket, not run time",
     )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     args = parser.parse_args(argv)
@@ -617,10 +695,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {args.charge_id!r} is not a Stripe charge ID (ch_…).", file=sys.stderr)
         return emit({"status": "error", "reason": "invalid charge id"}, 2)
 
+    if not args.conversation_id:
+        print(
+            "ERROR: --conversation-id is required so the refund window uses when the "
+            "customer emailed support, not when this script runs.",
+            file=sys.stderr,
+        )
+        return emit({"status": "error", "reason": "missing conversation id"}, 2)
     if args.apply:
-        if not args.conversation_id:
-            print("ERROR: --apply requires --conversation-id (every write is tied to a ticket).", file=sys.stderr)
-            return emit({"status": "error", "reason": "missing conversation id"}, 2)
         ok, why = write_gates_ok()
         if not ok:
             print(f"ERROR: action execution disabled — {why}.", file=sys.stderr)
@@ -682,7 +764,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"\nREFUSED: {reason}", file=sys.stderr)
             return emit({"status": "refused", "reason": reason, "charge_id": charge_id}, 2)
 
-        window = check_window(interval, _g(charge, "created"), args.boundary_grace)
+        emailed_ts = first_customer_email_ts(args.conversation_id)
+        print(
+            f"  customer emailed {_fmt_datetime(emailed_ts)} "
+            f"(window clock = Help Scout first customer thread, not now)"
+        )
+        window = check_window(
+            interval, _g(charge, "created"), args.boundary_grace, now_ts=emailed_ts
+        )
         if not window["ok"]:
             reason = (
                 f"{window['verdict']}. No refund — cancel at next renewal only "
