@@ -82,6 +82,13 @@ Trial Status: (no account)
 
 Reference doc for the account lookup data blob returned by the Happier API. This is the canonical source of customer state for the AI — every policy that depends on "is the customer subscribed," "what platform are they on," or "are they in trial" should reference these fields. **`Subscription Platform` is the primary signal for routing migration vs. modify-on-our-end action classification.**
 
+## Source of truth for billing state (taught 2026-08-27, Jennifer #320067)
+
+**Do not trust the Happier admin subscription page for billing state; it can be wrong.**
+
+Read subscribed / platform / expiration / auto-renew from the **Help Scout ticket right-sidebar widget** (the account lookup blob this doc describes). That widget is the source of truth. If admin and the widget disagree, believe the widget, not admin.
+
+
 # Trigger Conditions
 
 This doc is reference material, not a ticket-resolution policy. It's pulled as supporting context whenever the AI needs to interpret account data to apply a policy.
