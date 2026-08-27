@@ -75,6 +75,8 @@ There are three ways tickets get worked:
 The webhook auto-trigger (`webhook_server.py`) and the MavenAGI draft engine were sunset
 2026-07-14 (see docs/superpowers/specs/2026-07-14-hs-sidebar-chat-design.md).
 
+**Triage before answering (mailbox 1. Happier Support, taught 2026-08-27):** Do not reply from Unassigned. Open any conversation so the right-sidebar apps load, then click **Triage Tickets**. Wait for "Triage started!" (if it says a run is already in progress, wait — do not click twice). The run classifies **all Unassigned**: tags, one team, priority P1–P3, tier T1–T3. Spam is tagged `spam` and moved to Spam; everything else is assigned to a team and leaves Unassigned. Then work tickets from Assigned or the matching team folder. This also runs automatically at 8:30 AM ET. CLI equivalent: `python3 triage_tickets.py -y` (default is all unassigned in the first mailbox).
+
 ## Pipeline Flow (draft brain, shared by both interfaces)
 
 ```
