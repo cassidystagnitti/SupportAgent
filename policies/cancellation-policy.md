@@ -97,6 +97,13 @@ Bert executes Stripe cancel-at-period-end itself with the first Stripe write ski
 - The normal do-not-auto-send conditions below still override (refund component, claims of being charged after cancelling, escalating frustration, app-quality complaint combos) — execution removes the ACTION barrier, not the judgment barriers.
 - If the script **refused**, the ticket stays a human-action (note) or escalation ticket per the refusal reason. Never auto-send a reply claiming a cancellation that wasn't executed.
 
+## After sending
+
+Leave the conversation **closed**. Help Scout auto-reopens it if the customer replies (for example to take the 40% stay-on offer). If they don't reply, they were all set and the ticket should stay closed. Do not reopen a sent cancel confirmation to wait on the offer.
+
+Help Scout has no Mailbox API for deleting a thread. If sending leaves a leftover draft (for example a Cass-signed duplicate from a first pass), delete it in the Help Scout UI. If the UI is not available, overwrite that leftover draft in place with a do-not-send stub via PATCH `{"op": "replace", "path": "/text", "value": "..."}` so it cannot be published later.
+
+
 # Action Classification
 
 ## No Action Required (reply only)
