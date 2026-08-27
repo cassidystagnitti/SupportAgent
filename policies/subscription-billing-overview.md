@@ -13,7 +13,7 @@ This doc is rarely the sole match for a ticket — it's pulled as supporting con
 
 # Required Context
 
-Before applying provider-specific guidance, the AI must determine:
+Before applying provider-specific guidance, the AI must determine billing state from the **Help Scout ticket right-sidebar widget**, not the Happier admin subscription page (admin can be wrong; taught 2026-08-27 on Jennifer #320067):
 
 - [ ]  Which payment provider the customer is on: **Stripe**, **Apple**, **Google Play, or Free(complimentary)**
 - [ ]  Plan type: **annual** or **monthly**
