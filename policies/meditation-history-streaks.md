@@ -41,7 +41,8 @@ I've gone ahead and updated your meditation history — you should now see {date
 
 Give the app a quick refresh if you don't see the update right away. Let us know if anything still looks off and we'll take another look!
 
-{agentFirstName}
+Take care,
+Happier Meditation Support Team
 ```
 
 ## Variations
