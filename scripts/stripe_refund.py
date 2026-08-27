@@ -13,8 +13,8 @@ Checks enforced in code (not prompt):
     the dispute in the Stripe dashboard per policies/refund-policy.md).
   * It has never been refunded, not even partially (any amount_refunded > 0 →
     refuse, human review). The only sanctioned partial refund is the Path-2
-    retroactive 40% discount (policies/renewal-discount-requests.md) — a
-    SEPARATE future script; this one is full refunds only.
+    retroactive 40% discount (policies/renewal-discount-requests.md) —
+    scripts/stripe_path2_refund.py; this one is full refunds only.
   * The refund window is computed from the charge's `created` timestamp
     against the plan interval of the subscription the charge paid for:
     30 days (annual) / 24 hours (monthly). --boundary-grace extends it by
@@ -193,7 +193,7 @@ def check_charge(charge: Any, customer_id: str) -> str | None:
             f"charge {charge_id} already carries a partial refund "
             f"({_fmt_amount(amount_refunded, currency)} of {_fmt_amount(amount, currency)}) — human review. "
             "The only sanctioned partial refund is the Path-2 retroactive 40% discount "
-            "(policies/renewal-discount-requests.md), which is a separate script, never this one."
+            "(policies/renewal-discount-requests.md / scripts/stripe_path2_refund.py), never this one."
         )
 
     if amount > REFUND_CAP_CENTS:

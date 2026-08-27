@@ -60,7 +60,7 @@ Defines refund eligibility windows for Stripe and Google Play subscriptions, and
 
 # Bert Execution: Full Refund (Stripe) — added 2026-07-22
 
-Bert executes full Stripe refunds itself (`scripts/stripe_refund.py`). **Use it starting immediately** for eligible Stripe refund tickets during the morning review or a sidebar session. The refund is always the FULL charge amount; the only sanctioned partial refund remains *Renewal Discount Requests* Path 2 (separate skill, not yet built — still a human action).
+Bert executes full Stripe refunds itself (`scripts/stripe_refund.py`). **Use it starting immediately** for eligible Stripe refund tickets during the morning review or a sidebar session. The refund is always the FULL charge amount; the only sanctioned partial refund is *Renewal Discount Requests* Path 2, which Bert executes via `scripts/stripe_path2_refund.py`.
 
 ## Pre-flight: check eligibility BEFORE running the script
 
@@ -84,7 +84,7 @@ The script refuses (exit 2) rather than guessing. **Each refusal reason tells yo
 
 | Refusal | Meaning | Draft response | Remaining action |
 |---|---|---|---|
-| `PAST the 30-day annual refund window` | ineligible, firm | Past-window decline + offer cancel at next renewal (`CancelRefund StripeRefund ProRatedRefundRequested FILLIN` if they asked pro-rated). **Check first:** recent full-price renewal → *Renewal Discount Requests* Path 2 (40% partial refund) may apply instead | none, or Path-2 human note |
+| `PAST the 30-day annual refund window` | ineligible, firm | Past-window decline + offer cancel at next renewal (`CancelRefund StripeRefund ProRatedRefundRequested FILLIN` if they asked pro-rated). **Check first:** recent full-price renewal → *Renewal Discount Requests* Path 2 via `scripts/stripe_path2_refund.py` | none, or Path-2 script |
 | `PAST the 24-hour monthly refund window` | ineligible, firm | Same decline with monthly framing; offer cancel at next renewal | none |
 | past the window *but within grace* (day 30–31 / hour 24–25) | boundary case | Policy says be generous — rerun with `--boundary-grace` | rerun |
 | `is DISPUTED` | active chargeback | `CancelRefund StripeRefund ChargeDisputed`; no refund on top | human: accept dispute in dashboard |

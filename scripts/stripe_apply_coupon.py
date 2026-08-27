@@ -10,7 +10,7 @@ rate. This covers the coupon-application paths of policies/renewal-discount-requ
   * Forever / ongoing discount → `--forever`: discounts every future renewal.
 
 It does NOT do the Path-2 retroactive partial refund (that rides on a charge,
-not the subscription — a separate future skill), and it is annual-only:
+not the subscription — scripts/stripe_path2_refund.py), and it is annual-only:
 monthly discount requests are a different policy (policies/monthly-discount-requests.md).
 
 Checks enforced in code (not prompt):
