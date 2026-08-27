@@ -13,7 +13,7 @@ This doc is the **single source of truth for current bugs and product status** a
 
 - **Ticket signals:** customer reports something broken, missing, frozen, unresponsive, or changed unexpectedly after the app update; customer asks "is this a known issue?"; customer reports a bug that matches one of the entries below
 - **Account signals:** none required — these are app-level issues that occur regardless of subscription state
-- **Keywords / phrases:** "freezing," "frozen," "spinning," "won't respond," "broken," "not working," "reset," "missing," "disappeared," "white screen," "new app," "update," "glitch," "bug," "since the update," "Shortcuts," "Siri," "Play a Sleep Meditation"
+- **Keywords / phrases:** "freezing," "frozen," "spinning," "won't respond," "broken," "not working," "reset," "missing," "disappeared," "white screen," "new app," "update," "glitch," "bug," "since the update," "Shortcuts," "Siri," "Play a Sleep Meditation," "auto-lock," "screen stays on," "screen stays lit," "sleep meditation"
 
 # Required Context
 
@@ -233,6 +233,15 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Platforms:** iOS (reported on app `2026.817.1` / v2 rebuild). Apple Shortcuts action “Play a Sleep Meditation,” including as a standalone action.
 - **What to tell the customer:** This is not an intentional removal. The iOS app recently went through a major rebuild, and that timing lines up with the Shortcuts action stopping. We’ve flagged it to engineering. Do not promise a fix date. Sleep meditations still play from the Sleep tab inside the app; acknowledge that is not the one-tap shortcut they built. Nothing more they need to do on their end. Do not ask them for app version if we already have account/ticket data.
 - **Linear ticket:** T-1697
+- **Date added:** 2026-08-27
+- **Date resolved:** —
+
+## 15. iOS Screen Stays On During Meditation / Auto-Lock Never Returns (v2)
+
+- **Status:** Investigating. Cassidy reproduced on her device 2026-08-27. Help Scout ticket 320168. Linear **T-1760**. Related to T-700 (keep-screen-awake during playback), which likely overshot for sleep sessions.
+- **Platforms:** iOS (reported on app `2026.817.1` / v2 rebuild). Device auto-lock is set (e.g. 4 minutes) but the screen stays lit for the whole meditation, especially sleep sessions.
+- **What to tell the customer:** This is a bug, not something they did. We cannot restore a previous App Store version. We've flagged it to engineering and we'll get it fixed as soon as we can. They can still lock the phone with the side button if they want the room dark while audio continues. Do not promise a date. Do not ask for app version if we already have it. Distinct from entry 13 (playback pausing when the screen *does* lock).
+- **Linear ticket:** T-1760
 - **Date added:** 2026-08-27
 - **Date resolved:** —
 
