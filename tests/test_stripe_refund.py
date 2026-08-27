@@ -165,6 +165,16 @@ def test_annual_grace_is_exactly_one_day():
     assert "even with the 1-day boundary grace" in w["verdict"]
 
 
+
+
+def test_monthly_window_uses_email_time_not_run_time():
+    """Policy: emailed within 24h of the charge, even if Bert runs days later."""
+    charge_created = NOW - hours(19)
+    emailed_at = NOW  # 19 hours after the charge
+    run_days_later = NOW + days(2)
+    assert sr.check_window("month", charge_created, now_ts=emailed_at)["ok"]
+    assert not sr.check_window("month", charge_created, now_ts=run_days_later)["ok"]
+
 def test_monthly_23_hours_within_window():
     w = sr.check_window("month", NOW - hours(23), boundary_grace=False, now_ts=NOW)
     assert w["ok"] and not w["used_grace"]
