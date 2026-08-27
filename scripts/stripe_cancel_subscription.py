@@ -27,6 +27,8 @@ customer wants to stop renewing; the dry-run plan calls this out loudly).
 
 Safety:
   * Dry-run by default; nothing is mutated unless --apply is passed.
+  * Skip the dry-run when hydrate already showed exactly one eligible
+    renewing Stripe sub — --apply re-runs the same eligibility checks.
   * --apply requires BOTH env gates: STRIPE_WRITE_API_KEY and
     ACTION_EXECUTION_ENABLED=true (same contract as action_executor.execute),
     plus --conversation-id so every write is tied to a Help Scout ticket.
@@ -34,7 +36,7 @@ Safety:
   * Every apply appends an audit line to data/stripe_action_log.jsonl.
 
 Usage:
-    # dry run — inspect and print the plan, no writes possible:
+    # dry run — only when hydrate is missing/ambiguous; no writes:
     python3 scripts/stripe_cancel_subscription.py cus_ABC123
 
     # execute (both env gates must be set):

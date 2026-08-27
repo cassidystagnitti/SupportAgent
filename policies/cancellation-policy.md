@@ -71,9 +71,12 @@ Bert executes Stripe cancel-at-period-end itself with the first Stripe write ski
 
 ## How to run it
 
-1. **Dry-run first** (read-only, always safe): `python3 scripts/stripe_cancel_subscription.py <cus_…> --json` — prints the classification of every subscription on the customer and the exact plan (subscription id, access-continues-through date, schedule release, trial/discount notes).
-2. **Review the plan**, then **apply**: `python3 scripts/stripe_cancel_subscription.py <cus_…> --apply --conversation-id <HS id> --json`. Every apply requires the env gates (`STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED=true`) and appends an audit line to `data/stripe_action_log.jsonl`.
-3. Outcomes: `applied` (auto-renew turned off), `already_off` (idempotent no-op — customer was already set; use the "already off" confirm reply), or `refused` (see below).
+`--apply` re-runs the same eligibility checks as a dry-run, so a second Stripe read is wasted when we already have a clean picture of the subscription.
+
+1. **Skip the dry-run** when hydrate (Help Scout sidebar / Maven / `hydrate_ticket`) already shows **exactly one** Stripe subscription that is active or trialing and set to renew, and we have the `cus_` id. Go straight to apply.
+2. **Dry-run first** only when hydrate is missing, ambiguous, shows multiple subs, dunning, a schedule we have not inspected, or we do not have a `cus_` yet: `python3 scripts/stripe_cancel_subscription.py <cus_…> --json` — prints the classification of every subscription and the exact plan (subscription id, access-continues-through date, schedule release, trial/discount notes).
+3. **Apply**: `python3 scripts/stripe_cancel_subscription.py <cus_…> --apply --conversation-id <HS id> --json`. Every apply requires the env gates (`STRIPE_WRITE_API_KEY` + `ACTION_EXECUTION_ENABLED=true`) and appends an audit line to `data/stripe_action_log.jsonl`.
+4. Outcomes: `applied` (auto-renew turned off), `already_off` (idempotent no-op — customer was already set; use the "already off" confirm reply), or `refused` (see below).
 
 ## Eligibility (enforced in code — the script refuses rather than guessing)
 

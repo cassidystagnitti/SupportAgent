@@ -118,6 +118,8 @@ def cancel_subscription(
         }
 
     try:
+        # One Stripe read: classify then execute. Do not dry-run via CLI first
+        # when hydrate already showed a single eligible sub.
         cancel_script._configure_stripe_key(apply=True)
         customer = cancel_script._fetch_customer(customer_id)
         raw_subs = cancel_script._fetch_subscriptions(customer_id)
