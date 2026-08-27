@@ -77,6 +77,8 @@ The webhook auto-trigger (`webhook_server.py`) and the MavenAGI draft engine wer
 
 **Triage before answering (mailbox 1. Happier Support, taught 2026-08-27):** Do not reply from Unassigned. Open any conversation so the right-sidebar apps load, then click **Triage Tickets**. Wait for "Triage started!" (if it says a run is already in progress, wait — do not click twice). The run classifies **all Unassigned**: tags, one team, priority P1–P3, tier T1–T3. Spam is tagged `spam` and moved to Spam; everything else is assigned to a team and leaves Unassigned. Then work tickets from Assigned or the matching team folder. This also runs automatically at 8:30 AM ET. CLI equivalent: `python3 triage_tickets.py -y` (default is all unassigned in the first mailbox).
 
+**Dan Harris / Tenpercent spam (taught 2026-08-27):** Anything addressed to or intended for Dan Harris or unsolicited Tenpercent outreach that is not subscriber support is spam — mark the conversation status as spam, do not reply, do not forward. See `policies/non-support-requests.md` for details.
+
 ## Pipeline Flow (draft brain, shared by both interfaces)
 
 ```

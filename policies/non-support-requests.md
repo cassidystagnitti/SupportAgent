@@ -2,13 +2,14 @@
 
 # Summary
 
-Covers inbound messages to the support mailbox that are not support requests at all — podcast or guest pitches, partnership proposals, press inquiries, influencer/collaboration outreach, cold sales pitches, and spam. These are not routed through triage/account/policy resolution like a customer issue; the goal is simply to close the loop appropriately. Standard categories (podcast, partnership, press, influencer/collab) get a polite one-paragraph decline and the conversation is closed. Cold sales and spam get tagged and closed with no reply at all. Genuine major-press or significant-partner inquiries are the one exception — those go to human review rather than an auto-sent decline, since a real press or partnership opportunity is a business decision, not a support decision.
+Covers inbound messages to the support mailbox that are not support requests at all — podcast or guest pitches, partnership proposals, press inquiries, influencer/collaboration outreach, cold sales pitches, and spam. These are not routed through triage/account/policy resolution like a customer issue; the goal is simply to close the loop appropriately. Standard categories (podcast, partnership, press, influencer/collab) addressed to Happier Meditation support get a polite one-paragraph decline and the conversation is closed. Messages to Dan Harris or unsolicited Tenpercent outreach (not subscriber support), cold sales, and general spam get tagged as spam and closed with no reply at all. Genuine major-press or significant-partner inquiries are the one exception — those go to human review rather than an auto-sent decline, since a real press or partnership opportunity is a business decision, not a support decision.
 
 # Trigger Conditions
 
 - **Ticket signals:** message is not about the customer's own account, subscription, or app experience; sender is pitching something to Happier Meditation rather than asking for help; message reads as outreach, a proposal, or promotional content addressed to "the team," "marketing," or a named business contact rather than support
 - **Account signals:** none required — these are typically not existing customers, and account lookup is not relevant to the response
 - **Keywords / phrases:**
+  - **Messages to Dan Harris or Tenpercent (SPAM):** anything addressed to, intended for, or sent to Dan Harris — podcast pitches for Dan's 10% Happier podcast, partnership/sales outreach to Dan, messages beginning "Hey Dan" or "Dear Dan," To/CC to dan@danharris.com, dj@danharris.com, podcast@tenpercent.com, or press@tenpercent.com when the message is for Dan rather than subscriber support; also unsolicited outreach to Tenpercent that is not subscriber support — author/book spotlight invitations, booking invites, similar partnership/sales pitches addressed to Tenpercent or the 10% Happier brand
   - **Podcast/guest pitch:** "podcast," "guest," "interview," "would love to have someone from your team on," "feature you on our show"
   - **Partnership:** "partnership," "partner with us," "collaborate," "integration," "affiliate," "B2B," "corporate wellness program"
   - **Press:** "journalist," "writing an article," "press inquiry," "media request," "quote for a story," "on background," "deadline" (in a media context)
@@ -17,7 +18,8 @@ Covers inbound messages to the support mailbox that are not support requests at 
 
 # Required Context
 
-- [ ] Which category the message falls into: podcast/guest, partnership, press, influencer/collab, cold sales, or spam
+- [ ] Which category the message falls into: Dan Harris / Tenpercent spam, podcast/guest, partnership, press, influencer/collab, cold sales, or general spam
+- [ ] Whether the message is addressed to or intended for Dan Harris or Tenpercent (vs. Happier Meditation support)
 - [ ] Whether the sender appears to represent a **major** outlet, publication, platform, or organization, or a **significant** potential partner (vs. a small/unknown outfit or individual)
 - [ ] Whether the message contains any actual customer support question mixed in (changes handling — see Edge Cases)
 
@@ -31,7 +33,8 @@ Covers inbound messages to the support mailbox that are not support requests at 
 
 ## Variations
 
-- **Podcast or guest pitch:** One-paragraph decline, close. No forwarding needed unless the pitch is from a notably large or relevant outlet (see Escalation Triggers). If the pitch is clearly aimed at Dan Harris's **10% Happier** podcast (we don't run a podcast), the decline should not imply the show is ours — run `bert-disambiguate-10-percent` (see *Happier vs. 10% Happier*) if it's unclear which show or product the sender means.
+- **Messages to Dan Harris or unsolicited Tenpercent outreach (SPAM):** Do not reply. Do not forward to Dan or internal teams. Set the Help Scout conversation status to spam. Drop the `bert-working` tag if present. This covers: (a) anything addressed to or intended for Dan Harris — podcast pitches, partnership/sales outreach to Dan, "Hey Dan" messages, To/CC to dan@danharris.com, dj@danharris.com, podcast@tenpercent.com, or press@tenpercent.com when the message is for Dan rather than subscriber support; and (b) unsolicited outreach to Tenpercent that is not subscriber support — author/book spotlight invitations, booking invites, similar partnership/sales pitches. **Important exception:** A real subscriber support request that happens to mention the podcast or Dan Harris is NOT spam — handle it under the relevant support policy. (Taught 2026-08-27 on Hala Taha Help Scout #320143 / cid 3431085527 and Deborah Shariff Help Scout #320150 / cid 3431179354.)
+- **Podcast or guest pitch (addressed to Happier Meditation, not Dan/Tenpercent):** One-paragraph decline, close. No forwarding needed unless the pitch is from a notably large or relevant outlet (see Escalation Triggers). If the pitch is clearly aimed at Dan Harris's **10% Happier** podcast (we don't run a podcast), the decline should not imply the show is ours — run `bert-disambiguate-10-percent` (see *Happier vs. 10% Happier*) if it's unclear which show or product the sender means.
 - **Partnership proposal (small business, unclear fit, generic B2B pitch):** One-paragraph decline, close.
 - **Press inquiry (small or unclear outlet):** One-paragraph decline, close. Do not provide quotes, statements, or company information without human sign-off even for a "small" inquiry — the decline itself is safe to send, but never substitute a real answer to their question in place of the decline.
 - **Influencer/collab pitch:** One-paragraph decline, close. Do not offer promo codes, free subscriptions, or affiliate terms — that's a business decision outside support's scope.
@@ -55,8 +58,8 @@ Covers inbound messages to the support mailbox that are not support requests at 
 
 ## Human Action Required
 
-- **Action:** Tag and close with no reply.
-- **When:** Cold sales pitch or spam.
+- **Action:** Tag as spam and close with no reply.
+- **When:** Messages to Dan Harris or Tenpercent (not subscriber support), cold sales pitch, or general spam.
 - **Why AI can't do it alone:** Tagging conventions and mailbox close actions should follow the team's existing tagging taxonomy; confirm the correct tag exists before automating fully.
 
 ## Do Not Auto-Send Conditions
