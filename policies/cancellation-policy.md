@@ -64,6 +64,7 @@ If account data shows auto-renew is already disabled: reply-only confirming they
 - **Customer on Apple is frustrated that we can't help directly:** Acknowledge the limitation and provide clear instructions. If Apple gives them trouble, offer to escalate.
 - **Customer mentions a cancellation error but auto-renew is already off:** Confirm it worked and they're all set. Do not investigate or address the error. Use the appropriate "already off" reply for their platform. Do NOT say the subscription is "set to renew" — it is set to expire. Use "access continues through [date]."
 - **Cancellation request is vague — customer might want a refund:** If the customer's charge is recent enough to qualify for a refund, surface the option. Don't just cancel without checking refund eligibility when intent is unclear (see `CancelRefund StripeCancelOrRefund`).
+- **Teams / org seat-reduction** (cut seats / keep only the billing owner's membership / quantity change on a Teams Annual org plan): Rare. ALWAYS escalate to a human — see *Escalation Policy*. Do not run `stripe_cancel_subscription.py` or any individual cancel; that would cancel the whole org plan. Do not change Stripe quantity yourself. Leave no customer draft. Move on.
 
 # Bert Execution: Cancel at Period End (Stripe) — added 2026-07-22
 
@@ -81,6 +82,7 @@ Bert executes Stripe cancel-at-period-end itself with the first Stripe write ski
 ## Eligibility (enforced in code — the script refuses rather than guessing)
 
 - **Stripe only.** Google Play cancels remain a human action (note); Apple remains self-serve redirect.
+- **Teams / org (volume/tiered) plans are not this skill.** Seat-reduction is a mandatory human escalation, not cancel-at-period-end. Never apply this script to an org plan.
 - Subscription must be **active or trialing** and **set to renew**. Trialing covers real free trials and retention pauses — both cancel cleanly at the trial/extension end.
 - **Dunning (past_due/unpaid) → refused**: policy is IMMEDIATE cancellation for subs stuck in billing retry, which is a different path — handle in the Stripe dashboard (human action note).
 - **Multiple renewing subscriptions → refused**: escalation signal per this policy — do not guess.
@@ -138,6 +140,7 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 ## Escalation Triggers
 
 - **Two or more subscribed accounts found across any email in the ticket** → escalate immediately to support leadership. Do not send any reply.
+- **Teams / org seat-reduction** → escalate immediately. No customer draft. Do not cancel the org subscription or change Stripe quantity. See *Escalation Policy*.
 - **Subscription is in a billing retry period (Stripe unpaid/past_due, dunning in progress)** → do NOT escalate. Cancel the subscription immediately (not at period end) — a sub stuck in retry/unpaid status has already failed to renew, so there is no remaining paid period to preserve access through. Confirm to the customer that the cancellation is effective immediately and that no further charges will be attempted.
 - **Customer claims to have canceled but was still charged** → investigate before replying; may be a billing or system error.
 - **Customer insists on immediate access termination and is escalating** → senior support.

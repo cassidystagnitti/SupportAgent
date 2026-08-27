@@ -12,6 +12,7 @@ Set `escalate: true` and `draft_reply: null` for any of the following situations
 - **Multiple subscribed accounts**: More than one active subscription found across the emails in this ticket (handled automatically by the pipeline — escalate regardless of ticket content)
 - **Extreme distress**: Customer expresses severe emotional distress, crisis language, or is clearly in a very vulnerable state
 - **Sensitive PR risk**: Ticket could become a public complaint or social media issue if handled poorly (e.g., public figure, journalist, or customer explicitly referencing a public platform)
+- **Teams / org seat-reduction**: customer wants to cut seats on a Teams Annual org plan (keep only the billing owner's membership, drop other members, change Stripe quantity). Rare; ALWAYS escalate to a human. Do not draft a customer reply. Do not run individual cancel (that would cancel the whole org plan). Do not change Stripe quantity yourself. Leave no customer draft; move on. (taught 2026-08-27, #320031)
 
 ### Use Judgment to Escalate
 
@@ -33,7 +34,7 @@ When `escalate: true`:
 
 Routine situations that have clear policy coverage should be handled with a draft reply even if they are sensitive:
 - Standard refund requests within policy
-- Cancellation requests
+- Cancellation requests on an individual personal plan (not Teams/org seat-reduction — that always escalates; see above)
 - Apple/Google subscription questions (answer per policy; we cannot take action on their subscriptions)
 - Subscription pricing or discount questions
 - Account lookup failures (follow the No Account Found policy)

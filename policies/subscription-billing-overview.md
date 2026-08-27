@@ -108,6 +108,7 @@ This doc is reference material, not a ticket-resolution policy. Action classific
 ## Escalation Triggers
 
 - **Two or more subscribed accounts found across any email in the ticket** → escalate immediately to support leadership. Do not send any reply.
+- **Teams / org seat-reduction** (cut seats on a Teams Annual org plan, keep only the billing owner's membership, Stripe quantity change) → always escalate to a human. Do not draft. Do not cancel the org plan or change quantity. See *Escalation Policy*.
 
 - Defer to specific policy docs (refunds, chargebacks, etc.) for escalation rules.
 
