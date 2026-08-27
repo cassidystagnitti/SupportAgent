@@ -60,7 +60,7 @@ Defines refund eligibility windows for Stripe and Google Play subscriptions, and
 
 # Bert Execution: Full Refund (Stripe) — added 2026-07-22
 
-Bert executes full Stripe refunds itself (`scripts/stripe_refund.py`). **Use it starting immediately** for eligible Stripe refund tickets during the morning review or a sidebar session. The refund is always the FULL charge amount; the only sanctioned partial refund is *Renewal Discount Requests* Path 2, which Bert executes via `scripts/stripe_path2_refund.py`.
+Bert executes full Stripe refunds itself (`scripts/stripe_refund.py`). **Use it starting immediately** for eligible Stripe refund tickets during the morning review or a sidebar session. The refund is always the FULL charge amount; the only sanctioned partial refund remains *Renewal Discount Requests* Path 2 (separate skill, not yet built — still a human action).
 
 ## Pre-flight: check eligibility BEFORE running the script
 
@@ -68,12 +68,12 @@ Screen from context you already have — don't run the script blind, and never p
 
 1. **Platform must be Stripe.** Apple → redirect reply (we cannot refund). Google Play → human action note.
 2. **Identify the charge.** The Stripe block's last-invoice fields carry the actual charge date and amount; a claimed charge with no matching account → run the charge hunt first (*No Account Found troubleshooting* Step 3).
-3. **Window arithmetic.** Annual = 30 days from the charge, monthly = 24 hours. Obviously outside (months old)? Skip the script — go straight to the past-window decline, and check whether *Renewal Discount Requests* Path 2 (retroactive 40%) applies instead. Near the line or unsure? The script is the authority — dry-run it.
+3. **Window arithmetic.** Annual = 30 days from the charge, monthly = 24 hours, measured to when the customer **emailed support** (first customer thread on the Help Scout ticket) — not when Bert runs the script. A ticket that arrived in-window stays eligible if we process it later. Obviously outside (months old)? Skip the script — go straight to the past-window decline, and check whether *Renewal Discount Requests* Path 2 (retroactive 40%) applies instead. Near the line or unsure? The script is the authority — dry-run it with `--conversation-id`.
 4. **Chargeback mentioned anywhere in the thread** → do not attempt a refund; dispute path (human).
 
 ## How to run it
 
-1. **Dry-run first** (read-only, always safe): `python3 scripts/stripe_refund.py <cus_…> --json` — targets the most recent succeeded charge; add `--charge-id <ch_…>` when the ticket is about a specific charge. The plan shows amount, charge age, window verdict, the linked subscription, and framing notes (e.g. trial-conversion → `CancelRefund StripeRefundTrial`).
+1. **Dry-run first** (read-only, always safe): `python3 scripts/stripe_refund.py <cus_…> --conversation-id <HS id> --json` — targets the most recent succeeded charge; add `--charge-id <ch_…>` when the ticket is about a specific charge. The plan shows amount, charge age (email time minus charge time), window verdict, the linked subscription, and framing notes (e.g. trial-conversion → `CancelRefund StripeRefundTrial`).
 2. **`--and-cancel-now`**: include it by default — refunded customers don't keep access, and most refund requests are "I want out." Omit only when the customer explicitly wants to keep subscribing.
 3. **Apply**: `python3 scripts/stripe_refund.py <cus_…> [--charge-id <ch_…>] --and-cancel-now --apply --conversation-id <HS id> --json`. Same env gates and audit line as the cancel skill. Ordering is refund-first: if the refund fails nothing is canceled; if the cancel leg fails AFTER the refund, the audit line has already recorded the refund — do NOT re-run `--apply`; finish the cancellation in the dashboard.
 4. **`--boundary-grace`** exists only for the day-30–31 / hour-24–25 boundary (the "be generous at the boundary" rule, capped in code at +1 day / +1 hour). Never use it as a general widener.
@@ -84,7 +84,7 @@ The script refuses (exit 2) rather than guessing. **Each refusal reason tells yo
 
 | Refusal | Meaning | Draft response | Remaining action |
 |---|---|---|---|
-| `PAST the 30-day annual refund window` | ineligible, firm | Past-window decline + offer cancel at next renewal (`CancelRefund StripeRefund ProRatedRefundRequested FILLIN` if they asked pro-rated). **Check first:** recent full-price renewal → *Renewal Discount Requests* Path 2 via `scripts/stripe_path2_refund.py` | none, or Path-2 script |
+| `PAST the 30-day annual refund window` | ineligible, firm | Past-window decline + offer cancel at next renewal (`CancelRefund StripeRefund ProRatedRefundRequested FILLIN` if they asked pro-rated). **Check first:** recent full-price renewal → *Renewal Discount Requests* Path 2 (40% partial refund) may apply instead | none, or Path-2 human note |
 | `PAST the 24-hour monthly refund window` | ineligible, firm | Same decline with monthly framing; offer cancel at next renewal | none |
 | past the window *but within grace* (day 30–31 / hour 24–25) | boundary case | Policy says be generous — rerun with `--boundary-grace` | rerun |
 | `is DISPUTED` | active chargeback | `CancelRefund StripeRefund ChargeDisputed`; no refund on top | human: accept dispute in dashboard |
