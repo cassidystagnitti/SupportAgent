@@ -34,7 +34,6 @@ When a customer's latest message is thanking us for content recommendations we j
 ## Edge Cases & Exceptions
 
 - **Message contains thanks AND a new question:** Not thanks-only. Reply under the relevant policy and address the new request.
-- **Message is ambiguous — could be thanks-only or could contain a follow-up ask:** When uncertain, ask a clarifying question rather than closing. Err toward replying if there's any chance the customer expects a response.
 - **Customer reopens after a thanks-only close:** Treat the reopened message as a fresh request under the relevant policy. The thanks-only close was correct; the new message is now the active request.
 
 # Action Classification
@@ -53,12 +52,12 @@ None for standard thanks-only cases. The close is the only action.
 
 ## Escalation Triggers
 
-- None — this is a straightforward close decision. If there's genuine ambiguity about whether a message is thanks-only vs. contains a new request, that ambiguity itself is the signal: do not close; ask for clarification instead.
+- None — this is a straightforward close decision.
 
 # Confidence Notes
 
 - **High confidence areas:** Recognizing simple "thank you" messages with no follow-up question. Distinguishing original context (background) from a new request.
-- **Judgment call areas:** When a thanks message includes elaboration or context that could be interpreted as a new ask. When in doubt, do not close — ask.
+- **Judgment call areas:** When a thanks message includes elaboration or context that could be interpreted as a new ask.
 - **Gaps:** No saved reply exists for this scenario because no reply is sent. This policy governs the close decision only.
 
 # Saved Reply Mapping
