@@ -52,7 +52,7 @@ Do not promise late enrollment, prize eligibility, or exceptions — the window 
 
 Named errors seen in real tickets, before the ladder:
 
-- **"Failed to Join Organization — There was an issue with your unique link."** (in-app; arrives as a "Help joining organization" ticket with pre-filled `Email:`/`Token:` fields) — usually a sign-in mismatch; jump to step 5, using the report's `Email:` line against the registration on file. An `…@privaterelay.appleid.com` value = hidden SIWA account → `Support GlobalAccessLoginSIWA`.
+- **"Failed to Join Organization — There was an issue with your unique link."** (in-app; arrives as a "Help joining organization" ticket with pre-filled `Email:`/`Token:` fields) — usually a sign-in mismatch. **Taught 2026-08-28 (Alexis #316713, same pattern as Aline #316652 / Christopher #316573):** Classify as Global Access if `Challenge:` is blank / no `challenge=` param (`org=apple`). Look up Happier admin Users for **BOTH** the ticket-from email AND the in-app report `Email:` line. If Apple org membership is on **one of those accounts**, send the login reply filled with **that address**: `Support GlobalAccesLoginEmail` (email/Google identity) or `Support GlobalAccessLoginSIWA` if the address is `…@privaterelay.appleid.com`. If **neither account** has Apple org membership (including no user found), send `Support GlobalAccessTapLinkAgain` — do not write a custom mismatch letter; do not claim Wellness-side registration.
 - **"Safari cannot open the page because the address is invalid."** (tapping the link from Mail) — recurring 2026 report with no confirmed root cause yet; run steps 1–3, and flag as a possible deep-link bug if multiple reports cluster.
 
 Work in order; each step maps to a saved reply:
@@ -61,9 +61,10 @@ Work in order; each step maps to a saved reply:
 2. **Link on the iPhone → tap → Open in Happier.** The tap must happen on the same device that has the Happier app.
 3. **Still stuck:** have them **cancel the registration on their Wellness page, then re-register** (tap Register again) to get a fresh link → same reply, `Support GlobalAccessTapLinkAgain`.
 4. **Stuck on the free-trial start page:** there's an **X in the upper corner** — tap it to get straight to the subscription → `Support GlobalAccessTrialStartPage`. Never have a Global Access user start a paid trial or purchase to get in.
-5. **Claimed but app still locked — it's a sign-in mismatch.** Make sure the app is signed into the account Apple Wellness has on file:
+5. **Claimed but app still locked — it's a sign-in mismatch.** **Look up Happier admin Users for BOTH the ticket-from email AND the in-app report `Email:` line (taught 2026-08-28).** If Apple org membership is on one of those accounts, make sure the app is signed into **that account**:
    - Registered by email → sign out (article 51) or Force Quit if half-signed-in, then Sign In → **Sign in with Email** → their address + password (reset via article 15 if needed) → `Support GlobalAccesLoginEmail` (sic — reply name is missing an "s")
    - Registered via Sign in with Apple → Sign In → **Sign in with Apple**, authenticate (choose Hide My Email if prompted) → `Support GlobalAccessLoginSIWA`; find the hidden address via `SNIPPET SIWACheckSettingsForMaskedAddress` / article 314
+   - If **neither account** has Apple org membership (including no user found), send `Support GlobalAccessTapLinkAgain` — do not write a custom mismatch letter; do not claim Wellness-side registration
 6. **Benefit already on the account:** tell them they're all set and give the sign-in article pack in case the app shows locked → `Support GlobalAccessAllSet FILLIN`.
 
 ## Variations
@@ -78,6 +79,7 @@ Work in order; each step maps to a saved reply:
 - **User half-signed-in / no Sign In screen:** sign out via article 51, or Force Quit and reopen, until the Get Started / "Already have an account? Sign In" screen shows. Always sign in via "Already have an account? Sign In" — never Get Started, which creates a duplicate account.
 - **User created a second account while trying to claim:** align them onto the account Wellness has on file; if the benefit landed on the wrong account, a human can move the registration (see *Multi-Account & Merge*).
 - **Non-Apple customer asking for Global Access:** it's an Apple-employee benefit; family goes through the family code. Don't extend it to anyone else.
+- **Customer sign-off (taught 2026-08-28):** Always "Take care," then "Happier Meditation Support Team". Never Cass/Cassidy/first name. Never Best wishes.
 
 # Action Classification
 
