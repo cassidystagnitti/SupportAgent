@@ -85,7 +85,7 @@ The app must be signed into the account **Apple Wellness has on record** before 
 
 ## Edge Cases & Exceptions
 
-- **Pre-registration for the next cycle:** no known mechanism — registration windows are owned by Apple Wellness. Don't promise or improvise (open example: ticket #318146, an employee traveling through the expected September window). Check with Wellness.
+- **Pre-registration for the next cycle (taught 2026-08-28, Matthias #318146):** There is **no Happier-side mechanism** to pre-register for the next Mindful Minute Challenge. Tell the customer we cannot do that; Apple Wellness owns the registration window and they sign up on Wellness Web when it opens. **Do not use `Support JoinClosed` for a future event that has not opened yet.** Do not promise dates or a workaround.
 - **Android:** the Challenge is iPhone/iPad-only. If they have an iOS device, they can join there; either way they get the free subscription (Android manual apply) → `Support AndroidNoAccount` (see *Global Access*).
 - **Bought a subscription while trying to join:** enrollment gives them the free subscription; the purchase is refunded via Apple only → `Support RefundRequest` (see *Global Access*).
 - **Mixed challenge + unrelated support issue:** handle the support issue under its own policy; keep join troubleshooting in the same thread.
@@ -117,7 +117,7 @@ The app must be signed into the account **Apple Wellness has on record** before 
 
 - **High confidence:** the join handshake, the error→reply taxonomy, token states, password flows — all verbatim from the Apple mailbox saved replies (pulled 2026-07-22).
 - **Judgment call:** picking between sign-in-mismatch vs. token-state explanations when the error text is vague — ask via `Support JoinMoreInfo` rather than guessing.
-- **Gaps:** each cycle's exact join-window dates and registration URL are period-specific; confirm from the team each event. 2025-cycle facts from real tickets: registration confirmations ~2025-09-16, event month October 2025, registration pages `people.apple.com/page/11893` / `signups.apple.com/event/1712-fda4`. Whether pre-registration will exist for 2026 is unknown (Wellness owns it).
+- **Gaps:** each cycle's exact join-window dates and registration URL are period-specific; confirm from the team each event. 2025-cycle facts from real tickets: registration confirmations ~2025-09-16, event month October 2025, registration pages `people.apple.com/page/11893` / `signups.apple.com/event/1712-fda4`.
 
 # Saved Reply Mapping
 

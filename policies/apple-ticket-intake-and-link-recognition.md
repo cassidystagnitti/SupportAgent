@@ -104,11 +104,11 @@ Facts Wellness stated in-thread for the 2025 cycle (theirs to state, not ours to
 
 - **mmc 2025:** registration confirmations dated ~2025-09-16; event month **October 2025** (31 days, 25 needed). Ticket spike: Oct (69) + Nov (37) of the 200-ticket sample. Reward-question wave in January — matches the 9–11-week fulfillment window.
 - **Since Dec 2025:** a steady Global Access trickle (1–28/month), dominated by "Help joining organization" and "Unlock Happier Meditation" tickets.
-- **mmc 2026:** expect registration around **September 2026** — customers already assume the September cadence (#318146 asked in July about pre-registering).
+- **mmc 2026:** expect registration around **September 2026** — customers already assume the September cadence (Matthias #318146 asked in July about pre-registering; taught 2026-08-28 that there is no Happier-side pre-registration mechanism).
 
 ## Edge Cases & Exceptions
 
-- **Pre-registration for the next challenge:** no known mechanism; registration windows are owned by Apple Wellness — don't promise anything, check with Wellness (#318146 is the open example).
+- **Pre-registration for the next challenge (taught 2026-08-28, Matthias #318146):** There is **no Happier-side mechanism** to pre-register. Apple Wellness owns the registration window; customers sign up on Wellness Web when it opens. Do not use `Support JoinClosed` for a future event that hasn't opened. Do not promise dates or workarounds.
 - **Partner/spouse asks for "their own unique link":** personal tokens are per-employee; family members go through the `APPLEFAM` gift code instead (#310898 → `Support AppleFamPromoCode`).
 - **Old challenge token used while the window is closed:** never troubleshoot the token — Global Access redirect (see *Global Access*).
 
