@@ -42,7 +42,8 @@ Covers all inbound app feedback, content suggestions, feature requests, positive
 
 - **Positive / kind note:** Acknowledge warmly, share that it was forwarded to the whole team. Use `Feedback ThanksForTheKindNote`.
 - **General feature request with no specific category:** Use `Feedback FeatureRequest` — passes to design team with REQUEST filled in.
-- **Content suggestion:** Use `Feedback ContentSuggestion` — passes to pedagogy and production with REQUEST filled in.
+- **Content suggestion:** Use `Feedback ContentSuggestion` — passes to pedagogy and production with REQUEST filled in. Do **not** use this saved reply for teacher / content-tone feedback (see next bullet).
+- **Teacher / content-tone feedback (taught 2026-08-28, Heidi-Jane #320283, Help Scout cid 3433427757):** Straight-up content feedback, not a request for other titles. Example: Pascal's Soft(er) Separation breakup videos felt "abnormally chipper" / alienating for someone who lost the love of their life — they still like Pascal. Make them feel understood. Pass it to pedagogy/production so we are really considering that the tone matches the topic. **Do not dump other grief titles as a deflection** (do not switch this to the *Grief and Loss Content* path or recommend Befriending Grief as a substitute). **Do not paste `Feedback ContentSuggestion`** (too chipper; signs off Best / first-name). Write a custom understood + pass-to-pedagogy reply; still log/forward internally. Draft for Cassidy unless she says send. Sign-off remains `Take care,` then `Happier Meditation Support Team`. Never Cass/Cassidy/first name. Never Best wishes.
 - **Language request:** Use `Feedback FeatureRequestOtherLanguages` — explains the constraint (no non-English teachers, translation doesn't work for meditation) and closes warmly.
 - **Web/desktop request:** Use `Feedback FeatureRequestWebApp` — explains mobile-only, links to website resources.
 - **Android parity:** Use `Feedback LaunchNotOnAndroidYet` — confirms engineering is working on it, no timeline, they'll hear about it when it's ready.
@@ -57,6 +58,7 @@ Covers all inbound app feedback, content suggestions, feature requests, positive
 - **Frustrated but not hostile:** Still use the standard feedback path — validate the frustration, pass it on, don't escalate. Match the warmer end of the tone scale.
 - **Customer follows up asking if their feedback was acted on:** There is no feedback status tracking available to support. Acknowledge that feedback is reviewed in planning cycles, but we don't have individual update visibility. Do not fabricate status.
 - **Customer requests a feature that already exists:** Redirect to the relevant FAQ or help resource. This becomes a tech support ticket, not a feedback ticket.
+- **Library feels stale / "the same sit on repeat" (taught 2026-08-28, Judi #320268):** Hear them. If newer work isn't finding them, that's on presentation. Name only actually-new titles (`created_at`, not a misleading 2026 `release_date` on old work). Invite specifics so pedagogy can use them in planning. Do **not** Path-2 a 40% refund just because they complained unless they ask to cancel (see *Renewal Discount Requests*).
 
 # Action Classification
 
@@ -68,6 +70,7 @@ All standard feedback tickets are reply-only. No account changes, billing action
 
 - **Escalation for hate, harassment, or personal attacks:** Do not reply. Escalate to support leadership. See Escalation Triggers below.
 - **Marketing quote request:** Requires human to confirm with marketing before sending `Feedback QuoteRequestPositiveFeedback FILLIN`. Do not send without confirmation.
+- **Teacher / content-tone feedback on grief or emotionally intense topics (taught 2026-08-28, Heidi-Jane #320283):** Draft for Cassidy. Do not send until she says send.
 
 ## Do Not Auto-Send Conditions
 
@@ -75,6 +78,7 @@ All standard feedback tickets are reply-only. No account changes, billing action
 - Feedback is emotionally intense (deeply distressed, grieving, in crisis) — tone calibration requires human judgment
 - Marketing quote request — requires human confirmation before sending
 - Customer's feedback about a specific named team member or teacher: the standard thank-and-log acknowledgment is auto-sendable as of 2026-07-21 (the feedback itself is still logged/forwarded internally). ONLY if the feedback is sensitive — alleging misconduct, harm, or anything beyond content/style preference — forward to senior support before replying.
+- **Teacher / content-tone feedback on emotionally intense or grief-adjacent topics (taught 2026-08-28, Heidi-Jane #320283):** Draft for Cassidy unless she says send. The 2026-07-21 teacher-feedback auto-send rule does **not** cover grief/breakup tone complaints — even when they are content/style preference, not misconduct. Existing emotionally-intense Do Not Auto-Send still applies.
 
 ## Escalation Triggers
 
@@ -115,6 +119,8 @@ All standard feedback tickets are reply-only. No account changes, billing action
 | User state | Saved Reply | Notes |
 |---|---|---|
 | Suggestion for new meditations, teachers, topics, or series | `Feedback ContentSuggestion` | Fill in REQUEST with the specific suggestion; routes to pedagogy and production |
+| Teacher / content-tone feedback (tone doesn't match the topic; e.g. too chipper for grief/breakup) | Do **not** paste `Feedback ContentSuggestion` | Custom understood + pass-to-pedagogy reply. Log/forward internally. Draft for Cassidy unless she says send. Emotionally intense/grief tone still needs human (Cassidy) review before send. Sign-off: `Take care,` then `Happier Meditation Support Team`. Never Cass/Cassidy/first name. Never Best wishes. Taught 2026-08-28, Heidi-Jane #320283. |
+| Library feels like the same sit on repeat | Do **not** dump a title list from `Feedback ContentSuggestion` or grief snippets | Hear them; name only actually-new titles by `created_at` (not a misleading 2026 `release_date` on old work); invite specifics for planning. Not a Path-2 40% refund unless they ask to cancel. Taught 2026-08-28, Judi #320268. |
 
 ## Newsletter
 
@@ -133,6 +139,8 @@ All standard feedback tickets are reply-only. No account changes, billing action
 
 - *Escalation Policy* (hate, harassment, or crisis escalation path)
 - *Tech Support* (if feedback includes a support issue, resolve that first)
+- *Renewal Discount Requests* (do not Path-2 a 40% refund just because they complained about the library unless they ask to cancel)
+- *Grief and Loss Content* (for customers *asking* for grief/death content — not for tone feedback on a specific teacher or course; do not use that path as a deflection)
 
 ## Draft Language: Avoid Meta-Commentary About Honesty (added 2026-07-22)
 
