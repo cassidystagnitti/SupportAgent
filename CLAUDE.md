@@ -139,7 +139,7 @@ nothing in limbo). The verifier is the tag's ONLY owner:
 `orchestrator.compute_tags` no longer applies it. Per-policy "Do Not
 Auto-Send Conditions" are enforced as verifier criteria, not as pre-gates.
 `close_no_reply` results are CLOSED during the review by `apply_result`
-(note + close), not held for approval. Verdicts + findings come back in the
+(note + close), not held for approval. See *policies/thanks-only-follow-ups.md* for when a thanks-only message qualifies for close_no_reply. Verdicts + findings come back in the
 `apply_result` status dict (`verify_verdict`, `verify_initial_verdict`,
 `verify_initial_findings`, `verify_repairs`, `verify_findings`,
 `verify_error`, `verifier_error_note`) and are recorded into the day's
