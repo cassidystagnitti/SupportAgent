@@ -245,3 +245,12 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Date added:** 2026-08-27
 - **Date resolved:** —
 
+## 16. Audio Not Playing / No Sound (Including After Turning Off Captions or After an Update)
+
+- **Status:** Troubleshooting — not a confirmed product bug. First-line steps before treating as a new Linear issue.
+- **Platforms:** All
+- **What to tell the customer:** Do not promise a bug or a fix. Do not ask for app version if we already have the account. Start with first-line troubleshooting: (1) force quit the Happier app and reopen it; (2) try playback with VPN off and with VPN on (a VPN can interfere with the player); (3) ask them to let us know if that does not resolve it. Do not jump to a new Linear bug until those steps fail on a later reply.
+- **Linear ticket:** None unless troubleshooting fails on a later reply
+- **Date added:** 2026-08-28. Taught from Help Scout 320202.
+- **Date resolved:** —
+- **Cross-ref:** Related to entry 11a (VPN for network-error reports), but this first-line flow applies to no-audio / audio-not-playing reports — not only tickets that say "network error." Includes reports after turning off closed captions and when the customer mentions the new update.
