@@ -35,6 +35,11 @@ Customer asks about a 10% Happier thing (podcast, ad-free feed, podcast subscrip
 
 - **Mixed ticket** (our billing/app issue + podcast question): resolve our portion under the relevant policy; add the boundary explanation for the podcast portion in the same reply.
 - **Customer asks where the podcast is / why it's not in our app:** use the existing `Engagement WheresThePodcast` saved reply as the base.
+- **Customer on Happier Meditation asks if membership includes the 10% Happier podcast, why podcast not in app, or why the show still has ads (solo path, taught 2026-09-01 on HS #320327):**
+  - Solo-sendable. Use `Engagement WheresThePodcast` saved reply (substance only).
+  - Facts to convey: Dan Harris owns the 10% Happier podcast; it left the Happier Meditation app in late February 2025. Happier Meditation membership unlocks meditations, courses, and Shorts — it does NOT remove ads from the public 10% Happier podcast on Apple Podcasts, Spotify, or similar platforms. For ad-free podcast access, direct customers to https://danharris.com or feedback@danharris.com. In the app, Shorts replaced the old Podcasts section: https://support.meditatehappier.com/article/547-introducing-shorts
+  - Customer-facing close: always "Take care," then "Happier Meditation Support Team" (never "Best wishes," never a first name, never "Cass/Cassidy").
+  - This is NOT the wrong-product cancel path (saved reply `CancelRefund 10%HappierSub` — that's for customers who signed up for Dan Harris / 10% Happier and need his support instead).
 - **Customer references a feature "from the show" or "live events" we don't have:** clarify the product boundary, confirm what Happier Meditation actually offers, and log a feature-request per *Feedback Policy* if they want it in our app.
 
 ## Edge Cases & Exceptions
@@ -56,7 +61,7 @@ Customer asks about a 10% Happier thing (podcast, ad-free feed, podcast subscrip
 ## Do Not Auto-Send Conditions
 
 - The reply would use the spelled-out phrase "Ten Percent Happier" (naming-rule violation — rewrite with "10% Happier" / "Happier Meditation")
-- It is genuinely ambiguous whether the customer means Happier Meditation or 10% Happier — clarify first. The short clarifying question ITSELF is auto-sendable (confirmed 2026-07-21): a polite "which product do you mean, so I can point you the right way" reply may carry `auto_sendable = true` as long as it makes no claims about either product. Only the substantive boundary explanation must wait for the customer's answer / human review.
+- It is genuinely ambiguous whether the customer means Happier Meditation or 10% Happier — clarify first. The short clarifying question ITSELF is auto-sendable (confirmed 2026-07-21): a polite "which product do you mean, so I can point you the right way" reply may carry `auto_sendable = true` as long as it makes no claims about either product. When the case is unambiguous (e.g., a Happier Meditation subscriber asking if membership includes the podcast / why podcast has ads — the solo path in Variations above), the substantive boundary explanation IS auto-sendable (confirmed 2026-09-01).
 - The draft makes any claim about 10% Happier's current offerings, feeds, pricing, or events — we don't have visibility into those
 
 ## Escalation Triggers
