@@ -26,6 +26,23 @@ Plan switches (annual ↔ monthly) are uncommon but supported. The default path 
 ### By provider
 
 - **Apple:** Customer switches themselves via Apple subscription management. We cannot do this for them. Redirect with instructions.
+  
+  **Apple Monthly → Annual (solo, reply-only):**
+  
+  When a customer on Apple monthly asks how to switch to annual, support can **reply solo** if the Help Scout right-sidebar widget (or in-app ticket footer if sidebar is not readable) shows **Source: Apple** and a **monthly period**. The sidebar is the billing truth — do not rely on admin.tenpercent.com.
+  
+  We cannot change the Apple plan from Help Scout. The path is:
+  
+  1. **Cancel the monthly subscription** in iPhone Settings → [their name] → Subscriptions → **Happier Meditation** (NOT "Ten Percent") → Cancel Subscription.
+  2. **Access continues through the current period end** (use the expiration date shown on the ticket).
+  3. **After the monthly subscription expires**, tap a locked session in the app to purchase the annual plan in-app, OR visit https://my.meditatehappier.com/start/register while signed in with the same email.
+  
+  **Branding:** Always refer to the app as "Happier Meditation," never "Ten Percent Happier" or "Ten Percent."
+  
+  **Sign-off:** Use "Take care / Happier Meditation Support Team" — never "Best wishes," never a first name, never "Cass" or "Cassidy."
+  
+  **Saved reply:** `Get AppleMonthlyToYearlySubscription` exists but still references "Ten Percent" — use the correct "Happier Meditation" branding and the "Take care / Happier Meditation Support Team" sign-off when drafting.
+
 - **Stripe:** Support queues the plan change for the next renewal. Or, if customer is within refund window, see refund-and-resubscribe path below.
 - **Google Play:** Same as Stripe — switch at next renewal. Or, if within refund window, refund-and-resubscribe.
 
@@ -66,7 +83,7 @@ Then support can:
 
 ## No Action Required (reply only)
 
-- Apple customers: redirect to Apple, reply only.
+- Apple customers: redirect to Apple, reply only. This includes Apple monthly → annual switches (cancel monthly in iPhone Settings, then purchase annual after expiry in-app or via web).
 - Explaining the next-renewal switch policy when the customer is past the refund window and providing the appropriate Stripe sign up link for after expiration.
 
 ## Human Action Required
@@ -96,7 +113,7 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 
 # Confidence Notes
 
-- **High confidence areas:** No proration ever. Switch at next renewal as default. Refund-and-resubscribe path within refund window. Apple = customer-managed. Google resubscribe must be customer-initiated, push to Stripe by default.
+- **High confidence areas:** No proration ever. Switch at next renewal as default. Refund-and-resubscribe path within refund window. Apple = customer-managed. Google resubscribe must be customer-initiated, push to Stripe by default. Apple monthly → annual is solo/reply-only when sidebar shows Source Apple + monthly period; customer cancels monthly in iPhone Settings, then buys annual after expiry.
 - **Judgment call areas:** Whether to proactively warn customers about losing intro discounts when switching annual → monthly. Currently we should — but it's framed as best practice, not a hard rule.
 
 # Related Policies
