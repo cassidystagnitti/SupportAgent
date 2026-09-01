@@ -77,6 +77,7 @@ The procedure (added 2026-07-20 after it fully resolved a live ticket):
 - **Second email in ticket body, auto-renew already off:** Find the account on the second email, verify `Auto Renew Status: false` and expiration date is in the future. Reply confirming cancellation is already processed and access continues until expiration. Reply-only, no action needed.
 - **Customer says they've never had an account but was charged:** Not a standard no-account-found case — this is a billing dispute. Treat as needing human review; investigate before replying.
 - **Business/org email, customer mentions a work subscription:** May be an organizational account. Look for `Subscription Platform: Org` signals. See *Subscription & Billing Overview*.
+- **Double-billing claim, no account found (taught 2026-09-01, Jay Tuttle #320336):** Customer says they were double billed (e.g., charged in both July and August, or two charges on the same statement), but `Account Found: false` on the ticket email. **Do not refund.** This is a solo-resolve case: send an ask for the identifying details needed to locate the charges, then close the ticket. The ask must include: amounts, dates, last four digits of the card, and whether the statement shows Apple, Google, or Happier Meditation / Stripe as the merchant. **Exception:** STOP and ping Cassidy if the subject line, body, footer, CC list, or any other email visible on the ticket suggests the customer might have an account under a different address than the from-address — in that case, treat this as a standard investigation flow (Step 2), not the solo double-bill close. **Signature:** Always close with "Take care," then "Happier Meditation Support Team" — never "Best wishes," never a first name, never "Cass" or "Cassidy."
 
 # Action Classification
 
@@ -102,6 +103,7 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 - Customer mentions a business, organization, or work-provided subscription — may be an org account with different handling
 - A second email was found in the ticket body and the account on it is unsubscribed or ambiguous — human should verify before sending login instructions for the wrong account
 - Customer has already responded to a previous investigation reply with identifying info (receipt, last-4, relay address) — AI runs the Step 3 Stripe charge hunt and drafts from its actual findings, but the reply stays human-reviewed before send
+- Double-billing claim with no account found — requires careful check for any hints of alternate accounts (subject, body, footer, CC, other emails) before sending the solo-close response; the exception trigger (ping Cassidy) is a judgment call
 
 ## Escalation Triggers
 
