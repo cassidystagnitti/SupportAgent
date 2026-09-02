@@ -278,3 +278,13 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Date added:** 2026-09-02
 - **Date resolved:** —
 
+## 18. iOS v2 Monthly Check-In Home Prompt Showing Incorrectly
+
+- **Status:** FIXED and LIVE as of 2026-09-02 ~11:47 AM ET. Rails-only fix. Lynn Hurley merged to master and deployed. Cassidy confirmed on-device.
+- **Platforms:** iOS v2. An incomplete first fix went live ~3:15 PM ET Sep 1 (force quit loaded the plan, but completing check-in still showed the Home start card). The 11:47 AM ET Sep 2 deploy is the complete fix.
+- **What to tell the customer:** This was a bug causing the monthly check-in Home prompt to display incorrectly, and it is now fixed and live. The fix is Rails-side (already deployed), so no app update is needed. If they are still seeing the issue, ask them to force quit the Happier app and reopen it. If the problem persists after force quit, treat it as a new report and investigate further — do not assume T-1791 is still open.
+- **Linear ticket:** T-1791
+- **Date added:** 2026-09-02
+- **Date resolved:** 2026-09-02 (11:47 AM ET)
+- **Slack reference:** https://happierapp.slack.com/archives/C094NGF9JTZ/p1788275859366179
+
