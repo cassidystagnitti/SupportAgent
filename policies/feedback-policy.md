@@ -78,7 +78,8 @@ All standard feedback tickets are reply-only. No account changes, billing action
 - Feedback is emotionally intense (deeply distressed, grieving, in crisis) — tone calibration requires human judgment
 - Marketing quote request — requires human confirmation before sending
 - Customer's feedback about a specific named team member or teacher: the standard thank-and-log acknowledgment is auto-sendable as of 2026-07-21 (the feedback itself is still logged/forwarded internally). ONLY if the feedback is sensitive — alleging misconduct, harm, or anything beyond content/style preference — forward to senior support before replying.
-- **Teacher / content-tone feedback on emotionally intense or grief-adjacent topics (taught 2026-08-28, Heidi-Jane #320283):** Draft for Cassidy unless she says send. The 2026-07-21 teacher-feedback auto-send rule does **not** cover grief/breakup tone complaints — even when they are content/style preference, not misconduct. Existing emotionally-intense Do Not Auto-Send still applies.
+- **Teacher / content-tone feedback on emotionally intense or grief-adjacent topics (taught 2026-08-28, Heidi-Jane #320283):** Draft for Cassidy unless she says send. The 2026-07-21 teacher-feedback auto-send rule does **not** cover grief/breakup tone complaints — even when they are content/style preference, not misconduct. This aligns with the top-level Solo vs Ping guidance (CLAUDE.md, decision 2026-09-02): really high-touch emotional tickets hold for Cassidy.
+- **B2B / partnership / enterprise feedback or inquiries:** Hold for Cassidy review. See *Non-Support Requests* for routing; B2B/org/enterprise tickets are a top-level hold-back (CLAUDE.md, decision 2026-09-02).
 
 ## Escalation Triggers
 

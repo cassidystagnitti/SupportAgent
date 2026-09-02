@@ -59,6 +59,7 @@ None for standard content recommendations.
 
 - Customer language suggests acute crisis, suicidal ideation, or severe distress — escalate, do not send a standard reply
 - Emotionally intense or vulnerable tone that requires careful calibration — flag for human review
+- **High-touch emotional grief tickets** (deeply vulnerable, person-centered grief, domestic abuse contexts) — hold for Cassidy review even when the CONTENT (recommending Befriending Grief) follows policy. See top-level Solo vs Ping guidance (CLAUDE.md, decision 2026-09-02). Standard grief content requests that are not emotionally intense are solo-sendable.
 
 ## Escalation Triggers
 

@@ -4,6 +4,8 @@
 
 Set `escalate: true` and `draft_reply: null` for any of the following situations. Do not draft a reply — tag the ticket for human review.
 
+**NOTE:** This policy covers true escalations (no draft, tag for human). For the broader "Solo vs Ping Cassidy" framework — which tickets can be sent autonomously vs. which should be drafted and held for Cassidy's review — see the top-level guidance in CLAUDE.md (decision 2026-09-02). Key hold-backs: truly no clue, Google Play subscriptions, B2B/org/enterprise, and really high-touch emotional tickets.
+
 ### Mandatory Escalation Triggers
 
 - **Legal threats**: Customer mentions legal action, a lawyer, small claims court, or "reporting" to a consumer agency (BBB, FTC, App Store reviews used as leverage, etc.)

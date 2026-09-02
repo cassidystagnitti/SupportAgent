@@ -130,7 +130,9 @@ Help Scout has no Mailbox API for deleting a thread. If sending leaves a leftove
 
 ## Do Not Auto-Send Conditions
 
-Even when the reply is "reply-only" (no admin action needed), flag for human review before sending if any of the following are true:
+**Google Play subscriptions hold for Cassidy (decision 2026-09-02):** Google Play cancels, billing, plan changes are a top-level hold-back. See CLAUDE.md Solo vs Ping guidance. Draft the reply but hold for Cassidy review before sending.
+
+Even when the reply is "reply-only" (no admin action needed) or Stripe cancellation is executed, flag for human review before sending if any of the following are true:
 
 - Customer's cancellation request is combined with frustration about a charge — possible refund component requiring human judgment
 - Customer claims to have already canceled but is still seeing charges — may be a billing or system error that needs investigation before any reply

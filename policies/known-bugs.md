@@ -166,6 +166,10 @@ None. If a report suggests a new, systemic issue not covered by an entry above, 
 - The customer reports one of the "investigating," "reopened," or "gathering info" bugs (entries 1, 2, 3, 5, 6, 7, 8) as causing significant financial or access harm (e.g., lost a paid course entirely) — acknowledge but flag for human review rather than auto-sending a generic "we're looking into it"
 - Entry 9 (theme change) combined with a subscription cancellation threat — treat the cancellation portion under the appropriate billing policy; do not auto-send a feedback-only reply
 
+**Known bugs are SOLO-sendable (decision 2026-09-02):** When a reported symptom clearly matches a documented entry above, send the known-bug acknowledgment (real, ours, known, working on a fix; no date unless Linear says otherwise). Check Linear, comment/link Help Scout ticket, send the ack. Do not hold for Cassidy unless the bug combines with billing demands or significant harm.
+
+**New bugs are SOLO-file-and-send (decision 2026-09-02):** When a reported symptom does NOT match any entry above and appears to be a new systemic issue, file a Linear issue on team Technical with Help Scout / Bug / iOS-or-Android / Support labels, update this known-bugs.md file with a new entry, post to Slack #product-engineering with Linear + Help Scout + one-line description, THEN send the customer ack and close. Do not hold new-bug filing or customer acks for Cassidy.
+
 ## Escalation Triggers
 
 - A reported symptom doesn't match any entry above and multiple customers appear to be describing the same new issue — flag as a potential new systemic bug for engineering, per the bug-surfacing process
