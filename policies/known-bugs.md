@@ -258,3 +258,13 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Date added:** 2026-08-28. Taught from Help Scout 320202.
 - **Date resolved:** —
 - **Cross-ref:** Related to entry 11a (VPN for network-error reports), but this first-line flow applies to no-audio / audio-not-playing reports — not only tickets that say "network error." Includes reports after turning off closed captions and when the customer mentions the new update.
+
+## 17. iOS v2 Significant Lag / App Unusable
+
+- **Status:** Investigating. Filed Linear **T-1797** from Help Scout 320536 (Heather, iOS 2026.817.1). Distinct from T-568 (mobile Safari slowness, Done) and T-1741 (oversized UI).
+- **Platforms:** iOS native v2 (`2026.817.1`).
+- **What to tell the customer:** The app should not lag so much that it is unusable. This is a known bug. We are working on a fix now. We are releasing the fix soon. Do not promise a date. Do not send them to an App Store update. Meantime: force-quit Happier and reopen. If it is still laggy, ask them to reply. Do not ask for app version if we already have it.
+- **Linear ticket:** T-1797
+- **Date added:** 2026-09-02
+- **Date resolved:** —
+
