@@ -172,6 +172,14 @@ None. If a report suggests a new, systemic issue not covered by an entry above, 
 
 **Status-check before filing or repeating bugs (decision 2026-09-02):** Before filing or repeating any bug report, always check: (1) latest #customer-support-watcher (engineer replies: Jawad, Lynn, PRs, ship timing), (2) Linear issue status (state, assignee, comments, linked PRs), and (3) GitHub PRs tied to that Linear ticket. Do not re-report bugs already being worked (In Progress, Ready for Deploy, PR in flight, engineer said they are on it) — comment the new Help Scout thread on the existing Linear issue instead. If a bug was filed and has NOT been picked up (still unstarted / backlog / no PR / no engineer reply), send it again in #customer-support-watcher. Cassidy will bump a watcher post if it is very, very urgent. Keep this known-bugs.md file and related operating docs current when status changes so support answers from latest info.
 
+**Customer-facing bug acks must match the Linear Technical status (decision 2026-09-02).** Do not use a generic "working on a fix / releasing soon" line. Never name Linear states to the customer. Hopeful, no "on us," no future-app-update, no ship date unless we have one. Sign-off remains Take care / Happier Meditation Support Team. Linear status → customer-facing language map:
+
+1. **Priorities / Product Backlog / Engineering Backlog** with no confirmed cause → "We are investigating this now."
+2. **Cause known** (engineer comment, Slack, root cause written) but not yet Implementation/QA → "We have identified the issue."
+3. **Implementation or QA**, or an open fix PR → "We are resolving it now."
+4. **Ready for Deploy**, or fix PR merged and waiting on ship → "We are in the process of releasing the fix."
+5. **Done**: treat as released. If the customer still hits it, investigate whether it is the same bug; do not promise it is already on their phone.
+
 ## Escalation Triggers
 
 - A reported symptom doesn't match any entry above and multiple customers appear to be describing the same new issue — flag as a potential new systemic bug for engineering, per the bug-surfacing process
