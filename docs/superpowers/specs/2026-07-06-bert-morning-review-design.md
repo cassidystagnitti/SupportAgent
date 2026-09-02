@@ -154,4 +154,5 @@ Each phase is independently useful and leaves the production pipeline intact.
 
 - **A standalone app/UI.** Session-first by decision (2026-07-06). Friction discovered living in the session becomes the spec for a UI later, if teammate access or approve/post ergonomics demand it.
 - **Auto-send.** Unchanged from prior specs — everything drafts for human review; auto-send stays a future gate.
+  *(Updated 2026-09-02: Solo-vs-ping gate loosened. See CLAUDE.md for current guidance — Bert/support bots now SEND when reasonably confident; hold only for: truly no clue, Google Play subscriptions, B2B/org/enterprise, really high-touch emotional tickets.)*
 - **Changes to `triage_tickets.py`, `account_context.py`, `maven_customer_context.py`.** Imported as-is.

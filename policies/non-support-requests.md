@@ -67,6 +67,7 @@ Covers inbound messages to the support mailbox that are not support requests at 
 - Sender claims or appears to represent a major press outlet, well-known podcast/platform, or a significant potential business partner — do not auto-send a decline; route to human review (see Escalation Triggers)
 - Message mixes a pitch with a real support/account issue — do not auto-send the pitch decline in isolation without also resolving or routing the support portion correctly
 - Any ambiguity about whether the message is genuine outreach vs. spam vs. a real support question — when in doubt, do not silently close; flag for human review rather than guessing
+- **B2B / org / community-code / school / enterprise tickets hold for Cassidy (decision 2026-09-02):** B2B/org/enterprise tickets are a top-level hold-back. See CLAUDE.md Solo vs Ping guidance. Draft the reply but hold for Cassidy review before sending.
 
 ## Escalation Triggers
 

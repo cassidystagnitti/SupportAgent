@@ -102,6 +102,8 @@ No cases in this policy are reply-only at the outset. Every ticket requires a ba
 - The streak counter appears to be a display bug rather than missing data — needs investigation before any confirmation language is sent
 - Customer tone suggests significant frustration or emotional distress about the lost streak — personalize before sending
 
+**Meditation history / missing session / streak fixes are SOLO-sendable (decision 2026-09-02):** Standard single-day or short-range missing session corrections (add Unguided Timer in admin, check day before/after) can be drafted and sent. Do not hold for Cassidy unless the above conditions apply.
+
 ## Escalation Triggers
 
 - Stats counter appears incorrect despite all sessions being present in history → support engineering

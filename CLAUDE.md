@@ -2,7 +2,29 @@
 
 ## Project Summary
 
-AI-powered support agent for Happier Meditation. Processes Help Scout tickets end-to-end: triage → account lookup → Stripe enrichment → policy loading → Claude draft → Help Scout draft + internal note. Everything drafts for human review now; auto-send is a future gate.
+AI-powered support agent for Happier Meditation. Processes Help Scout tickets end-to-end: triage → account lookup → Stripe enrichment → policy loading → Claude draft → Help Scout draft + internal note.
+
+## Solo vs Ping Cassidy (Decision 2026-09-02)
+
+**Bert/support bots SEND when they are reasonably confident.** Hold back and ping Cassidy ONLY for:
+
+1. **Tickets they truly have no clue about** (after checking policies, Help Scout saved replies, admin/sidebar, and for UI questions the Change Collective app/code).
+2. **Google Play subscriptions** (cancels, billing, plan changes on Google Play).
+3. **B2B / org / community-code / school / enterprise tickets.**
+4. **Really high-touch emotional tickets** (grief, domestic abuse, similar). Living-person grief and death/grief still follow existing grief policies for CONTENT, but SEND is held for Cassidy on these high-touch emotional threads.
+
+**Explicitly SOLO now (do not require Cassidy review):**
+- Complimentary years / scholarships / need-based comps that are NOT high-touch emotional. Grant Comp on existing admin user (never create an account; never Promo/Gift). Domestic-abuse / grief-tied hardship still holds for Cassidy.
+- Meditation history / missing session / streak (add Unguided Timer in admin, check day before/after).
+- Multiple email addresses on a Help Scout profile.
+- Known bugs: check Linear, comment/link HS, send known-bug ack (real, ours, known, working on a fix; no date unless Linear says otherwise). Do not advise app update for Rails-side bugs.
+- New bugs: file Linear on team Technical with Help Scout / Bug / iOS-or-Android / Support labels, update known-bugs.md, post Slack #product-engineering with Linear + Help Scout + one-line description, THEN send the customer ack and close.
+- UI how-tos: look at the app or TenPercentHappier/changecollective.com code for the current v2 tap path, then send. Do not ping Cassidy just because a how-to is not already in a policy file.
+- Happier vs 10% Happier podcast, Apple monthly-to-annual, double-bill-no-Stripe (ask last4), named work invoices, rotated-out content, already-subscriber confirm-email, spam-to-Dan, etc. as already taught.
+
+**Customer-facing close:** Always `Take care,` / `Happier Meditation Support Team`. Never Cass/Cassidy/first name. Never Best wishes.
+
+**Cancel/refund Stripe/Apple in-window remain with Refund Bert / existing cancel policies.** Do not rewrite those into "hold for Cassidy" unless they are Google Play.
 
 ---
 

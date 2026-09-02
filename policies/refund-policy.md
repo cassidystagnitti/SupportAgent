@@ -117,7 +117,9 @@ Mirrors the cancel skill. Once the refund is **`applied`** there is no remaining
 
 ## Do Not Auto-Send Conditions
 
-Even when the reply is "reply-only" (no admin action needed), flag for human review before sending if any of the following are true:
+**Google Play subscriptions hold for Cassidy (decision 2026-09-02):** Google Play refunds, cancels, billing, plan changes are a top-level hold-back. See CLAUDE.md Solo vs Ping guidance. Draft the reply but hold for Cassidy review before sending.
+
+Even when the reply is "reply-only" (no admin action needed) or Stripe refund is executed, flag for human review before sending if any of the following are true:
 
 - Customer's charge is at or near the refund window boundary (day 28-30 for annual, hour 22-24 for monthly) — timing judgment required
 - Customer mentions a chargeback or dispute alongside the refund request — tone and legal sensitivity require human eyes

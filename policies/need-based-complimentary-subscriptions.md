@@ -84,7 +84,8 @@ We offer complimentary (free) annual subscriptions on a discretionary, case-by-c
 
 Even when the reply is "reply-only" (no admin action needed), flag for human review before sending if any of the following are true:
 
-- **All complimentary subscription offers should be flagged for human review before sending.** This is an inherently discretionary decision — the AI should draft the reply but a human must approve it. Even when the customer's need signals are clear, the grant decision is a judgment call.
+- **High-touch emotional tickets** (grief-tied hardship, domestic abuse situations, or other deeply vulnerable contexts) — hold for Cassidy review. See top-level Solo vs Ping guidance (CLAUDE.md).
+- **Complimentary subscription offers that are NOT high-touch emotional are now SOLO-sendable** (decision 2026-09-02). Standard need-based comps (financial hardship, unemployment, fixed income) can be sent after drafting the reply with the comp grant action note.
 - Customer's request involves unusual circumstances (on behalf of someone else, institutional/group access, multi-year request)
 - Customer has a history of disputes, chargebacks, or prior complimentary subscriptions
 - Customer is hostile or threatening in tone — do not reward hostility reflexively; human should assess
