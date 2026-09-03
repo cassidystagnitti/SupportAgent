@@ -288,3 +288,12 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Date resolved:** 2026-09-02 (11:47 AM ET)
 - **Slack reference:** https://happierapp.slack.com/archives/C094NGF9JTZ/p1788275859366179
 
+
+## 19. iOS v2 Home Daily Recommended Meditations Don't Refresh
+
+- **Status:** Investigating. Filed Linear **T-1827** from Help Scout 320629 (Rawal, iOS 2026.817.1). Distinct from T-1771 (draft Cory Muscara still on Home For You) and T-1688 (New & Noteworthy, Done).
+- **Platforms:** iOS native v2 (`2026.817.1`).
+- **What to tell the customer:** Home daily recommended guided meditations should refresh, not stay the same for days. This is a known bug. We are investigating this now. Do not promise a date. Do not send them to an App Store update. Meantime they can use Favorites or Search. If it still does not refresh after a force-quit, ask them to reply. Do not ask for app version if we already have it.
+- **Linear ticket:** T-1827
+- **Date added:** 2026-09-03
+- **Date resolved:** —
