@@ -294,6 +294,26 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Status:** Investigating. Filed Linear **T-1827** from Help Scout 320629 (Rawal, iOS 2026.817.1). Distinct from T-1771 (draft Cory Muscara still on Home For You) and T-1688 (New & Noteworthy, Done).
 - **Platforms:** iOS native v2 (`2026.817.1`).
 - **What to tell the customer:** Home daily recommended guided meditations should refresh, not stay the same for days. This is a known bug. We are investigating this now. Do not promise a date. Do not send them to an App Store update. Meantime they can use Favorites or Search. If it still does not refresh after a force-quit, ask them to reply. Do not ask for app version if we already have it.
+- **Notes / reports:** Help Scout #320629 (Rawal); #320713 (Terence — also mentioned morning login bounce covered by entry 20).
 - **Linear ticket:** T-1827
 - **Date added:** 2026-09-03
 - **Date resolved:** —
+
+## 20. Overnight read-replica stall forced sign-in / content missing (2026-09-04)
+
+- **Status:** FIXED / resolved — infrastructure blip, replica caught up. Not an ongoing app bug.
+- **What happened:** During the content_recommendations table swap (Linear T-1627) on 2026-09-04, the read replica stalled ~08:32–09:30Z (04:32–05:30 America/New_York). Primary kept accepting sign-ins; page loads against the replica treated people as signed out, so the iOS shell bounced them to sign-in and auto-restored in a loop until the replica recovered. Wrong credentials during that window could show an error page (HTTP 422) instead of the normal bad-password message. Nothing was lost (sessions/completions/practice plans persisted on primary).
+- **Customer reports so far:** Help Scout #320710 Craig (forced login + "content missing" then back to login); #320713 Terence (login required multiple times / can't access). Linked on Linear T-1840 (apology list of 23) and T-1627.
+- **What to tell the customer:** We had a brief infrastructure issue early this morning that could force a login loop or a content-missing error. It is fixed now — no action needed on their side, and their account/history were not lost. If they still cannot get in after force-quitting the app, reply so we can dig in. Do NOT call it Reflect. Do NOT say the problem "is on us" as a guilt phrase; stay solution-oriented. Do NOT promise a date. Sign-off remains Take care / Happier Meditation Support Team when sending.
+- **Linear:** T-1627 (incident), T-1840 (apology outbound, Cassidy).
+- **Date added:** 2026-09-04
+- **Date resolved:** 2026-09-04 (~09:30Z)
+- **Distinct from:** T-1838 (entry 21) — QA spurious Sign In while already authenticated; back-arrow recovers without real re-login.
+
+## 21. Spurious Sign In screen on tab-bar / Challenge / Singles tap (iOS TestFlight race)
+
+- **Status:** Investigating / release blocker. Filed T-1838 (Urgent, Jawad Laraqui). Reported in #release-qa by Samuel Johns 2026-09-04 (iPhone 11 Pro repros; 13 mini does not).
+- **Symptom:** Cold open looks signed in; tapping Challenge card, tab-bar items, or Singles collections briefly shows Sign In; back arrow returns to the prior screen with no credentials needed. Suspected race after PR #239 / T-1837 auth-epoch handling.
+- **What to tell the customer:** Only if a report clearly matches (already signed in, Sign In pops on navigation, back recovers without logging in again): we have identified the issue and engineering is on it. Do not confuse with the fixed overnight replica stall (entry 20). No ship date. Hopeful tone; no "on us."
+- **Linear:** T-1838 (related T-1837, T-1492).
+- **Date added:** 2026-09-04
