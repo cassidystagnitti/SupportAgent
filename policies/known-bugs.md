@@ -317,3 +317,13 @@ If we have the customer's account, don't ask them to look up or report their app
 - **What to tell the customer:** Only if a report clearly matches (already signed in, Sign In pops on navigation, back recovers without logging in again): we have identified the issue and engineering is on it. Do not confuse with the fixed overnight replica stall (entry 20). No ship date. Hopeful tone; no "on us."
 - **Linear:** T-1838 (related T-1837, T-1492).
 - **Date added:** 2026-09-04
+
+## 22. iOS Cannot Download Additional Meditations Even With Storage Left
+
+- **Status:** Investigating. Product Backlog. Reported Help Scout #320957 (Connie Petersen, iOS `2026.903`). Distinct from T-1775 (Downloads A–Z layout).
+- **Platforms:** iOS.
+- **What to tell the customer:** We are investigating this now. Acknowledge that downloads should work when device storage is available and that we are looking into why new downloads are not completing. Do not promise a date. Do not ask for app version if we already have it.
+- **Linear ticket:** T-1903 (https://linear.app/happier/issue/T-1903)
+- **Help Scout:** #320957 (https://secure.helpscout.net/conversation/3444506617/320957)
+- **Date added:** 2026-09-11
+- **Date resolved:** —
