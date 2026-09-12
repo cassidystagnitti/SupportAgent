@@ -354,3 +354,14 @@ If we have the customer's account, don't ask them to look up or report their app
 - **T-1796** — QA. Assignee Lynn Hurley.
 - **T-1851, T-1849, T-1827, T-1775, T-1797** — Product Backlog, no engineer pickup yet.
 - **Note:** These items are tracked for internal awareness but may not yet have customer-facing documentation. Update this entry as customer reports arrive and scripting is needed.
+
+## 26. iOS Password Reset Success But Sign In Shows Incorrect Credentials
+
+- **Status:** Priorities / investigating. No confirmed cause yet.
+- **Platforms:** iOS.
+- **What to tell the customer:** We are investigating this now. Acknowledge that the password reset web page should not show Success if the new password doesn't work in the app Sign In screen. This is a critical sign-in issue that we are actively investigating. Do not promise a date. Do not ask for app version if we already have it.
+- **Notes:** Screenshots confirm both Success on web reset and incorrect-credentials error in app. Distinct from T-1558 (stall after credentials accepted).
+- **Linear ticket:** T-1911 (https://linear.app/happier/issue/T-1911)
+- **Help Scout:** #321186 Yvonne Woo (https://secure.helpscout.net/conversation/3449087799/321186)
+- **Date added:** 2026-09-12
+- **Date resolved:** —
