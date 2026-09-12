@@ -271,9 +271,9 @@ If we have the customer's account, don't ask them to look up or report their app
 
 ## 17. iOS v2 Significant Lag / App Unusable
 
-- **Status:** Investigating. Filed Linear **T-1797** from Help Scout 320536 (Heather, iOS 2026.817.1). Distinct from T-568 (mobile Safari slowness, Done) and T-1741 (oversized UI).
+- **Status:** Investigating. Product Backlog (no engineer pickup as of 2026-09-12). Filed Linear **T-1797** from Help Scout 320536 (Heather, iOS 2026.817.1). Distinct from T-568 (mobile Safari slowness, Done) and T-1741 (oversized UI).
 - **Platforms:** iOS native v2 (`2026.817.1`).
-- **What to tell the customer:** The app should not lag so much that it is unusable. This is a known bug. We are working on a fix now. We are releasing the fix soon. Do not promise a date. Do not send them to an App Store update. Meantime: force-quit Happier and reopen. If it is still laggy, ask them to reply. Do not ask for app version if we already have it.
+- **What to tell the customer:** The app should not lag so much that it is unusable. This is a known bug. We are investigating this now. Do not promise a date. Do not send them to an App Store update. Meantime: force-quit Happier and reopen. If it is still laggy, ask them to reply. Do not ask for app version if we already have it.
 - **Linear ticket:** T-1797
 - **Date added:** 2026-09-02
 - **Date resolved:** —
@@ -291,7 +291,7 @@ If we have the customer's account, don't ask them to look up or report their app
 
 ## 19. iOS v2 Home Daily Recommended Meditations Don't Refresh
 
-- **Status:** Investigating. Filed Linear **T-1827** from Help Scout 320629 (Rawal, iOS 2026.817.1). Distinct from T-1771 (draft Cory Muscara still on Home For You) and T-1688 (New & Noteworthy, Done).
+- **Status:** Investigating. Product Backlog (no engineer pickup as of 2026-09-12). Filed Linear **T-1827** from Help Scout 320629 (Rawal, iOS 2026.817.1). Distinct from T-1771 (draft Cory Muscara still on Home For You) and T-1688 (New & Noteworthy, Done).
 - **Platforms:** iOS native v2 (`2026.817.1`).
 - **What to tell the customer:** Home daily recommended guided meditations should refresh, not stay the same for days. This is a known bug. We are investigating this now. Do not promise a date. Do not send them to an App Store update. Meantime they can use Favorites or Search. If it still does not refresh after a force-quit, ask them to reply. Do not ask for app version if we already have it.
 - **Notes / reports:** Help Scout #320629 (Rawal); #320713 (Terence — also mentioned morning login bounce covered by entry 20).
@@ -320,10 +320,37 @@ If we have the customer's account, don't ask them to look up or report their app
 
 ## 22. iOS Cannot Download Additional Meditations Even With Storage Left
 
-- **Status:** Investigating. Product Backlog. Reported Help Scout #320957 (Connie Petersen, iOS `2026.903`). Distinct from T-1775 (Downloads A–Z layout).
+- **Status:** Implementation. Assignee Lynn Hurley. Reported Help Scout #320957 (Connie Petersen, iOS `2026.903`). Distinct from T-1775 (Downloads A–Z layout).
 - **Platforms:** iOS.
-- **What to tell the customer:** We are investigating this now. Acknowledge that downloads should work when device storage is available and that we are looking into why new downloads are not completing. Do not promise a date. Do not ask for app version if we already have it.
+- **What to tell the customer:** We are resolving it now. Acknowledge that downloads should work when device storage is available and that we are working on the fix. Do not promise a date. Do not ask for app version if we already have it.
 - **Linear ticket:** T-1903 (https://linear.app/happier/issue/T-1903)
 - **Help Scout:** #320957 (https://secure.helpscout.net/conversation/3444506617/320957)
 - **Date added:** 2026-09-11
 - **Date resolved:** —
+
+## 23. Android Personalized Plan Spinner
+
+- **Status:** Ready for Deploy. Assignee Lynn Hurley. PR TenPercentHappier/changecollective.com #3532.
+- **Platforms:** Android.
+- **What to tell the customer:** We are in the process of releasing the fix. Acknowledge that the personalized plan screen should not show a spinner indefinitely and that the fix is ready to deploy. Do not promise a date. Do not ask for app version if we already have it.
+- **Linear ticket:** T-1850 (https://linear.app/happier/issue/T-1850)
+- **Help Scout:** #320805 (Heidi-Jane)
+- **Date added:** 2026-09-12
+- **Date resolved:** —
+
+## 24. Trip Playback / Downloaded Lessons Ignored When App Thinks Online
+
+- **Status:** Product Backlog. Two related issues: T-1891 (Shannon HS #321127 trip playback) moved back to Product Backlog; Lynn filed related T-1905 (downloaded lessons ignored whenever app thinks online). T-1905 is Product Backlog, High, assignee Lynn Hurley.
+- **Platforms:** iOS/Android.
+- **What to tell the customer:** We have identified the issue. Acknowledge that downloaded lessons should play back even when the device is online. Workaround note for support (untested on real phone): airplane mode before opening a downloaded lesson. Do not say fixed. Do not say update the app. Do not promise a date.
+- **Linear ticket:** T-1891 (https://linear.app/happier/issue/T-1891), T-1905 (https://linear.app/happier/issue/T-1905)
+- **Help Scout:** #321127 (Shannon)
+- **Date added:** 2026-09-12
+- **Date resolved:** —
+
+## 25. Additional In-Progress and Backlog Items
+
+- **T-1875** — Implementation. Assignee Lynn Hurley.
+- **T-1796** — QA. Assignee Lynn Hurley.
+- **T-1851, T-1849, T-1827, T-1775, T-1797** — Product Backlog, no engineer pickup yet.
+- **Note:** These items are tracked for internal awareness but may not yet have customer-facing documentation. Update this entry as customer reports arrive and scripting is needed.
