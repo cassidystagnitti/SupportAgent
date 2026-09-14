@@ -352,6 +352,7 @@ If we have the customer's account, don't ask them to look up or report their app
 
 - **T-1875** — Implementation. Assignee Lynn Hurley.
 - **T-1796** — QA. Assignee Lynn Hurley.
+- **T-1558** — Ready for Deploy. Assignee Lynn Hurley. PR #3506.
 - **T-1851, T-1849, T-1827, T-1775, T-1797** — Product Backlog, no engineer pickup yet.
 - **Note:** These items are tracked for internal awareness but may not yet have customer-facing documentation. Update this entry as customer reports arrive and scripting is needed.
 
@@ -360,8 +361,31 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Status:** Priorities / investigating. No confirmed cause yet.
 - **Platforms:** iOS.
 - **What to tell the customer:** We are investigating this now. Acknowledge that the password reset web page should not show Success if the new password doesn't work in the app Sign In screen. This is a critical sign-in issue that we are actively investigating. Do not promise a date. Do not ask for app version if we already have it.
-- **Notes:** Screenshots confirm both Success on web reset and incorrect-credentials error in app. Distinct from T-1558 (stall after credentials accepted).
+- **Notes:** Screenshots confirm both Success on web reset and incorrect-credentials error in app. Distinct from T-1558 (stall after credentials accepted). Yvonne (#321186) later signed in via Safari + simpler password (no `?`) + reinstall; Chrome→app reject path still open.
 - **Linear ticket:** T-1911 (https://linear.app/happier/issue/T-1911)
 - **Help Scout:** #321186 Yvonne Woo (https://secure.helpscout.net/conversation/3449087799/321186)
 - **Date added:** 2026-09-12
 - **Date resolved:** —
+
+## 27. Android Session Undercount + App Keeps Closing
+
+- **Status:** Priorities / investigating. No engineer pickup as of 2026-09-14 9am ET.
+- **Platforms:** Android (confirmed from customer Profile screenshot).
+- **What to tell the customer:** We are investigating this now. Acknowledge that a completed sit of 15+ minutes should not record as ~1 minute, and that the app should not keep closing. This is a critical crash/playback-tracking issue. Do not promise a date. Do not ask for app version if we already have it from the ticket.
+- **Notes / reports:** Help Scout #321207 Jennifer — Profile Last 30 Days tooltip showed **1 min @ Sep 13** after she says every sit is ≥15 min; Mindful Days 2,039. Related-to T-1881 (Android Sentry sweep) / T-1678 (iOS half-duration, Done) but this is Android undercount + closes.
+- **Linear ticket:** T-1912 (https://linear.app/happier/issue/T-1912)
+- **Help Scout:** #321207 (https://secure.helpscout.net/conversation/3449545340/321207)
+- **Date added:** 2026-09-13
+- **Date resolved:** —
+
+## 28. Android Videos Stuck Behind "Playing on AirPlay" Overlay
+
+- **Status:** Priorities / investigating. Filed 2026-09-14 9am ET digest.
+- **Platforms:** Android (beacon: Android OS 10.0 / Chrome 152; customer says Android phone, not iPhone).
+- **What to tell the customer:** We are investigating this now. Acknowledge that videos should play on the phone and should not sit behind a "playing on AirPlay" message on Android. This is a critical playback issue. Do not promise a date. Ask for a screenshot and app version if missing. Distinct from missing Chromecast (T-530) — they are blocked from watching locally.
+- **Notes / reports:** Help Scout #321251 Beverly Gettmann (`bev.get@gmail.com`). No screenshot. Related-to T-530 / T-676 / T-708 / T-1875 but symptom is false AirPlay overlay blocking local video.
+- **Linear ticket:** T-1913 (https://linear.app/happier/issue/T-1913)
+- **Help Scout:** #321251 (https://secure.helpscout.net/conversation/3450226550/321251)
+- **Date added:** 2026-09-14
+- **Date resolved:** —
+
