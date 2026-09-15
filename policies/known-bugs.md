@@ -330,7 +330,7 @@ If we have the customer's account, don't ask them to look up or report their app
 
 ## 23. Android Personalized Plan Spinner
 
-- **Status:** QA. Assignee Lynn Hurley. PR TenPercentHappier/changecollective.com #3532. Moved Ready for Deploy → QA on 2026-09-14.
+- **Status:** QA. Assignee Lynn Hurley. PR TenPercentHappier/changecollective.com #3532. Moved Ready for Deploy → QA on 2026-09-14; still in QA as of 2026-09-15.
 - **Platforms:** Android.
 - **What to tell the customer:** We are resolving it now. Acknowledge that the personalized plan screen should not show a spinner indefinitely and that we are working through QA on the fix. Do not promise a date. Do not ask for app version if we already have it.
 - **Linear ticket:** T-1850 (https://linear.app/happier/issue/T-1850)
@@ -371,9 +371,9 @@ If we have the customer's account, don't ask them to look up or report their app
 
 ## 27. Android Session Undercount + App Keeps Closing
 
-- **Status:** Ready for Deploy. Assignee Lynn Hurley. PR TenPercentHappier/changecollective.com #3548. Moved Priorities → Implementation → Ready for Deploy on 2026-09-14.
+- **Status:** QA. Assignee Lynn Hurley. PR TenPercentHappier/changecollective.com #3548. Moved Priorities → Implementation → Ready for Deploy on 2026-09-14; moved to QA on 2026-09-15.
 - **Platforms:** Android (confirmed from customer Profile screenshot).
-- **What to tell the customer:** We are in the process of releasing the fix. Acknowledge that a completed sit of 15+ minutes should not record as ~1 minute, and that the app should not keep closing. Do not promise a date. Do not ask for app version if we already have it from the ticket.
+- **What to tell the customer:** We are resolving it now. Acknowledge that a completed sit of 15+ minutes should not record as ~1 minute, and that the app should not keep closing. Do not promise a date. Do not ask for app version if we already have it from the ticket.
 - **Notes / reports:** Help Scout #321207 Jennifer — Profile Last 30 Days tooltip showed **1 min @ Sep 13** after she says every sit is ≥15 min; Mindful Days 2,039. Related-to T-1881 (Android Sentry sweep) / T-1678 (iOS half-duration, Done) but this is Android undercount + closes. PR: save sit progress every minute / when player is hidden so a lost final write cannot leave it at 60 seconds.
 - **Linear ticket:** T-1912 (https://linear.app/happier/issue/T-1912)
 - **Help Scout:** #321207 (https://secure.helpscout.net/conversation/3449545340/321207)
@@ -389,5 +389,46 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Linear ticket:** T-1913 (https://linear.app/happier/issue/T-1913)
 - **Help Scout:** #321251 (https://secure.helpscout.net/conversation/3450226550/321251)
 - **Date added:** 2026-09-14
+- **Date resolved:** —
+
+## 29. Android Hybrid Terminal-Save Outbox
+
+- **Status:** Ready for Deploy. Assignee Jawad Laraqui. PR TenPercentHappier/changecollective.com #3562.
+- **Platforms:** Android.
+- **What to tell the customer:** We are in the process of releasing the fix. Acknowledge the issue with the hybrid terminal-save outbox. Do not promise a date. Do not ask for app version if we already have it.
+- **Linear ticket:** T-1929 (https://linear.app/happier/issue/T-1929)
+- **Date added:** 2026-09-15
+- **Date resolved:** —
+
+## 30. iOS Guided Sit With Lock Screen Ends With No Credit
+
+- **Status:** Investigating. Priorities High. Assignee (not specified). Related to T-1869 (timer lock-screen loss) but this is the guided meditation path.
+- **Platforms:** iOS 2026.910.
+- **What to tell the customer:** We are investigating this now. Acknowledge that a guided meditation should give credit even when the screen locks during playback, and that the player should not look never-started after unlock. Do not promise a date. Do not ask for app version if we already have it.
+- **Notes / reports:** Help Scout #321309 Mike Crow. Related to but distinct from T-1869 (timer sits lost when screen locks) — this is the guided meditation variant. Both remain in Priorities as of 2026-09-15.
+- **Linear ticket:** T-1932 (https://linear.app/happier/issue/T-1932)
+- **Help Scout:** #321309 (https://secure.helpscout.net/conversation/3453210920/321309)
+- **Date added:** 2026-09-15
+- **Date resolved:** —
+
+## 31. iOS Timer Sit Lost When Screen Locks
+
+- **Status:** Investigating. Priorities. Assignee Peter (unconfirmed last name). Resurfaced alongside T-1932 (guided lock-screen loss).
+- **Platforms:** iOS.
+- **What to tell the customer:** We are investigating this now. Acknowledge that an unguided timer session should not be lost when the screen locks. Do not promise a date. Do not ask for app version if we already have it.
+- **Notes / reports:** Related to T-1932 (guided lock-screen loss) but this is the timer/unguided path. Both remain in Priorities as of 2026-09-15.
+- **Linear ticket:** T-1869 (https://linear.app/happier/issue/T-1869)
+- **Date added:** 2026-09-15
+- **Date resolved:** —
+
+## 32. Security: TOTP 2FA Enrollment Accepts Same Code Twice Under Concurrent Requests
+
+- **Status:** Investigating. Engineering Backlog Medium. Labels include security.
+- **Platforms:** All platforms (backend/authentication issue).
+- **What to tell the customer:** We have identified the issue. Acknowledge the TOTP 2FA enrollment security concern. This is a backend authentication issue being addressed. Do not promise a date. Treat as a security-sensitive ticket — do not overshare technical details in the customer-facing reply.
+- **Notes / reports:** Help Scout #321302. Engineering Backlog priority; security label applied.
+- **Linear ticket:** T-1931 (https://linear.app/happier/issue/T-1931)
+- **Help Scout:** #321302 (https://secure.helpscout.net/conversation/3452808741/321302)
+- **Date added:** 2026-09-15
 - **Date resolved:** —
 
