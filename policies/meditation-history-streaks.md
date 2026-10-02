@@ -21,6 +21,17 @@ Covers tickets where a customer reports a missing meditation session, a broken o
 
 # Policy / Correct Response
 
+## Forbidden customer language (taught 2026-10-02 — Luciana #321607)
+
+Never tell a customer that support cannot rebuild a streak, cannot restore a date, or has "no way from support" to fix a missing day. That is false for a known missing practice date.
+
+When the customer names a date that did not register (including unguided timer / phone-locked timer bugs such as T-1869):
+1. Add Timer → Unguided Timer in admin Mindful Sessions for that date.
+2. Check the calendar day before and the day after.
+3. Verify the new row, then confirm to the customer.
+
+A product bug that needs an app release does **not** block adding the named missing date. Escalate only display bugs (history looks complete but streak counter is wrong) or bulk/long-term history restoration.
+
 ## Standard Case
 
 The customer reports a missing session or broken streak. We manually add the missing meditation(s) to their history on the backend and send a short confirmation reply.
