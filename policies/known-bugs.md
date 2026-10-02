@@ -432,3 +432,15 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Date added:** 2026-09-15
 - **Date resolved:** —
 
+
+## 33. Monthly Check-In Has No Back/Exit Button
+
+- **Status:** Investigating. Priorities High. Filed T-2231 (no assignee yet). Cassidy product ask + customer report that Check-In can trap users with no way out.
+- **Platforms:** iOS confirmed (Kathryn #321767, native 2026.916). Likely affects Check-In on all hybrid shells — confirm Android if reported.
+- **Symptom:** Home is dominated by / opens into Monthly Check-In; user can get jammed on an early screen with no forward progress and **no back/exit** affordance. Normally Check-In is optional; without an exit, trapped users must somehow finish the flow to reach meditations again.
+- **What to tell the customer:** We are investigating this now. Apologize briefly for the stuck Check-In. Explain we are fixing so there is a way to exit (back button). **Workaround for now: skip through / go through and complete the Check-In — that should get them out.** Do not call it Reflect. Do not promise a ship date. Hopeful tone; never say the problem "is on us." Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Related to but distinct from T-2173 (intention-screen freeze), T-2211 (post–Check-In "Setting up your plan…" hang), T-1813 (no resume / start-over). T-361 (canceled) mentioned always-available skip but never shipped as exit.
+- **Linear ticket:** T-2231 (https://linear.app/happier/issue/T-2231)
+- **Help Scout:** #321767 Kathryn Murphy (https://secure.helpscout.net/conversation/3458621082/321767)
+- **Date added:** 2026-10-02
+- **Date resolved:** —
