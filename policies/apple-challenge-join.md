@@ -54,6 +54,16 @@ The app must be signed into the account **Apple Wellness has on record** before 
 - **Email registration** → sign out (article 51) or Force Quit if half-signed-in → Sign In → **Sign in with Email** → registered address + password → then tap the Wellness link → `Support JoinLogIntoRegisteredEmailAccount FILLIN`
 - **Hidden Sign in with Apple registration** → Sign In → **Sign in with Apple** (choose Hide My Email if prompted) → then tap the link → `Join SignIntoHiddenSIWAThenJoin`; if the user needs to see the masked address: Settings → name → Sign-In & Security → Sign in with Apple → Happier → `Support JoinLogIntoRegisteredSIWAAccount` / `SNIPPET SIWACheckSettingsForMaskedAddress`
 
+
+## Personal phone vs work phone / different Apple ID (taught 2026-10-05 — Jingyi #322206)
+
+Customer joined on a **work phone** (often Sign in with Apple) and wants to continue on a **personal phone** with a **different Apple ID**.
+
+- The Challenge stays on the **same Happier account** that already shows Challenge activity — not a second Happier account, and not a new Wellness token by default.
+- Different Apple ID on the personal phone is fine: sign into Happier there with the **enrolled** Happier login.
+- If enrollment was SIWA-only and they have no password, **offer to set a password** so they can email+password sign-in on the personal phone without the work Apple ID. Ask whether they need that.
+- Do **not** treat this as transferring the token to a different Happier account unless they explicitly want a separate Happier login (that needs Wellness / judgment).
+
 ## Token states (unique per employee)
 
 - **Token taken** — the link is already connected to a different address: have them sign into *that* address (article pack); if that's not theirs, get their Apple email so we can check the registration with the Wellness team and reset it → `Support JoinTokenTaken FILLIN`
