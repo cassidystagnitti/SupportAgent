@@ -109,6 +109,23 @@ Before any policy is applied, the pipeline:
 
 This means the AI receives account data for every email the customer mentioned, not just the one they wrote in from. The combined block is labelled by email so the AI can reason about which account is which.
 
+## Help Scout customer profile emails (sidebar population)
+
+**Taught 2026-10-05 — Avihay Abudi #322464 / #322465** (also Harry #320357, Edmund #320509):
+
+Before relying on the Help Scout right-sidebar account widget, put **every known email** on the Help Scout **customer profile** for that ticket:
+
+- Ticket from-address
+- Any Account / Login Method email from a customer screenshot
+- Any `…@privaterelay.appleid.com` Hide My Email / Sign in with Apple address found in the thread, screenshot, or admin
+- Any other address in the body, CC, or in-app report `Email:` line
+
+Add missing addresses with Help Scout `POST /v2/customers/{id}/emails` (`type` home/work/other, `value` the address). The from-address is usually already there; add the others.
+
+**Why:** The sidebar only looks up emails on the Help Scout customer profile. If the customer writes from `aabudi@apple.com` but the app is SIWA `…@privaterelay.appleid.com`, searching or leaving only the from-address leaves the sidebar empty/error even when an admin user exists on the relay address.
+
+**Do this as soon as the second email is known** — including mid-investigation when a screenshot or admin lookup reveals SIWA — not only at first reply. Do not wait to escalate or reply first.
+
 ## Escalation Triggers
 
 - **Two or more subscribed accounts found across any email in the ticket** → escalate immediately to support leadership. Do not send any reply. The pipeline sets `needs_action: true` and `auto_sendable: false` automatically when this condition is detected.

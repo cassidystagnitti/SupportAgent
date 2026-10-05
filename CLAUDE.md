@@ -26,6 +26,8 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 
 **Answer the whole question (taught 2026-10-05 — Rick #322556):** Never send a customer reply that only answers part of their question. Every Help Scout customer reply must respond to everything the customer asked. If you cannot answer the whole ask, hold until you can (or send one complete follow-up once the missing answer is known). See `policies/complete-customer-replies.md`.
 
+**Help Scout profile emails for sidebar (taught 2026-10-05 — Avihay #322464):** When a second email is known — especially a Hide My Email / SIWA `…@privaterelay.appleid.com` from a screenshot or admin — add it to the Help Scout customer profile immediately with the ticket from-address so the right sidebar can populate. See `policies/account-lookup-data-model.md` (Help Scout customer profile emails).
+
 **Cancel/refund Stripe/Apple in-window remain with Refund Bert / existing cancel policies.** Do not rewrite those into "hold for Cassidy" unless they are Google Play.
 
 ---
