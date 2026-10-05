@@ -19,6 +19,14 @@ Covers all inbound app feedback, content suggestions, feature requests, positive
 
 # Policy / Correct Response
 
+## Team / Circle "someone meditated" notifications (taught 2026-10-05 — Jake #322422)
+
+There is **no in-app setting** today to turn off only notifications when someone on a team / Circle meditates.
+
+- Take as **product feedback**.
+- Customer reply: acknowledge; say the setting does not exist yet; we are working on adding a control for that; invite other questions.
+- Send+close. Sign-off: Take care, / Happier Meditation Support Team.
+- Do not invent a toggle path. Organization / Apple accounts in mailbox 3 are fine to solo.
 ## Standard Case
 
 **Our role is conduit, not resolver.** We do not build features, create content, or make product decisions. We acknowledge the feedback, validate the user's perspective, confirm it has been passed on, and close warmly. We do not promise timelines, roadmap inclusion, or specific outcomes.
