@@ -24,6 +24,8 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 
 **Customer-facing close:** Always `Take care,` / `Happier Meditation Support Team`. Never Cass/Cassidy/first name. Never Best wishes.
 
+**Answer the whole question (taught 2026-10-05 — Rick #322556):** Never send a customer reply that only answers part of their question. Every Help Scout customer reply must respond to everything the customer asked. If you cannot answer the whole ask, hold until you can (or send one complete follow-up once the missing answer is known). See `policies/complete-customer-replies.md`.
+
 **Cancel/refund Stripe/Apple in-window remain with Refund Bert / existing cancel policies.** Do not rewrite those into "hold for Cassidy" unless they are Google Play.
 
 ---
@@ -67,7 +69,7 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 | `process_answered_gaps.py` | Vestigial | (Notion policy sync abandoned 2026-07-14) formerly wrote answered Gap Queue rows back into `policies/*.md` |
 | `scripts/sync_new_policy_docs.py` | Vestigial | (Notion policy sync abandoned 2026-07-14) formerly pushed `policies/*.md` to Notion child pages |
 | `scripts/list_stale_drafts.py` | Standalone CLI | Seeds the draft registry from a past eval run and lists conversations with duplicate live drafts to clean up manually |
-| `policies/` | Live | 21 markdown policy docs, loaded wholesale into every draft prompt |
+| `policies/` | Live | 35 markdown policy docs, loaded wholesale into every draft prompt |
 | `prompts/draft_system_prompt.txt` | Live | System prompt for draft generation (edit here, not in Python) |
 | `prompts/triage_prompt.txt` | Live | System prompt for triage classification |
 
