@@ -111,6 +111,18 @@ When the MMC / Apple Challenge Wellness token is already connected to Happier **
 
 If Route 1 is exhausted and the customer still needs the Challenge on Account B (a true token rebind / move between Happier accounts), escalate to engineering. Support has no sanctioned tool or admin path to perform that move.
 
+### Finding the true token owner when fingerprint shows TokenAlreadyTaken (taught 2026-10-06 — Pei-Ling #322395)
+
+When an MMC / Apple Challenge **form fingerprint** token ref (short digest prefix, e.g. `c62e290f05`) shows **TokenAlreadyTaken** and the ticket's Apple / Happier account **does not** have challenge **312** (MMC 2026):
+
+1. Look up `organization_apple_token_events` by `token_digest LIKE '<ref>%'` (the fingerprint prefix).
+2. From those events, resolve the true owner via `organization_tokens` / `organization_apple_token_claims` → Happier user id + email.
+3. If **another** account already owns the token **and** has challenge 312 → **Route 1**: tell the customer to sign into **that** owner email (`Support JoinTokenTaken` + `Support JoinLogIntoRegisteredEmailAccount` style). **No token move.**
+4. Many TokenAlreadyTaken rejects from several accounts on the **same devices** usually means **one person cycling logins**, not a second person holding the token.
+5. Support still cannot move the token (**Route 2** = engineering) — same as Khushi #322817 above.
+
+**Example only (Pei-Ling #322395 — do not hardcode as the only case):** fingerprint `c62e290f05` → owner `dinan6130@yahoo.com.tw` user **4329616**, challenge 312 since 2026-09-17, DSID 2443918 since 2024. Ticket account **4140157** (`yang_pei_ling@apple.com`) and sibling accounts only got rejects.
+
 ## Token states (unique per employee)
 
 - **Token taken** — the link is already connected to a different address: have them sign into *that* address (article pack); if that's not theirs, get their Apple email so we can check the registration with the Wellness team and reset it → `Support JoinTokenTaken FILLIN`
@@ -169,7 +181,7 @@ If Route 1 is exhausted and the customer still needs the Challenge on Account B 
 ## Escalation Triggers
 
 - Token registration disputes or suspected token misuse → Wellness team verification.
-- Dual-account token move / rebind to a different Happier account (Route 2; Khushi #322817 / Kinoo #322254) → engineering; support does Route 1 only.
+- Dual-account token move / rebind to a different Happier account (Route 2; Khushi #322817 / Kinoo #322254) → engineering; support does Route 1 only. Fingerprint TokenAlreadyTaken + ticket account lacks challenge 312 → find true owner via `organization_apple_token_events` / claims (Pei-Ling #322395), then Route 1 into that owner email.
 - Suspected MMC "failed-fix" / minutes-not-counting / Health-import / Challenge-missing issue → exhaust research first (app Login Method + Email; Admin/Maven on that + ticket/Apple/SIWA addresses; who owns the 2026 token; whether prior fixes hit the same user id). Then ask: code/product bug vs support-shaped? Support-shaped → handle in mailbox (do not post as NEW bug). Post `#mmc-development` only after research, framed as a question (Natalie #322604 / VJ #322767).
 - The same join error from multiple users in one day → flag to the team (likely a systemic/app issue) and collect Contact-a-Human diagnostics.
 
