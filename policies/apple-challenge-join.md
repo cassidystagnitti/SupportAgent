@@ -62,7 +62,25 @@ Customer joined on a **work phone** (often Sign in with Apple) and wants to cont
 - The Challenge stays on the **same Happier account** that already shows Challenge activity — not a second Happier account, and not a new Wellness token by default.
 - Different Apple ID on the personal phone is fine: sign into Happier there with the **enrolled** Happier login.
 - If enrollment was SIWA-only and they have no password, **offer to set a password** so they can email+password sign-in on the personal phone without the work Apple ID. Ask whether they need that.
-- Do **not** treat this as transferring the token to a different Happier account unless they explicitly want a separate Happier login (that needs Wellness / judgment).
+- Do **not** treat this as transferring the token to a different Happier account. If they insist on a *different* Happier login holding the Challenge, that is dual-account Route 2 (engineering) — see below; support cannot move the token.
+
+
+## Dual-account: token already on Account A, customer wants Account B (taught 2026-10-06 — Khushi #322817)
+
+When the MMC / Apple Challenge Wellness token is already connected to Happier **Account A** (often the SIWA / Apple login that first opened the unique Wellness link) and the customer asks to put the Challenge on a **different** Happier account (e.g. personal Gmail) — **Account B**:
+
+**Support cannot move, revoke, or transfer the Challenge token from one Happier account to another.** That is **Route 2** and requires **engineering** (same pattern as Kinoo #322254 / Liam dual-account writeups). Do not invent admin UI steps for a token move, and do not promise a move, revoke, or transfer.
+
+### Route 1 — support reply path (default)
+
+1. Tell the customer the Challenge stays on the Happier account that **first used** their unique Wellness link (Account A).
+2. Ask what is going wrong with that Apple / Sign in with Apple login (can't find Apple ID, SIWA fails, needs password, etc.).
+3. Offer password help so they can sign in with email/password on another phone (same account — see *Personal phone vs work phone* above and *Password problems while joining*).
+4. Do **not** promise a token move, revoke, or transfer to a different Happier account.
+
+### Route 2 — engineering only
+
+If Route 1 is exhausted and the customer still needs the Challenge on Account B (a true token rebind / move between Happier accounts), escalate to engineering. Support has no sanctioned tool or admin path to perform that move.
 
 ## Token states (unique per employee)
 
@@ -117,10 +135,12 @@ Customer joined on a **work phone** (often Sign in with Apple) and wants to cont
 - `Join PasswordResetToDefaultThenJoin` (live credentials) — always human-reviewed, permission confirmed first.
 - Any unfilled `FILLIN` placeholder; any claim about token/Wellness registration state not actually verified.
 - Late-join or eligibility exceptions — never promise them.
+- Any promise to move, revoke, or transfer an MMC / Apple Challenge token to a different Happier account (Route 2 / engineering only).
 
 ## Escalation Triggers
 
 - Token registration disputes or suspected token misuse → Wellness team verification.
+- Dual-account token move / rebind to a different Happier account (Route 2; Khushi #322817 / Kinoo #322254) → engineering; support does Route 1 only.
 - The same join error from multiple users in one day → flag to the team (likely a systemic/app issue) and collect Contact-a-Human diagnostics.
 
 # Confidence Notes

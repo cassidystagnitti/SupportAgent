@@ -28,6 +28,8 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 
 **Personal phone / different Apple ID (taught 2026-10-05 — Jingyi #322206):** Challenge stays on the enrolled Happier account; SIWA users may need a password we set for personal-phone sign-in. See `policies/apple-challenge-join.md`.
 
+**MMC dual-account — support cannot move Challenge tokens (taught 2026-10-06 — Khushi #322817):** When the Wellness token is already on Happier Account A and the customer wants Account B, support **cannot** move/revoke/transfer the token (Route 2 = engineering; same as Kinoo #322254 / Liam dual-account). Route 1: Challenge stays on the account that first used the unique Wellness link; ask what is wrong with that Apple/SIWA login; offer password help for email/password on another phone; never promise a token move. See `policies/apple-challenge-join.md` (Dual-account subsection).
+
 **Team meditation notifications (taught 2026-10-05 — Jake #322422):** No setting to disable only “someone on my team meditated” pushes — take as feedback and reply that we will work on that setting. See `policies/feedback-policy.md`.
 
 **Help Scout profile emails for sidebar (taught 2026-10-05 — Avihay #322464):** When a second email is known — especially a Hide My Email / SIWA `…@privaterelay.appleid.com` from a screenshot or admin — add it to the Help Scout customer profile immediately with the ticket from-address so the right sidebar can populate. See `policies/account-lookup-data-model.md` (Help Scout customer profile emails).
