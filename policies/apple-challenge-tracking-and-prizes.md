@@ -64,16 +64,36 @@ Reply also lists every way to log more/fewer minutes than the featured session (
 - Post-event, remind them the **Global Access subscription is theirs year-round** (see *Global Access*).
 
 
-## Wrong-account before treating as failed-fix / #mmc-development (taught 2026-10-06 — Natalie #322604, VJ #322767)
+## Before `#mmc-development` (failed-fix / Health / minutes) (taught 2026-10-06 — Natalie #322604, VJ #322767)
 
-When minutes credits, Health-import workarounds (e.g. T-2215), or "failed-fix" symptoms are reported, **do not** treat them as eng bugs or post to **#mmc-development** until account identity is confirmed:
+Do **not** Slack eng just because a failed-fix, Health-import, or minutes ticket *looks* new. Dual-account, wrong login, and “Challenge missing / link already used / credits didn’t show” almost always look novel until you finish the research.
 
-1. Verify Happier **admin user id** matches the account the **app is signed into** (SIWA relay vs email).
-2. Check for dual accounts (credits on a dormant/old user while the app is on another; enrollment on work email while the app is SIWA Hide My Email).
-3. Wrong-account credits / wrong login = **support Route 1**, not a failed-fix bug. Do **not** post those cases to #mmc-development.
-4. **#mmc-development** is for new product/code issues only (e.g. true T-2215 Health import when the account is confirmed correct).
+**Illustrations (established the teach):**
+- **Natalie #322604:** admin credits landed on dormant me.com user **4129502**; the app is signed into **3743148** (`npukesh@apple.com`).
+- **VJ #322767:** token/enrollment on the **work email** account; the app was signed in with **SIWA Hide My Email**.
 
-See *Mindful Minute Challenge — Registration & Join* (Wrong-account before #mmc-development).
+**Required research first (every time):**
+1. What Login Method + Email is the app on right now? (screenshot or Settings → Account)
+2. Admin/Maven lookup on that address **and** the ticket email, Apple corp address, and any SIWA `@privaterelay…`
+3. Who owns the 2026 token / Challenge enrollment? Same user as the app, or a different one?
+4. If we already “fixed” something (credits, Force Quit, Wellness steps) — did that action hit the **same** user id the app is on?
+
+**Only after that, ask yourself:** is this a **code / product bug** (tap/action failed, UI wrong for the correct account, sync broken with account confirmed), or a **support-shaped** problem we already know?
+
+**Support-shaped (handle in mailbox — do not post as NEW bug), even if the wording is slightly different:**
+- Missing meditation / day not counted → credit or T-2215 workaround once account is confirmed
+- “I’m enrolled but I don’t see the Challenge” / link already used → almost always wrong or dual account (Route 1)
+- Account / sign-in not working → password / SIWA / sign into the owning account
+- False missed-yesterday when days are filled → known T-2234 (Linear comment, not a new post)
+- Shortcuts minutes → intentional block, not T-2215
+
+**Post to `#mmc-development` only when research is done and you still need eng, framed as a question, e.g.:**
+- “Account confirmed correct (user X, email Y). Customer tapped Z / sees W. Is this a code bug, or is there another account/path we missed?”
+- Or a clearly new click-broken / wrong-UI / infra symptom with the research already attached.
+
+**Default:** if it fits a known support pattern, answer it in support. Slack is for “we researched accounts and still don’t know what’s going on — help.”
+
+See *Mindful Minute Challenge — Registration & Join* (Before `#mmc-development`).
 
 ## Edge Cases & Exceptions
 
@@ -102,7 +122,7 @@ See *Mindful Minute Challenge — Registration & Join* (Wrong-account before #mm
 
 - Prize disputes or "Wellness says I didn't complete but I did" → `wellness@apple.com` (customer-side) and flag internally.
 - Widespread minutes-not-registering reports in one day → likely product incident; flag with diagnostics.
-- Suspected failed-fix / Health-import / minutes-not-counting escalations → verify admin user id == app signed-in account and rule out dual-account first (Natalie #322604 / VJ #322767). Wrong-account = support Route 1; do not post to #mmc-development as a bug.
+- Suspected failed-fix / Health-import / minutes-not-counting escalations → exhaust research first (app Login Method + Email; Admin/Maven on that + ticket/Apple/SIWA addresses; who owns the 2026 token; whether prior fixes hit the same user id). Then ask: code/product bug vs support-shaped? Support-shaped → handle in mailbox (do not post as NEW bug). Post `#mmc-development` only after research, framed as a question (Natalie #322604 / VJ #322767).
 
 # Confidence Notes
 

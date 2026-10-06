@@ -65,22 +65,34 @@ Customer joined on a **work phone** (often Sign in with Apple) and wants to cont
 - Do **not** treat this as transferring the token to a different Happier account. If they insist on a *different* Happier login holding the Challenge, that is dual-account Route 2 (engineering) — see below; support cannot move the token.
 
 
-## Wrong-account before #mmc-development / eng bug (taught 2026-10-06 — Natalie #322604, VJ #322767)
+## Before `#mmc-development` (taught 2026-10-06 — Natalie #322604, VJ #322767)
 
-Tickets like Natalie #322604 and VJ #322767 that were posted to **#mmc-development** as "failed-fix" were **not** code/bugs. Claude traced them as **wrong-account** cases:
+Do **not** Slack eng just because the ticket *looks* new. Dual-account, wrong login, and “Challenge missing / link already used / credits didn’t show” almost always look novel until you finish the research.
 
+**Illustrations (established the teach):**
 - **Natalie #322604:** admin credits landed on dormant me.com user **4129502**; the app is signed into **3743148** (`npukesh@apple.com`).
 - **VJ #322767:** token/enrollment on the **work email** account; the app was signed in with **SIWA Hide My Email**.
 
-**Support must diagnose dual-account / wrong-user before escalating to eng or posting #mmc-development.**
+**Required research first (every time):**
+1. What Login Method + Email is the app on right now? (screenshot or Settings → Account)
+2. Admin/Maven lookup on that address **and** the ticket email, Apple corp address, and any SIWA `@privaterelay…`
+3. Who owns the 2026 token / Challenge enrollment? Same user as the app, or a different one?
+4. If we already “fixed” something (credits, Force Quit, Wellness steps) — did that action hit the **same** user id the app is on?
 
-### Gate before #mmc-development or eng-bug treatment
+**Only after that, ask yourself:** is this a **code / product bug** (tap/action failed, UI wrong for the correct account, sync broken with account confirmed), or a **support-shaped** problem we already know?
 
-1. Verify the Happier **admin user id** matches the account the **app is signed into** (SIWA relay `…@privaterelay.appleid.com` vs email login).
-2. Check for **dual accounts** (dormant/old email vs current app login; work email enrollment vs SIWA Hide My Email).
-3. Wrong-account credits / wrong login = **support Route 1** (align the customer onto the correct signed-in account; use JoinTokenTaken / sign-in mismatch paths as applicable) — **not** a failed-fix bug.
-4. Do **NOT** post wrong-account / dual-account / JoinTokenTaken-solvable cases to **#mmc-development** as bugs.
-5. **#mmc-development** is for **new product/code issues only** (e.g. true T-2215 Health import when the account is confirmed correct).
+**Support-shaped (handle in mailbox — do not post as NEW bug), even if the wording is slightly different:**
+- Missing meditation / day not counted → credit or T-2215 workaround once account is confirmed
+- “I’m enrolled but I don’t see the Challenge” / link already used → almost always wrong or dual account (Route 1)
+- Account / sign-in not working → password / SIWA / sign into the owning account
+- False missed-yesterday when days are filled → known T-2234 (Linear comment, not a new post)
+- Shortcuts minutes → intentional block, not T-2215
+
+**Post to `#mmc-development` only when research is done and you still need eng, framed as a question, e.g.:**
+- “Account confirmed correct (user X, email Y). Customer tapped Z / sees W. Is this a code bug, or is there another account/path we missed?”
+- Or a clearly new click-broken / wrong-UI / infra symptom with the research already attached.
+
+**Default:** if it fits a known support pattern, answer it in support. Slack is for “we researched accounts and still don’t know what’s going on — help.”
 
 ## Dual-account: token already on Account A, customer wants Account B (taught 2026-10-06 — Khushi #322817)
 
@@ -158,7 +170,7 @@ If Route 1 is exhausted and the customer still needs the Challenge on Account B 
 
 - Token registration disputes or suspected token misuse → Wellness team verification.
 - Dual-account token move / rebind to a different Happier account (Route 2; Khushi #322817 / Kinoo #322254) → engineering; support does Route 1 only.
-- Suspected MMC "failed-fix" / minutes-not-counting / Health-import issue → **first** verify admin user id matches the app signed-in account and rule out dual-account / wrong login (Natalie #322604 / VJ #322767). Wrong-account = support Route 1; do **not** post to #mmc-development. Only post #mmc-development for confirmed new product/code issues (e.g. true T-2215 when account is correct).
+- Suspected MMC "failed-fix" / minutes-not-counting / Health-import / Challenge-missing issue → exhaust research first (app Login Method + Email; Admin/Maven on that + ticket/Apple/SIWA addresses; who owns the 2026 token; whether prior fixes hit the same user id). Then ask: code/product bug vs support-shaped? Support-shaped → handle in mailbox (do not post as NEW bug). Post `#mmc-development` only after research, framed as a question (Natalie #322604 / VJ #322767).
 - The same join error from multiple users in one day → flag to the team (likely a systemic/app issue) and collect Contact-a-Human diagnostics.
 
 # Confidence Notes
