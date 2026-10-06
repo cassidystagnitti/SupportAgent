@@ -63,6 +63,18 @@ Reply also lists every way to log more/fewer minutes than the featured session (
 - **"Am I on track?" / "Why no reward?"** — give their verified numbers: sessions completed out of 25, the ≥1-full-minute rule, and the Health-app correction path → `Support PrizeAccountInfo FILLIN`. Real-sent phrasing for a shortfall: "It looks like you completed #DAYS out of the 25 days needed to receive the prize this year."
 - Post-event, remind them the **Global Access subscription is theirs year-round** (see *Global Access*).
 
+
+## Wrong-account before treating as failed-fix / #mmc-development (taught 2026-10-06 — Natalie #322604, VJ #322767)
+
+When minutes credits, Health-import workarounds (e.g. T-2215), or "failed-fix" symptoms are reported, **do not** treat them as eng bugs or post to **#mmc-development** until account identity is confirmed:
+
+1. Verify Happier **admin user id** matches the account the **app is signed into** (SIWA relay vs email).
+2. Check for dual accounts (credits on a dormant/old user while the app is on another; enrollment on work email while the app is SIWA Hide My Email).
+3. Wrong-account credits / wrong login = **support Route 1**, not a failed-fix bug. Do **not** post those cases to #mmc-development.
+4. **#mmc-development** is for new product/code issues only (e.g. true T-2215 Health import when the account is confirmed correct).
+
+See *Mindful Minute Challenge — Registration & Join* (Wrong-account before #mmc-development).
+
 ## Edge Cases & Exceptions
 
 - **Sessions under 60 seconds "missing":** working as designed — they don't register; meditate ≥1 full minute (`Minutes Under60SecondsAddYourOwn`).
@@ -90,6 +102,7 @@ Reply also lists every way to log more/fewer minutes than the featured session (
 
 - Prize disputes or "Wellness says I didn't complete but I did" → `wellness@apple.com` (customer-side) and flag internally.
 - Widespread minutes-not-registering reports in one day → likely product incident; flag with diagnostics.
+- Suspected failed-fix / Health-import / minutes-not-counting escalations → verify admin user id == app signed-in account and rule out dual-account first (Natalie #322604 / VJ #322767). Wrong-account = support Route 1; do not post to #mmc-development as a bug.
 
 # Confidence Notes
 

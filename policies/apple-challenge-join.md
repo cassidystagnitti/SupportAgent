@@ -65,6 +65,23 @@ Customer joined on a **work phone** (often Sign in with Apple) and wants to cont
 - Do **not** treat this as transferring the token to a different Happier account. If they insist on a *different* Happier login holding the Challenge, that is dual-account Route 2 (engineering) — see below; support cannot move the token.
 
 
+## Wrong-account before #mmc-development / eng bug (taught 2026-10-06 — Natalie #322604, VJ #322767)
+
+Tickets like Natalie #322604 and VJ #322767 that were posted to **#mmc-development** as "failed-fix" were **not** code/bugs. Claude traced them as **wrong-account** cases:
+
+- **Natalie #322604:** admin credits landed on dormant me.com user **4129502**; the app is signed into **3743148** (`npukesh@apple.com`).
+- **VJ #322767:** token/enrollment on the **work email** account; the app was signed in with **SIWA Hide My Email**.
+
+**Support must diagnose dual-account / wrong-user before escalating to eng or posting #mmc-development.**
+
+### Gate before #mmc-development or eng-bug treatment
+
+1. Verify the Happier **admin user id** matches the account the **app is signed into** (SIWA relay `…@privaterelay.appleid.com` vs email login).
+2. Check for **dual accounts** (dormant/old email vs current app login; work email enrollment vs SIWA Hide My Email).
+3. Wrong-account credits / wrong login = **support Route 1** (align the customer onto the correct signed-in account; use JoinTokenTaken / sign-in mismatch paths as applicable) — **not** a failed-fix bug.
+4. Do **NOT** post wrong-account / dual-account / JoinTokenTaken-solvable cases to **#mmc-development** as bugs.
+5. **#mmc-development** is for **new product/code issues only** (e.g. true T-2215 Health import when the account is confirmed correct).
+
 ## Dual-account: token already on Account A, customer wants Account B (taught 2026-10-06 — Khushi #322817)
 
 When the MMC / Apple Challenge Wellness token is already connected to Happier **Account A** (often the SIWA / Apple login that first opened the unique Wellness link) and the customer asks to put the Challenge on a **different** Happier account (e.g. personal Gmail) — **Account B**:
@@ -141,6 +158,7 @@ If Route 1 is exhausted and the customer still needs the Challenge on Account B 
 
 - Token registration disputes or suspected token misuse → Wellness team verification.
 - Dual-account token move / rebind to a different Happier account (Route 2; Khushi #322817 / Kinoo #322254) → engineering; support does Route 1 only.
+- Suspected MMC "failed-fix" / minutes-not-counting / Health-import issue → **first** verify admin user id matches the app signed-in account and rule out dual-account / wrong login (Natalie #322604 / VJ #322767). Wrong-account = support Route 1; do **not** post to #mmc-development. Only post #mmc-development for confirmed new product/code issues (e.g. true T-2215 when account is correct).
 - The same join error from multiple users in one day → flag to the team (likely a systemic/app issue) and collect Contact-a-Human diagnostics.
 
 # Confidence Notes
