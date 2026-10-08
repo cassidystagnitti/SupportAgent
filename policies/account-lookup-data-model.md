@@ -109,22 +109,31 @@ Before any policy is applied, the pipeline:
 
 This means the AI receives account data for every email the customer mentioned, not just the one they wrote in from. The combined block is labelled by email so the AI can reason about which account is which.
 
-## Help Scout customer profile emails (sidebar population)
+## Help Scout customer profile emails (sidebar population) — ALWAYS, every ticket
 
-**Taught 2026-10-05 — Avihay Abudi #322464 / #322465** (also Harry #320357, Edmund #320509):
+**Standing rule — taught again by Cassidy 2026-10-08 (39-ticket mailbox pass): "Make sure in any case where there are multiple email addresses, that they're all added to the Help Scout profile as well … so that it is always done."** First taught 2026-10-05 — Avihay Abudi #322464 / #322465 (also Harry #320357, Edmund #320509).
 
-Before relying on the Help Scout right-sidebar account widget, put **every known email** on the Help Scout **customer profile** for that ticket:
+On **every** Happier Help Scout ticket (all mailboxes, all ticket types), **before starting any other work**, put **every email address seen on the ticket** on the Help Scout **customer profile**. No exceptions: do it even if the ticket will be escalated, moved to another team/mailbox (Cancel Refund, Bug, Apple), held for Cassidy, merged, or closed as a duplicate. Spam is the only skip.
+
+Add all of these that differ from what the profile already has:
 
 - Ticket from-address
-- Any Account / Login Method email from a customer screenshot
+- Any `Account:` line / signature / footer email (in-app report `Email:` line, form fields)
+- Every CC address that belongs to the customer
 - Any `…@privaterelay.appleid.com` Hide My Email / Sign in with Apple address found in the thread, screenshot, or admin
-- Any other address in the body, CC, or in-app report `Email:` line
+- Any Account / Login Method email from a customer screenshot
+- Any other address the customer mentions anywhere in the thread (old email, work email, spouse/gift email they say is theirs)
+- Any account email turned up by admin Users, Maven, or Stripe lookups for this customer (e.g. Stripe customer email differs from the from-address)
 
 Add missing addresses with Help Scout `POST /v2/customers/{id}/emails` (`type` home/work/other, `value` the address). The from-address is usually already there; add the others.
 
 **Why:** The sidebar only looks up emails on the Help Scout customer profile. If the customer writes from `aabudi@apple.com` but the app is SIWA `…@privaterelay.appleid.com`, searching or leaving only the from-address leaves the sidebar empty/error even when an admin user exists on the relay address.
 
-**Do this as soon as the second email is known** — including mid-investigation when a screenshot or admin lookup reveals SIWA — not only at first reply. Do not wait to escalate or reply first.
+**Do this at intake, and again as soon as any new email is known** — including mid-investigation when a screenshot or admin lookup reveals SIWA — not only at first reply. Do not wait to escalate or reply first.
+
+**409 Conflict** means that address already lives on a different Help Scout customer profile — note both profile ids in the internal note; do not invent a merge. Still look the address up in admin/sidebar.
+
+**Record it:** mention the added addresses in the ticket's internal note (e.g. "Added x@y.com to HS profile") so the next agent can see it was done.
 
 ## Escalation Triggers
 
