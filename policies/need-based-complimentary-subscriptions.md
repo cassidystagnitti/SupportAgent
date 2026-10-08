@@ -82,10 +82,13 @@ We offer complimentary (free) annual subscriptions on a discretionary, case-by-c
 
 ## Do Not Auto-Send Conditions
 
-Even when the reply is "reply-only" (no admin action needed), flag for human review before sending if any of the following are true:
+**Comp GRANTS send without Cassidy review — DENIALS hold (decision 2026-10-08, Cassidy; supersedes the old "wait for Cassidy's final review" rule):**
 
-- **High-touch emotional tickets** (grief-tied hardship, domestic abuse situations, or other deeply vulnerable contexts) — hold for Cassidy review. See top-level Solo vs Ping guidance (CLAUDE.md).
-- **Complimentary subscription offers that are NOT high-touch emotional are now SOLO-sendable** (decision 2026-09-02). Standard need-based comps (financial hardship, unemployment, fixed income) can be sent after drafting the reply with the comp grant action note.
+- **Granting (or already granted) a hardship / need-based / scholarship Comp → send the confirmation and close.** Do not draft-and-wait for Cassidy, including when the hardship story is emotional (grief, illness, domestic abuse). Grant the Comp on the existing admin user first, verify the Comp row, then send and close. **Lean generous** — when in doubt, grant.
+- **Denying (or declining / downgrading to a discount instead of) a hardship or Comp ask → draft the reply and HOLD for Cassidy's approval** with an internal note explaining why we'd deny. Never send a denial without her OK.
+- No admin user on any ticket email → still never create an account; hold with a note.
+
+Otherwise, even when the reply is "reply-only" (no admin action needed), flag for human review before sending if any of the following are true:
 - Customer's request involves unusual circumstances (on behalf of someone else, institutional/group access, multi-year request)
 - Customer has a history of disputes, chargebacks, or prior complimentary subscriptions
 - Customer is hostile or threatening in tone — do not reward hostility reflexively; human should assess
