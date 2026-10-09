@@ -29,7 +29,7 @@ AI-powered support agent for Happier Meditation. Processes Help Scout tickets en
 - SIWA / Hide My Email second account + Apple purchase → explanation reply (`docs/reply-templates/siwa-two-accounts-apple-purchase.md`).
 - Dispute/charge with only an expired sub and no matching charge → adjusted `CancelRefund PlatformUnclearRefund`.
 - Apple employee-benefit charges → move to mailbox 201086, no reply. Unsolicited security/bug-bounty reports → spam.
-- New reproducible bugs → file Linear (dedupe incl. same-day digest issues; reproduce on web as `supportbot@meditatehappier.com`).
+- New reproducible bugs → standing yes for BOTH: file Linear AND post #customer-support-watcher (Linear + Help Scout links + one line). Dedupe first (incl. same-day digest issues); reproduce on web as `supportbot@meditatehappier.com`.
 - Missing single days (even months back) → add in admin; never say we can't restore. >3 consecutive missing days → Cassidy.
 - "Respond to this email only" → send with `customer: {"email": …}` (no id), no CC; verify.
 - Gift PDF resend with attachment verified; deletion-with-active-sub flow (auto-renew off + ack → Cassidy deletes → confirm); Braze retired (confirm marketing removals); "taking a pause" rumors (`docs/reply-templates/happier-pause-rumor.md`).
