@@ -103,6 +103,10 @@ WINDOW_SECONDS = {"year": 30 * 86400, "month": 24 * 3600}
 GRACE_SECONDS = {"year": 86400, "month": 3600}
 WINDOW_DISPLAY = {"year": "30-day", "month": "24-hour"}
 GRACE_DISPLAY = {"year": "1-day", "month": "1-hour"}
+# --mitigated-grace (decision 2026-10-09, Cassidy): ANNUAL only, up to 5 days past
+# the 30-day window when there is a written mitigating reason (our error/delay,
+# renewal notice went to a hidden relay email, hardship). Never further; never monthly.
+MITIGATED_GRACE_SECONDS = {"year": 5 * 86400}
 PLAN_LABEL = {"year": "annual", "month": "monthly"}
 
 # Hard cap: annual is $99.99 — anything over $120.00 is anomalous. Refuse.
@@ -375,16 +379,21 @@ def check_window(
     charge_created: int,
     boundary_grace: bool = False,
     now_ts: int | None = None,
+    mitigated_grace: bool = False,
 ) -> dict[str, Any]:
     """Apply the refund window. `now_ts` is when the customer emailed support, not wall clock."""
     now = now_ts if now_ts is not None else _now_ts()
     age = max(0, now - (charge_created or 0))
     limit = WINDOW_SECONDS[interval]
     grace = GRACE_SECONDS[interval] if boundary_grace else 0
+    if mitigated_grace and interval in MITIGATED_GRACE_SECONDS:
+        grace = max(grace, MITIGATED_GRACE_SECONDS[interval])
     ok = age <= limit + grace
     used_grace = ok and age > limit
 
     label, window_disp, grace_disp = PLAN_LABEL[interval], WINDOW_DISPLAY[interval], GRACE_DISPLAY[interval]
+    if mitigated_grace and interval in MITIGATED_GRACE_SECONDS:
+        grace_disp = "5-day mitigated"
     if ok and used_grace:
         verdict = (
             f"past the {window_disp} window but within the {grace_disp} boundary grace "
@@ -392,7 +401,7 @@ def check_window(
         )
     elif ok:
         verdict = f"within the {window_disp} {label} refund window (charge age {_fmt_age(age)})"
-    elif boundary_grace:
+    elif boundary_grace or mitigated_grace:
         verdict = (
             f"PAST the {window_disp} {label} refund window even with the {grace_disp} "
             f"boundary grace (charge age {_fmt_age(age)})"
@@ -406,6 +415,7 @@ def check_window(
         "limit_seconds": limit,
         "grace_seconds": grace,
         "used_grace": used_grace,
+        "used_mitigated_grace": bool(used_grace and mitigated_grace and interval in MITIGATED_GRACE_SECONDS),
         "verdict": verdict,
     }
 
@@ -604,6 +614,9 @@ def execute_plan(plan: dict[str, Any], conversation_id: str) -> dict[str, Any]:
         "conversation_id": conversation_id,
         "executed_at": datetime.now(tz=timezone.utc).isoformat(),
     }
+    if plan.get("override"):
+        result["override"] = plan["override"]
+        result["override_reason"] = plan.get("override_reason")
     _append_audit(result)
 
     if cancel_error:
@@ -674,6 +687,15 @@ def main(argv: list[str] | None = None) -> int:
         "--boundary-grace",
         action="store_true",
         help="Extend the window by exactly 1 day (annual) / 1 hour (monthly) — the boundary-generosity rule",
+    )
+    parser.add_argument(
+        "--mitigated-grace",
+        metavar="REASON",
+        help=(
+            "ANNUAL only: honor up to 5 days past the 30-day window when there is a mitigating "
+            "reason (our error/delay, renewal notice to a hidden relay email, hardship). "
+            "REASON is required and is written to the audit log (decision 2026-10-09)."
+        ),
     )
     parser.add_argument("--apply", action="store_true", help="Execute the refund (default: dry run)")
     parser.add_argument(
@@ -769,8 +791,17 @@ def main(argv: list[str] | None = None) -> int:
             f"  customer emailed {_fmt_datetime(emailed_ts)} "
             f"(window clock = Help Scout first customer thread, not now)"
         )
+        mitigated = bool((args.mitigated_grace or "").strip())
+        if args.mitigated_grace is not None and not mitigated:
+            print("ERROR: --mitigated-grace needs a non-empty REASON.", file=sys.stderr)
+            return emit({"status": "error", "reason": "empty mitigated-grace reason"}, 2)
+        if mitigated and interval not in MITIGATED_GRACE_SECONDS:
+            reason = "--mitigated-grace is annual-only; monthly keeps the 24-hour window (+1h boundary grace)."
+            print(f"\nREFUSED: {reason}", file=sys.stderr)
+            return emit({"status": "refused", "reason": reason, "charge_id": charge_id}, 2)
         window = check_window(
-            interval, _g(charge, "created"), args.boundary_grace, now_ts=emailed_ts
+            interval, _g(charge, "created"), args.boundary_grace, now_ts=emailed_ts,
+            mitigated_grace=mitigated,
         )
         if not window["ok"]:
             reason = (
@@ -781,6 +812,13 @@ def main(argv: list[str] | None = None) -> int:
             return emit({"status": "refused", "reason": reason, "charge_id": charge_id}, 2)
 
         plan = build_plan(customer, charge, sub, interval, window, args.and_cancel_now)
+        if window.get("used_mitigated_grace"):
+            plan["override"] = "mitigated_grace"
+            plan["override_reason"] = args.mitigated_grace.strip()
+            plan["notes"].append(
+                "past the 30-day window — honored under the 5-day MITIGATED grace "
+                f"(reason: {plan['override_reason']}); the reason is written to the audit log."
+            )
 
         print(f"\nPLAN: fully refund {plan['charge_id']} — {plan['amount_display']} back to the customer")
         print(f"  charge date {plan['charge_date']} — age {plan['charge_age']}")

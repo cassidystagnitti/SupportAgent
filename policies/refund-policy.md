@@ -51,12 +51,23 @@ Defines refund eligibility windows for Stripe and Google Play subscriptions, and
 ## Edge Cases & Exceptions
 
 - **Non-USD original charge (Stripe):** Refund the full original USD amount. Customer may see a small FX discrepancy. Disclose only if they raise it.
-- **Customer says "I was charged twice" / duplicate charges:** This is not a standard refund request — investigate before refunding. Could be a billing error needing engineering visibility. Treat as needing human review until verified.
+- **Customer says "I was charged twice" / duplicate charges:** Investigate before refunding. If the two charges are a Stripe charge plus an Apple charge on the same account, follow the 2026-10-09 rule above (refund + cancel the in-window Stripe side, leave Apple; solo). If you can't explain the second charge, or it looks like a billing-system error (two Stripe charges for one period), human review.
 - **Customer says they were overcharged / charged full price when they had a discount:** Before agreeing or refunding a "difference," verify what they were actually billed. Read the `Last Invoice Amount Charged` / `Last Invoice Coupon Applied` fields in the Stripe block — **not** `Base Plan` / `Active Coupon` / `Effective Price` / `Next Renewal Amount`, which are current/forward-looking and can miss a one-time coupon that already discounted the last charge. If the last invoice shows the discount was already applied, there is nothing to refund. See *Account Lookup Data Model → Stripe Enrichment: Last-Invoice (Actual Charge) Fields* and *Renewal Discount Requests* Path 2.
-- **Customer requests pro-rated refund** ("I only used 3 months of my annual, can I get 9 months back?"): No. We do not pro-rate. The standard refund-window rule is full refund within window, nothing after. Politely decline and offer to cancel at next renewal.
+- **Customer requests pro-rated refund** ("I only used 3 months of my annual, can I get 9 months back?"): We do not pro-rate. **Inside the window → full refund + cancel, solo** (2026-10-09). Past the window (and not within the 5-day mitigated grace) → politely decline the pro-ration and offer to cancel at next renewal.
 - **Customer requests partial refund within window for a different reason** (e.g., "I want to keep my subscription but get some money back"): Outside the standard refund flow. The only sanctioned partial-refund scenario is the retroactive renewal-discount path — see *Renewal Discount Requests* Path 2. If their request doesn't fit that, decline.
-- **Customer's charge is exactly at the window boundary** (day 30 for annual, hour 24 for monthly): Be generous — honor the refund. If the timing is meaningfully past (day 31+, hour 25+), the rule is firm.
+- **Customer's charge is exactly at the window boundary** (day 30 for annual, hour 24 for monthly): Be generous — honor the refund (`--boundary-grace`). Day 31–35 annual: solo only with a mitigating reason (`--mitigated-grace "<reason>"`, see the 2026-10-09 rules above); otherwise, and always beyond day 35 or hour 25 monthly, Cassidy decides.
 - **Customer chargeback already initiated with their bank:** Don't process a refund on top of an active chargeback. Accept the “dispute” within stripe or escalate to senior support.
+
+## Cassidy decisions 2026-10-08/09 — SOLO refund rules (supersede conflicting lines in this doc)
+
+- **In-window refunds are solo — never ask.** Charge inside the window (30 days annual / 24 hours monthly, measured to the first customer email on the ticket; the script's dry-run is the authority) → `stripe_refund.py --and-cancel-now --apply`, verify (charge `refunded` true, sub `canceled`), send the matching StripeRefund reply, close. This holds even with a sensitive or high-touch backstory (Andrea #322918) and for a duplicate-charge complaint where we can see both charges.
+- **Stripe + Apple double charge on ONE account** (one user, a Stripe sub and an Apple sub both billed; Jane #322908): refund + cancel the **Stripe** side if in-window; leave Apple alone and tell them its end date and auto-renew state. Solo. This is not the "two or more subscribed accounts" escalation.
+- **Just past the window with a mitigating reason (up to 5 days past, annual only) — solo.** Mitigating reasons: our error or delay (e.g. our first reply wrongly said they had no subscription — Julie Shaw #322246, 31 days), the renewal notice went to a hidden relay / Hide My Email address they never saw, or hardship (Andreas #322809, ~2 days late). Run `stripe_refund.py ... --and-cancel-now --mitigated-grace "<reason>"` (annual only, hard cap 35 days from the charge to the first customer email; the reason is written to `data/stripe_action_log.jsonl` as `override: mitigated_grace`). Identity must still clearly match (name / card / receipt / account trail). **More than 5 days past, or no mitigating reason → Cassidy** (draft + hold).
+- **Partial / pro-rated refund requests** ("charge me one month and refund the rest"; Andrea #322918): we never pro-rate. **In-window → full refund + cancel, solo** (kindly: since the renewal was recent we refunded it in full). Past the window → decline the pro-ration and turn off auto-renew; reply per `CancelRefund StripeRefund ProRatedRefundRequested FILLIN`.
+- **Dispute / "I was charged" where we only see an expired subscription and no matching charge** (Vanessa #322974, Ellen #323105): send `CancelRefund PlatformUnclearRefund`, adjusted to say we see one account on their email, its subscription already expired (and won't renew), and nothing on our side matches that charge; include the Apple route (reportaproblem.apple.com → Request a refund) and ask for receipt / last 4 / date / amount / exact statement description / other emails. Close. Solo, even when they say they told Amex/their bank. (An active Stripe dispute on a charge we CAN see still follows the dispute row in the refusal table.)
+- **Two accounts from Sign in with Apple / Hide My Email + an Apple purchase** (Amy #322015): solo explanation reply — see *Login Issues → Two accounts from Sign in with Apple / Hide My Email*. We can't refund the Apple purchase; send Apple refund steps.
+- **Apple employee-benefit charges** (signups.apple.com / Apple Challenge QR, then an App Store charge; Harmony #322885): move to mailbox 201086 with a note; no reply from Happier Support.
+- **Google Play refunds:** Cassidy does the Play Console part herself (passkey on her device). Hold with one internal note (account email, which renewal, in-window or not), then send `CancelRefund GoogleRefund Subscription` once she says it's done. See *Cancellation Policy → Google Play*.
 
 # Bert Execution: Full Refund (Stripe) — added 2026-07-22
 
@@ -77,6 +88,7 @@ Screen from context you already have — don't run the script blind, and never p
 2. **`--and-cancel-now`**: include it by default — refunded customers don't keep access, and most refund requests are "I want out." Omit only when the customer explicitly wants to keep subscribing.
 3. **Apply**: `python3 scripts/stripe_refund.py <cus_…> [--charge-id <ch_…>] --and-cancel-now --apply --conversation-id <HS id> --json`. Same env gates and audit line as the cancel skill. Ordering is refund-first: if the refund fails nothing is canceled; if the cancel leg fails AFTER the refund, the audit line has already recorded the refund — do NOT re-run `--apply`; finish the cancellation in the dashboard.
 4. **`--boundary-grace`** exists only for the day-30–31 / hour-24–25 boundary (the "be generous at the boundary" rule, capped in code at +1 day / +1 hour). Never use it as a general widener.
+5. **`--mitigated-grace "<reason>"`** (added 2026-10-09): annual only, up to 5 days past the window (35 days max), only with a real mitigating reason (our error/delay, renewal notice to a hidden relay email, hardship). The reason goes into the audit line. Anything further out → Cassidy.
 
 ## Refusals are eligibility answers — map them into the draft
 
@@ -110,18 +122,18 @@ Mirrors the cancel skill. Once the refund is **`applied`** there is no remaining
 - **Stripe in-window full refunds are NO LONGER a human action** — Bert executes them via `scripts/stripe_refund.py` (see *Bert Execution* above). After `applied`, the ticket is reply-only and auto-sendable (subject to Do Not Auto-Send Conditions).
 - **Action:** Process refund in Google Play.
 - **When:** Customer is within window and on Google Play.
-- **Why AI can't do it:** Google Play admin access required.
+- **Who:** Cassidy, in Play Console (passkey on her device; decision 2026-10-09). Bert holds with one note, then sends the reply once she confirms.
 - **Action:** Accept a dispute in the Stripe dashboard; handle skill refusals that need judgment (partial-refund history, gift/one-off charges, >$120 anomalies, out-of-window exceptions).
 - **When:** The refund skill refused for those reasons (see the refusal table above).
 - **Why AI can't do it:** Dashboard-only operations and judgment calls outside the coded policy.
 
 ## Do Not Auto-Send Conditions
 
-**Google Play subscriptions hold for Cassidy (decision 2026-09-02):** Google Play refunds, cancels, billing, plan changes are a top-level hold-back. See CLAUDE.md Solo vs Ping guidance. Draft the reply but hold for Cassidy review before sending.
+**Google Play (updated 2026-10-09):** Cassidy does every Play Console action. Bert holds the ticket with one internal note for her, and sends the reply (no draft review needed) once she says it's done. Already-off Google subs get the already-off confirm with the end date, solo.
 
 Even when the reply is "reply-only" (no admin action needed) or Stripe refund is executed, flag for human review before sending if any of the following are true:
 
-- Customer's charge is at or near the refund window boundary (day 28-30 for annual, hour 22-24 for monthly) — timing judgment required
+- (Retired 2026-10-09: near-boundary in-window refunds are solo; the script decides the window.)
 - Customer mentions a chargeback or dispute alongside the refund request — tone and legal sensitivity require human eyes
 - Customer's refund request is combined with a complaint about app quality, data loss, or service failure — may warrant a goodwill exception beyond standard policy
 - Customer's account shows multiple recent refunds or a pattern of refund requests — may indicate a gaming pattern that standard policy doesn't address
@@ -129,7 +141,7 @@ Even when the reply is "reply-only" (no admin action needed) or Stripe refund is
 
 ## Escalation Triggers
 
-- **Two or more subscribed accounts found across any email in the ticket** → escalate immediately to support leadership. Do not send any reply.
+- **Two or more subscribed accounts found across any email in the ticket** → escalate immediately to support leadership. Do not send any reply. **Exceptions (solo, 2026-10-09):** one account with a Stripe + Apple sub (refund the in-window Stripe side, leave Apple), and a Sign in with Apple / Hide My Email second account holding an Apple purchase (explanation reply; see *Login Issues*).
 
 - **Suspected duplicate charges or billing system errors** → senior support / engineering for investigation before any refund.
 - **Refund request tied to a complaint about app behavior, data loss, or service failure** → senior support to assess whether goodwill / out-of-policy refund is warranted.

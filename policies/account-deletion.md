@@ -69,10 +69,19 @@ The customer wants their account deleted. The account on the contact email is fr
 - **Customer invokes GDPR / right to erasure** → Non-issue: the standard cancellation/account-deletion process is GDPR compliant (confirmed 2026-07-20). Handle exactly like a standard deletion request — same reply, same self-serve or agent-assisted path. No dedicated GDPR procedure, timeline tracking, or data-privacy-owner routing is required.
 - **Customer wants written confirmation of deletion** → Human review. An agent should draft confirmation after the customer completes in-app deletion. The AI should not send this automatically.
 - **Account not found on contact email** → This policy does not apply. Do not send deletion instructions for an account we cannot confirm exists. Investigate which email the account may be under first.
-- **Customer wants deletion but has an active subscription** → Different policy applies. Do not advise deletion until the subscription is cancelled. See **Cancellation + Account Deletion**.
+- **Customer wants deletion but has an active subscription** → follow *Deletion with an active subscription* below (solo first step; taught 2026-10-09).
 - **Customer previously submitted a deletion request** → Check ticket history. If a prior agent already handled it, confirm current account status and inform the customer. If deletion was completed, confirm and close.
 
 - **Marketing-list removal for a deleted account (taught 2026-10-09, Cassidy, Yorba #321942):** Happier Meditation no longer uses Braze. When a customer or an authorized agent (Yorba, PrivacyHawk, McAfee, etc.) asks to remove a deleted account's email from marketing lists, there is nothing left to suppress. Confirm it's completed ("We've removed <email> from all Happier Meditation marketing lists…") and close. Solo, no hold. Older notes that wait on a "Braze unsubscribe" are obsolete.
+
+## Deletion with an active subscription — SOLO first step (taught 2026-10-09 — Yagnesh #322791)
+1. **Stripe:** turn off auto-renew (`stripe_cancel_subscription.py --apply`), verify `cancel_at_period_end` true. (Apple: send the Apple cancel steps; Google: hold for Cassidy's Play Console cancel.) No refund unless they asked and it's in-window.
+2. Send the cancel confirmation **plus** the `AccountManagement DeleteAccountActiveSubscription` acknowledgement in one reply: "We've turned off auto-renew … so you won't be charged on <date>. You'll keep access until then. Before we delete your account, we need you to acknowledge that: you're giving up any remaining subscription access; you'll lose your app history; you'll need to register again to use the app; deletion cannot be undone. Would you write back to confirm…?" Close.
+3. **When they confirm:** hold with one internal note for Cassidy to delete the account in admin (Berts don't delete accounts). Release the claim.
+4. **After Cassidy deletes:** verify no user remains (admin/Maven by email — a stale Maven search can lag; re-check the user uuid returns 404) and that any Stripe sub is canceled (the deletion usually cancels it; if not, cancel it now and log it). Then send the `AccountManagement DeleteAccountCompletedByUs` confirmation ("I deleted your account registered to <email>, and all traces of your data will be completely removed from the Happier Meditation systems within 30 days.") and close.
+
+## Third-party erasure requests (McAfee Online Account Cleanup, PrivacyHawk, Yorba, etc.)
+Same shape: confirm what we hold (account, Stripe), hold with a note for Cassidy to delete, then — after verifying the account is gone — send the DeleteAccountCompletedByUs-style confirmation and close (Phyllis #322578, Julie Waters #322858). If the account was already deleted earlier, confirm that with the date. Marketing-list removal asks for deleted accounts are confirmed as completed (Braze is retired; see the 2026-10-09 rule above).
 
 # Action Classification
 

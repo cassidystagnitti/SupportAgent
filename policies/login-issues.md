@@ -109,6 +109,9 @@ Write back anytime with questions - we'll be here!
 
 **If the subscribed email differs from the write-in email:** Add a brief acknowledgment near the top, e.g., *"I found your subscription under EMAILADDRESS — that's the one to use to sign in."* This reduces confusion and pre-empts the next ticket.
 
+## Two accounts from Sign in with Apple / Hide My Email (+ an Apple purchase) — SOLO (decision 2026-10-09 — Amy #322015)
+A customer who subscribed on the web with their real email, then used **Sign in with Apple** in the app, ends up with a second account (often on a Hide My Email `…@privaterelay.appleid.com` relay), and an in-app purchase on that second account charges their Apple ID. Solo reply, no Cassidy review. Cover, in plain friendly language: (1) they have two accounts; (2) how it happened (dates, which account paid what); (3) what Sign in with Apple is (sign in with your Apple ID instead of email + password) and what Hide My Email is (Apple's random relay address that forwards to their real email, so the second account doesn't show it); (4) Apple refund steps (reportaproblem.apple.com or Report a Problem on the receipt email → Request a refund → pick a reason like "I didn't mean to buy this" → Apple decides, usually within a few days); (5) turning off the Apple renewal (Settings → [name] → Subscriptions → Happier Meditation → Cancel Subscription); (6) sign out and sign back in with their real email + password (not Sign in with Apple), Forgot Password if needed; (7) the web membership stays active. Don't mention next year's renewal price. Template: `docs/reply-templates/siwa-two-accounts-apple-purchase.md`.
+
 ## Variations
 
 - **If subscribed account found on the same email customer wrote in from:** Send Login Instructions as-is. No need to flag a different email.

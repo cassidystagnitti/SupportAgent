@@ -135,6 +135,9 @@ Add missing addresses with Help Scout `POST /v2/customers/{id}/emails` (`type` h
 
 **Record it:** mention the added addresses in the ticket's internal note (e.g. "Added x@y.com to HS profile") so the next agent can see it was done.
 
+### "Please respond to this email only" (taught 2026-10-09 — Shawn #321304)
+If the customer asks us to reply only at a specific address, the reply must go **only** to that address with no CCs. Help Scout addresses a reply sent with `customer: {"id": …}` to the profile's FIRST email, which may be a different (e.g. work) address. Send the reply with `customer: {"email": "<requested address>"}` (no id), `cc: []`, `bcc: []`, then re-GET the thread and confirm the published reply's customer email is the requested one. If unsure, create a `draft: true` reply first and inspect it; overwrite any wrong draft with a "DO NOT SEND" stub (the API can't delete drafts). Still keep all of their emails on the profile.
+
 ## Escalation Triggers
 
 - **Two or more subscribed accounts found across any email in the ticket** → escalate immediately to support leadership. Do not send any reply. The pipeline sets `needs_action: true` and `auto_sendable: false` automatically when this condition is detected.

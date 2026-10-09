@@ -9,12 +9,13 @@ Set `escalate: true` and `draft_reply: null` for any of the following situations
 ### Mandatory Escalation Triggers
 
 - **Legal threats**: Customer mentions legal action, a lawyer, small claims court, or "reporting" to a consumer agency (BBB, FTC, App Store reviews used as leverage, etc.)
-- **Chargeback / dispute**: Customer has filed or is threatening a chargeback or credit card dispute
-- **Fraud or account security**: Suspected unauthorized account access, identity issues, or requests that could expose another customer's data
-- **Multiple subscribed accounts**: More than one active subscription found across the emails in this ticket (handled automatically by the pipeline — escalate regardless of ticket content)
+- **Chargeback / dispute**: Customer has filed or is threatening a chargeback or credit card dispute on a charge we can find. **Exception (solo, 2026-10-09):** if we only see an expired subscription and no charge that matches, send the adjusted `CancelRefund PlatformUnclearRefund` (*Refund Policy*) and close.
+- **Fraud or account security**: Suspected unauthorized account access, identity issues, or requests that could expose another customer's data. (Unsolicited security / bug-bounty "vulnerability reports" from strangers are NOT this — mark spam; see *Non-Support Requests*.)
+- **Multiple subscribed accounts**: More than one active subscription found across the emails in this ticket (handled automatically by the pipeline — escalate regardless of ticket content). **Solo exceptions (2026-10-09):** one account with a Stripe + Apple sub double charge (*Refund Policy*), and a Sign in with Apple / Hide My Email second account holding an Apple purchase (*Login Issues*).
 - **Extreme distress**: Customer expresses severe emotional distress, crisis language, or is clearly in a very vulnerable state
 - **Sensitive PR risk**: Ticket could become a public complaint or social media issue if handled poorly (e.g., public figure, journalist, or customer explicitly referencing a public platform)
-- **Teams / org seat-reduction**: customer wants to cut seats on a Teams Annual org plan (keep only the billing owner's membership, drop other members, change Stripe quantity). Rare; ALWAYS escalate to a human. Do not draft a customer reply. Do not run individual cancel (that would cancel the whole org plan). Do not change Stripe quantity yourself. Leave no customer draft; move on. (taught 2026-08-27, #320031)
+- **Teams / org seat-reduction** (cut the paid seat count / change Stripe quantity): Rare; ALWAYS escalate to a human. Do not run individual cancel (that would cancel the whole org plan). Do not change Stripe quantity yourself. (taught 2026-08-27, #320031)
+- **Teams / org team-member removal (taught 2026-10-09 — Kristen #322843):** the org admin asks us to remove named members but not to reduce seats. Bert can't remove members (admin only) — leave one internal note for Cassidy listing the member emails, Stripe sub id and seat count, and release the claim (no customer draft needed). **Once Cassidy confirms she removed them, the reply is pre-approved — send it and close:** "We've removed <members> from your team. Your plan still includes <N> seats, so you now have <k> open seats you can give to new team members anytime. If you'd rather reduce your plan to fewer seats, just let us know." Never add the members' emails to the admin's Help Scout profile (they belong to other people).
 
 ### Use Judgment to Escalate
 

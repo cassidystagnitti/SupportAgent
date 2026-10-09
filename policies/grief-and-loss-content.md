@@ -45,6 +45,9 @@ Never sign with a first name. Never sign as an individual agent.
 - **Customer mentions multiple open tickets for the same email:** Do NOT merge sibling tickets unless explicitly instructed by a senior agent. Leave them separate.
 - **Customer asks about grief content in a ticket that also involves a billing or account issue:** Handle both — address the billing/account issue first per the relevant policy, then recommend the course as a closing note.
 
+## Grief alongside a support fix — SOLO (decision 2026-10-09 — Marty #322697)
+When someone mentions a loss while asking for an ordinary fix (missing day, login, billing), do the fix and send a gentle reply yourself: name the loss simply ("I'm so sorry about your <relationship>"), no platitudes, no upsell or subscription talk, then the fix in plain words. No Cassidy review needed. Content recommendations only if they asked.
+
 # Action Classification
 
 ## No Action Required (reply only)

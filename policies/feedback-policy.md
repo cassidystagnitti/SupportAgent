@@ -27,6 +27,9 @@ There is **no in-app setting** today to turn off only notifications when someone
 - Customer reply: acknowledge; say the setting does not exist yet; we are working on adding a control for that; invite other questions.
 - Send+close. Sign-off: Take care, / Happier Meditation Support Team.
 - Do not invent a toggle path. Organization / Apple accounts in mailbox 3 are fine to solo.
+## Rumors that Happier is pausing or shutting down — SOLO (decision 2026-10-09 — Tomek #322992)
+Customer heard Happier is "taking a pause," shutting down, or stopping new content. Reply warmly and briefly: we're not taking a pause; we're still producing new content; we're not sure what they heard or where it came from, but we haven't said anything like that; happy to answer any other questions. Send and close; no Cassidy review. Template: `docs/reply-templates/happier-pause-rumor.md`.
+
 ## Standard Case
 
 **Our role is conduit, not resolver.** We do not build features, create content, or make product decisions. We acknowledge the feedback, validate the user's perspective, confirm it has been passed on, and close warmly. We do not promise timelines, roadmap inclusion, or specific outcomes.

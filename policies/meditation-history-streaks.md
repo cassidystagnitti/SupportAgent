@@ -111,9 +111,11 @@ No cases in this policy are reply-only at the outset. Every ticket requires a ba
 - Customer hasn't provided the specific date(s) — don't send a confirmation before we know what to add
 - The customer's described history loss is large or spans a long period — human should verify before making edits
 - The streak counter appears to be a display bug rather than missing data — needs investigation before any confirmation language is sent
-- Customer tone suggests significant frustration or emotional distress about the lost streak — personalize before sending
+- Customer tone suggests significant frustration or emotional distress about the lost streak — personalize before sending (then send; not a hold)
 
-**Meditation history / missing session / streak fixes are SOLO-sendable (decision 2026-09-02):** Standard single-day or short-range missing session corrections (add Unguided Timer in admin, check day before/after) can be drafted and sent. Do not hold for Cassidy unless the above conditions apply.
+**Meditation history / missing session / streak fixes are SOLO-sendable (decision 2026-09-02, extended 2026-10-09):** Add each named missing single day in admin (Timer → Unguided Timer, check the day before and after), then send and close. This includes scattered single days, even ones months back (Shawn #321304: Sep 13/22/26 2026 + Apr 26 2025), because restoring the single missing days restores the streak (his ran 2,435 days again). Never tell a customer we can't restore days or a streak. **A gap of more than 3 consecutive missing days still goes to Cassidy** (hold with a note listing the dates). Frustration or grief is NOT a reason to hold: write a warm, personalized reply and send.
+- **Grief context (Marty #322697, approved as written):** a gentle acknowledgement of the loss in plain words, no platitudes ("everything happens for a reason", "they're in a better place"), no subscription or upsell mention, confirm the day was added, force-quit tip. Solo. Only recommend grief content if they asked for it (see *Grief and Loss Content*).
+- Confirmation reply shape: sorry it didn't record → we've added back <dates> on our side → (streak intact again) → if it doesn't show yet, force quit and reopen the app.
 
 ## Escalation Triggers
 

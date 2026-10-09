@@ -125,7 +125,7 @@ Standard *Refund Policy* windows apply: **30 days from purchase** for the annual
 
 - Gift purchase information and links (standard or discounted)
 - Redemption instructions for any scenario (no account, existing account, deferred redemption)
-- Resending a lost gift certificate PDF
+- Resending a lost gift certificate PDF — **solo** (decision 2026-10-09, Janice #322626): find the order/code (admin Gift Orders), get the certificate PDF per skill `resend-happier-gift-certificate-pdf`, send `Get GiftCertificateCopy` with the PDF **attached** (base64 attachment on the Help Scout reply), then re-GET the thread and verify the attachment is on the published reply (filename + size) before closing.
 - Confirming no auto-renewal and explaining the expiry behavior
 - Post-gift resubscription information and links
 - Self-gifting guidance

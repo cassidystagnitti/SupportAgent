@@ -31,6 +31,8 @@ Covers inbound messages to the support mailbox that are not support requests at 
 
 **Cold sales / spam:** Do not reply. Tag the conversation appropriately and close it. Engaging with cold outreach or spam (even to decline) tends to confirm the mailbox is monitored and invites more of it.
 
+**Unsolicited security / bug-bounty reports (decision 2026-10-09 — #322952):** "[Bug Report][Medium] Lack of session invalidation…", OWASP-style write-ups, "I found a vulnerability, do you have a bounty?" from people who aren't reporting a problem with their own account → **spam, no reply, no forwarding.** A customer reporting suspicious activity on their own account is not this — handle under account security.
+
 ## Variations
 
 - **Messages to Dan Harris or unsolicited Tenpercent outreach (SPAM):** Do not reply. Do not forward to Dan or internal teams. Set the Help Scout conversation status to spam. Drop the `bert-working` tag if present. This covers: (a) anything addressed to or intended for Dan Harris — podcast pitches, partnership/sales outreach to Dan, "Hey Dan" messages, To/CC to dan@danharris.com, dj@danharris.com, podcast@tenpercent.com, or press@tenpercent.com when the message is for Dan rather than subscriber support; and (b) unsolicited outreach to Tenpercent that is not subscriber support — author/book spotlight invitations, booking invites, similar partnership/sales pitches. **Important exception:** A real subscriber support request that happens to mention the podcast or Dan Harris is NOT spam — handle it under the relevant support policy. (Taught 2026-08-27 on Hala Taha Help Scout #320143 / cid 3431085527 and Deborah Shariff Help Scout #320150 / cid 3431179354.)

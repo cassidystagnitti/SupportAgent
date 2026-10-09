@@ -77,6 +77,9 @@ The forever discount can also ladder: start with **40% off forever**, and if the
 - **Customer has been a multi-year subscriber but doesn't fit the 3+ years of asking pattern** (e.g., 5-year subscriber who is asking for the first time): Apply 40% via the appropriate path. If they ask again next year and the year after, year 3 of asking = forever discount.
 - **Customer is on the forever discount and asks if they can get more off:** If on 40% forever, can ladder to 50% forever. If already on 50% forever and asking for more, that's the ceiling for discounts. If they raise hardship, see *Need-Based Complimentary Subscriptions*.
 
+## Hardship at renewal — SOLO (decision 2026-10-09)
+A Stripe annual subscriber who mentions hardship / fixed income / cost before or right after renewal: apply the 40% coupon to the upcoming renewal (`stripe_apply_coupon.py <cus> --apply --conversation-id <id>`, or `--forever` when the forever-discount trigger is met), verify, send, close. Lean generous. If they say they cannot pay at all, a Comp grant is also solo (see *Need-Based Complimentary Subscriptions*). If they already canceled and then accept the 40% offer, follow *Cancellation Policy → Customer accepts the 40% stay-on offer after we canceled*.
+
 # Action Classification
 
 ## No Action Required (reply only)
@@ -102,7 +105,7 @@ Even when the reply is "reply-only" (no admin action needed), flag for human rev
 
 - Customer asks for more than 40% off — requires judgment on whether to offer 50% or hold the line
 - Customer claims the intro discount was misrepresented as ongoing/permanent — tone-sensitive, may need ticket history review to verify what was originally communicated
-- Customer mentions financial hardship but it's unclear whether they qualify for complimentary vs. just the 40% renewal discount — discretionary boundary
+- (Retired 2026-10-09: a hardship renewal gets the 40% coupon on the upcoming renewal, solo. If they say they can't pay at all, grant a Comp — grants are solo too; only a Comp denial holds.)
 - Customer appears to be at the 3-year threshold for the forever discount but exact history is unclear — human should verify before committing to a recurring coupon
 - Customer's renewal happened during a failed-payment retry window and the charge timing is ambiguous — human should verify which date counts as the renewal for refund window purposes
 

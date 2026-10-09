@@ -3,7 +3,7 @@
 
 Handles requests to cancel a subscription (turn off auto-renewal). The customer keeps full access through their period end date. Support can cancel directly on Stripe and Google Play; Apple customers are redirected to self-service. A key edge case: many customers write in when auto-renew is already off — in that case, simply confirm they're set and include the expiration date. For Stripe customers renewing at full price, offer a 40% retention discount before canceling.
 
-**As of 2026-07-22, Bert can EXECUTE Stripe cancel-at-period-end directly** via the guarded write skill (`scripts/stripe_cancel_subscription.py`). A straightforward Stripe cancellation is therefore no longer a human-action ticket: Bert executes the cancellation, and the confirmation reply becomes **auto-sendable** (see "Bert execution" below). Google Play cancellations remain a human action; Apple remains self-serve redirect.
+**As of 2026-07-22, Bert can EXECUTE Stripe cancel-at-period-end directly** via the guarded write skill (`scripts/stripe_cancel_subscription.py`). A straightforward Stripe cancellation is therefore no longer a human-action ticket: Bert executes the cancellation, and the confirmation reply becomes **auto-sendable** (see "Bert execution" below). Google Play cancellations are done by **Cassidy in Play Console** (passkey on her device; decision 2026-10-09) — Bert holds with a note and sends the reply once she confirms; Apple remains self-serve redirect.
 
 # Trigger Conditions
 
@@ -81,7 +81,7 @@ Bert executes Stripe cancel-at-period-end itself with the first Stripe write ski
 
 ## Eligibility (enforced in code — the script refuses rather than guessing)
 
-- **Stripe only.** Google Play cancels remain a human action (note); Apple remains self-serve redirect.
+- **Stripe only.** Google Play cancels: Cassidy does them in Play Console; Bert holds with a note, then sends `CancelRefund GoogleCancel` when she confirms. Apple remains self-serve redirect.
 - **Teams / org (volume/tiered) plans are not this skill.** Seat-reduction is a mandatory human escalation, not cancel-at-period-end. Never apply this script to an org plan.
 - Subscription must be **active or trialing** and **set to renew**. Trialing covers real free trials and retention pauses — both cancel cleanly at the trial/extension end.
 - **Dunning (past_due/unpaid) → refused**: policy is IMMEDIATE cancellation for subs stuck in billing retry, which is a different path — handle in the Stripe dashboard (human action note).
@@ -106,6 +106,17 @@ Leave the conversation **closed**. Help Scout auto-reopens it if the customer re
 Help Scout has no Mailbox API for deleting a thread. If sending leaves a leftover draft (for example a Cass-signed duplicate from a first pass), delete it in the Help Scout UI. If the UI is not available, overwrite that leftover draft in place with a do-not-send stub via PATCH `{"op": "replace", "path": "/text", "value": "..."}` so it cannot be published later.
 
 
+## Customer accepts the 40% stay-on offer after we canceled (taught 2026-10-09 — Carolyn #323065) — SOLO
+
+Standard retention save, no Cassidy review:
+1. Turn the renewal back on: `stripe.Subscription.modify(<sub>, cancel_at_period_end=False)` (log the write to `data/stripe_action_log.jsonl`, action `reactivate_renewal`). `stripe_apply_coupon.py` refuses a sub that is set to cancel, so this step comes first.
+2. Apply the one-time 40% coupon: `python3 scripts/stripe_apply_coupon.py <cus_…> --coupon 9UdSyyhB --apply --conversation-id <id>` (9UdSyyhB = "Support - 40% off once").
+3. Verify: sub `active`, `cancel_at_period_end` false, and `stripe.Invoice.create_preview(customer=…, subscription=…)` total = the discounted price ($59.99 on a $99.99 annual).
+4. Reply: "I'm so glad you're staying! I've set up the 40% discount and turned your renewal back on, so on <renewal date> your membership will renew for $59.99." Close.
+
+## Google Play — already off (solo)
+If Maven/admin shows `source=Google` and `auto_renew_status=0`: send the already-off confirmation with the end date and close. No Console action, no Cassidy (Rene #322768).
+
 # Action Classification
 
 ## No Action Required (reply only)
@@ -123,14 +134,14 @@ Help Scout has no Mailbox API for deleting a thread. If sending leaves a leftove
 
 - **Action:** Turn off auto-renew in Google Play.
 - **When:** Active Google Play subscription, auto-renew is on, customer confirms cancellation.
-- **Why AI can't do it:** Requires Google Play admin access.
+- **Who:** Cassidy, in Play Console (passkey on her device; 2026-10-09). Bert leaves one note (account email, what's needed), releases the claim, and sends the reply once she says it's done.
 - **Action:** Immediate cancellation of a dunning/past-due Stripe subscription (and any case the write script refuses).
 - **When:** Subscription in billing retry (past_due/unpaid), paused collection, or other refusal reasons.
 - **Why AI can't do it:** The write skill deliberately only implements period-end cancellation; these paths run through the Stripe dashboard.
 
 ## Do Not Auto-Send Conditions
 
-**Google Play subscriptions hold for Cassidy (decision 2026-09-02):** Google Play cancels, billing, plan changes are a top-level hold-back. See CLAUDE.md Solo vs Ping guidance. Draft the reply but hold for Cassidy review before sending.
+**Google Play (updated 2026-10-09):** Bert can't sign in to Play Console; Cassidy does every Console action herself. Hold with one note; send the reply (no draft review) once she confirms. **Already-off Google sub (Maven/admin `auto_renew_status=0`) → already-off confirm with the end date, solo** (`CancelRefund AllSet`, adjusted).
 
 Even when the reply is "reply-only" (no admin action needed) or Stripe cancellation is executed, flag for human review before sending if any of the following are true:
 

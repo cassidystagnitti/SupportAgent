@@ -35,6 +35,9 @@ Both programs issue personal tokenized deep links on the same base URL (`my.medi
 - Challenge registration/join errors, tokens, password resets while joining, friends/Circle → *Mindful Minute Challenge — Registration & Join (Apple Mailbox)*
 - Minutes not counting, Health app, calendar, medals, prizes, completion → *Mindful Minute Challenge — Minutes, Tracking, Medals & Prizes (Apple Mailbox)*
 
+## Apple employee-benefit charges come here (decision 2026-10-09 — Harmony #322885)
+A main-mailbox ticket from someone who signed up through Apple's employee benefit (signups.apple.com QR / Apple Challenge token link) and was then charged in the App Store (often after Apple denied their refund) is **moved to this mailbox** with an internal note explaining why. Happier Support does not reply. Here, handle it under the Apple program docs (identify the enrolled account; we can't refund App Store charges).
+
 ## Key links (use these exact URLs)
 
 | Purpose | Link |

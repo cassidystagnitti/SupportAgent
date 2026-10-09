@@ -28,7 +28,13 @@ This doc is the **single source of truth for current bugs and product status** a
 
 Match the customer's reported symptom to one of the bug entries below and follow that entry's "What to tell the customer" script. Personalize with the customer's name and specifics from their ticket, but do not deviate from the documented status — do not promise fix dates, workarounds, or outcomes that aren't stated in the entry.
 
-If a report doesn't clearly match any entry below, do not assume it's a known issue. Treat it as a new, unlisted bug: acknowledge, ask clarifying questions (platform, app version, steps to reproduce), and flag for human review rather than inventing a status.
+If a report doesn't clearly match any entry below, do not assume it's a known issue. Treat it as a new, unlisted bug.
+
+**New reproducible bugs — standing YES to file Linear (decision 2026-10-09 — Kathleen #322963, T-2297/T-2302):**
+1. **Dedupe first.** Search Linear (team Technical) by symptom keywords AND recent issues — including ones filed by the Tech Support digest / other Berts the same day — plus this doc and #customer-support-watcher. If it exists, comment on that issue (Help Scout link, platform, repro, screenshots) instead of filing. (T-2302 duplicated T-2297, which had been filed earlier the same morning — see entry #34.)
+2. **Reproduce** when it's web-reachable: sign in on the web as the support test account `supportbot@meditatehappier.com` and follow the customer's path; write numbered steps, expected vs actual, and attach screenshots. Include the code location if you found it (changecollective / TenPercentHappier repo path).
+3. **File** in the Bug Bert format: team Technical, labels Help Scout / Bug / platform / Support, the Help Scout conversation URL (`https://secure.helpscout.net/conversation/<conversation id>`), repro steps, screenshots. Then add the entry here, post #customer-support-watcher, send the customer a "we have reproduced it / we are investigating" ack matching the status map, and close. No Cassidy approval needed.
+4. If you can't reproduce it and the report is vague, ask the customer for platform, app version, and steps; don't invent a status.
 
 ---
 

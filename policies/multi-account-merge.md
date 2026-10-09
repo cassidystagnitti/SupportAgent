@@ -75,6 +75,9 @@ Handle case by case:
 - If past the refund window, provide refund instructions or cancel at next renewal.
 - Once resolved, proceed with the standard merge flow above.
 
+## Sign in with Apple second account + Apple purchase (2026-10-09)
+Not a merge and not the "two subscribed accounts" escalation: send the solo explanation reply in *Login Issues → Two accounts from Sign in with Apple / Hide My Email* (template `docs/reply-templates/siwa-two-accounts-apple-purchase.md`).
+
 ## Variations
 
 - **Customer doesn't know both email addresses:** Use `Use MultipleAccountsWeSeeOneAddress FILLIN` to guide them to check the app, sign out, sign back into the main account, and report back.
