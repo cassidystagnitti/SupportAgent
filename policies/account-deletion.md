@@ -72,6 +72,8 @@ The customer wants their account deleted. The account on the contact email is fr
 - **Customer wants deletion but has an active subscription** → Different policy applies. Do not advise deletion until the subscription is cancelled. See **Cancellation + Account Deletion**.
 - **Customer previously submitted a deletion request** → Check ticket history. If a prior agent already handled it, confirm current account status and inform the customer. If deletion was completed, confirm and close.
 
+- **Marketing-list removal for a deleted account (taught 2026-10-09, Cassidy, Yorba #321942):** Happier Meditation no longer uses Braze. When a customer or an authorized agent (Yorba, PrivacyHawk, McAfee, etc.) asks to remove a deleted account's email from marketing lists, there is nothing left to suppress. Confirm it's completed ("We've removed <email> from all Happier Meditation marketing lists…") and close. Solo, no hold. Older notes that wait on a "Braze unsubscribe" are obsolete.
+
 # Action Classification
 
 ## No Action Required (reply only)
