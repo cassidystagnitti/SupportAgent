@@ -444,3 +444,15 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Help Scout:** #321767 Kathryn Murphy (https://secure.helpscout.net/conversation/3458621082/321767)
 - **Date added:** 2026-10-02
 - **Date resolved:** —
+
+
+## 34. Teacher Page "Articles" Rows Don't Open
+
+- **Status:** Identified. Product Backlog Medium. Filed T-2297 (no assignee yet). Code read: v2 teacher page Articles rows link to '#' (NewsletterRowComponent has no link_path).
+- **Platforms:** v2 teacher page (iOS hybrid / web).
+- **Symptom:** On a teacher's page, the Articles section lists articles but tapping them does nothing; no other way to reach them.
+- **What to tell the customer:** We have identified the issue. Articles on teacher pages aren't opening right now and we're fixing it. Meditations and courses from that teacher still work. No ship date. Sign-off: Take care, / Happier Meditation Support Team.
+- **Linear ticket:** T-2297 (https://linear.app/happier/issue/T-2297)
+- **Help Scout:** #322963 Kathleen Barry-Wacaser (https://secure.helpscout.net/conversation/3476017986/322963)
+- **Date added:** 2026-10-09
+- **Date resolved:** —
