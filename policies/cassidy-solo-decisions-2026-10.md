@@ -1,4 +1,4 @@
-# Cassidy's solo decisions — Oct 8–9, 2026 (index)
+# Cassidy's solo decisions — Oct 8–10, 2026 (index)
 
 **Purpose:** every case below used to be held for Cassidy. She decided them on Oct 8–9, 2026 and wants Berts to handle them **solo** from now on: do the work, send, close, internal note, clear claim/tags. Each line points to the policy that holds the full rule. Where a policy says something older that conflicts, this index and the dated section in that policy win.
 
@@ -25,5 +25,7 @@
 | 18 | "Is Happier taking a pause / shutting down?" | Warm short reply: not pausing, still producing new content, not sure what they heard, we haven't said that, happy to answer questions. | *Feedback Policy*; `docs/reply-templates/happier-pause-rumor.md` |
 | 19 | Hardship at renewal | 40% coupon on the upcoming renewal, verify, send, close (Comp if they can't pay at all; also solo). | *Renewal Discount Requests* |
 | 20 | Google sub already off | Confirm with the end date, solo. | *Cancellation Policy* |
+| 21 | Canceling a duplicate sub that carried a discount (two subs on one account) | Move the discount to the kept sub (e.g. `stripe_apply_coupon.py <cus> --coupon <same coupon> --forever/--once`, matching the original duration), verify the kept sub's preview invoice, log, note. Solo (Wanda Durant #323119, Oct 9–10). | *Cancellation Policy*; *Renewal Discount Requests* |
+| 22 | Stale unpaid/past_due duplicate sub left behind after the customer resubscribed (new sub active) | Cancel the old sub immediately (`stripe.Subscription.cancel(sub, invoice_now=False, prorate=False)`) and void its open invoice; verify the new sub is untouched; log to `stripe_action_log.jsonl`; note. Solo, no customer email needed. If the void is refused (restricted key lacks `invoice_write`), note it: the invoice stays open with `auto_advance=false` and no retry, and Cassidy voids it in the Dashboard (Tanya Solano #323110, Steve #322710, Oct 10). | *Cancellation Policy* (dunning) |
 
 **Still Cassidy's (unchanged):** Comp/hardship denials; refunds more than 5 days past the window or without a mitigating reason; Play Console actions; account deletion itself; admin team-member removal; seat-count reductions; >3-consecutive-day history gaps; legal threats; disputes on a charge we can find; truly unknown tickets.
