@@ -88,3 +88,5 @@ Customer asks about a 10% Happier thing (podcast, ad-free feed, podcast subscrip
 - *Feedback Policy* (feature requests for things customers wish we had from "the show")
 - *Non-Support Requests* (podcast guest pitches etc. — different category)
 - *Subscription & Billing Overview* (legacy Ten-Percent-Happier-era subscriptions on our side)
+
+**Billing contact (Cassidy, 2026-10-13 — Pat Ihnat #323440):** Receipts/charges from "10 Percent with Dan Harris" (Sustainer Membership, etc.) are from Dan Harris's separate company, not Happier or Apple. Point the customer to support@danharris.com / +1 332-205-8495. Never guess a charge's merchant: name what the screenshot shows, or ask.
