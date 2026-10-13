@@ -4,6 +4,10 @@
 
 AI-powered support agent for Happier Meditation. Processes Help Scout tickets end-to-end: triage → account lookup → Stripe enrichment → policy loading → Claude draft → Help Scout draft + internal note.
 
+## Research before you reply (Cassidy, 2026-10-13 — Nimet #323454)
+
+**Research before you reply.** Finish all research you can do without the customer before sending any reply: admin Users search (exact email plus partial/name matches), Help Scout sidebar, every email on the profile, Linear, #customer-support-watcher, and saved replies/policies. Send one reply only when you're confident. If you're still not confident after that, it's fine to ask the customer for the specific details you need. Never send a reply and then keep researching, so the customer doesn't get several emails when one would do. If a needed tool (like admin) isn't available, get the lookup done before replying rather than guessing.
+
 ## Solo vs Ping Cassidy (Decision 2026-09-02)
 
 **Bert/support bots SEND when they are reasonably confident.** Hold back and ping Cassidy ONLY for:
