@@ -462,3 +462,16 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Help Scout:** #322963 Kathleen Barry-Wacaser (https://secure.helpscout.net/conversation/3476017986/322963)
 - **Date added:** 2026-10-09
 - **Date resolved:** —
+
+
+## 35. iOS App Quits / Crashes Mid Meditation
+
+- **Status:** Investigating. Priorities High. Filed T-2308 (no assignee yet). Related Sentry investigation T-2249 (AVKit player teardown crash on the same native build) — stack/journey not confirmed as the same.
+- **Platforms:** iOS Native **2026.928 (54923307)** confirmed (Tracy #323564). Distinct from Entry 13 (playback pausing/stopping when the screen goes dark) and Entry 1 (Android pausing, Fixed).
+- **Symptom:** App quits / closes mid meditation so playback cannot finish.
+- **What to tell the customer:** We are investigating this now. Acknowledge that the app should not quit mid meditation. Do not promise a ship date. Do not send them to an App Store update unless engineering says a native fix shipped. Meantime: force-quit Happier and reopen; if it still quits mid session, ask them to reply with whether it happens on Wi‑Fi and cellular, and roughly how far into the sit. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Related to T-2249 (Sentry HYBRID-IOS-AE AVKit KVO teardown on 2026.928). Critical for digest (@ Cassidy when new reports land).
+- **Linear ticket:** T-2308 (https://linear.app/happier/issue/T-2308)
+- **Help Scout:** #323564 Tracy Tynan (https://secure.helpscout.net/conversation/3482965660/323564)
+- **Date added:** 2026-10-14
+- **Date resolved:** —
