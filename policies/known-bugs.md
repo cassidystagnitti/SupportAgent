@@ -470,8 +470,20 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Platforms:** iOS Native **2026.928 (54923307)** confirmed (Tracy #323564). Distinct from Entry 13 (playback pausing/stopping when the screen goes dark) and Entry 1 (Android pausing, Fixed).
 - **Symptom:** App quits / closes mid meditation so playback cannot finish.
 - **What to tell the customer:** We are investigating this now. Acknowledge that the app should not quit mid meditation. Do not promise a ship date. Do not send them to an App Store update unless engineering says a native fix shipped. Meantime: force-quit Happier and reopen; if it still quits mid session, ask them to reply with whether it happens on Wi‑Fi and cellular, and roughly how far into the sit. Sign-off: Take care, / Happier Meditation Support Team.
-- **Notes / related:** Related to T-2249 (Sentry HYBRID-IOS-AE AVKit KVO teardown on 2026.928). Critical for digest (@ Cassidy when new reports land).
+- **Notes / related:** Related to T-2249 (Sentry HYBRID-IOS-AE AVKit KVO teardown on 2026.928). Critical for digest (@ Cassidy when new reports land). Update 2026-10-15: T-2249 is Done (HappierHybrid-iOS#292, ships in the next iOS release). Not confirmed to be Tracy's crash, so T-2308 stays open; still no ship date to give customers.
 - **Linear ticket:** T-2308 (https://linear.app/happier/issue/T-2308)
 - **Help Scout:** #323564 Tracy Tynan (https://secure.helpscout.net/conversation/3482965660/323564)
 - **Date added:** 2026-10-14
+- **Date resolved:** —
+
+## 36. iOS "Error loading page — bad URL" on Every Launch
+
+- **Status:** Investigating. Priorities High. Filed T-2314 (no assignee yet).
+- **Platforms:** iOS (customer on latest iOS; app build unknown, no support footer). Ryley #323655.
+- **Symptom:** Full-screen "Error loading page" with the line "bad URL" and a Retry button every time the app opens, while online. Persists after delete + reinstall, phone restart, and iOS update. Customer cannot use the app.
+- **What to tell the customer:** We are investigating this now. Acknowledge they've already tried reinstalling and restarting. Do not promise a ship date. Ask for the email on their account so we can check it. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Distinct from T-2256 (offline / weak-connection launch, "couldn't finish loading"). Critical for digest (@ Cassidy when new reports land).
+- **Linear ticket:** T-2314 (https://linear.app/happier/issue/T-2314)
+- **Help Scout:** #323655 Ryley (https://secure.helpscout.net/conversation/3484400434/323655)
+- **Date added:** 2026-10-15
 - **Date resolved:** —
