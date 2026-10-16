@@ -470,7 +470,7 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Platforms:** iOS Native **2026.928 (54923307)** confirmed (Tracy #323564 / #323693). Distinct from Entry 13 (playback pausing/stopping when the screen goes dark) and Entry 1 (Android pausing, Fixed).
 - **Symptom:** App quits / closes mid meditation so playback cannot finish. Follow-up reports also describe the meditation simply stopping mid-listen (without a clear quit).
 - **What to tell the customer:** We are investigating this now. Acknowledge that the app should not quit or stop mid meditation. Do not promise a ship date. Do not send them to an App Store update unless engineering says a native fix shipped. Meantime: force-quit Happier and reopen; if it still quits or stops mid session, ask them to reply with whether it happens on Wi‑Fi and cellular, and roughly how far into the sit. Sign-off: Take care, / Happier Meditation Support Team.
-- **Notes / related:** Related to T-2249 (Sentry HYBRID-IOS-AE AVKit KVO teardown on 2026.928). Critical for digest (@ Cassidy when new reports land). Update 2026-10-15: T-2249 is Done (HappierHybrid-iOS#292, ships in the next iOS release). Not confirmed to be Tracy's crash, so T-2308 stays open; still no ship date to give customers. Update 2026-10-16: sibling HS [#323693](https://secure.helpscout.net/conversation/3484874127/323693) (Tracy) — meditation just stops; commented on T-2308.
+- **Notes / related:** Related to T-2249 (Sentry HYBRID-IOS-AE AVKit KVO teardown on 2026.928). Critical for digest (@ Cassidy when new reports land). Update 2026-10-15: T-2249 is Done (HappierHybrid-iOS#292, ships in the next iOS release). Not confirmed to be Tracy's crash, so T-2308 stays open; still no ship date to give customers. Update 2026-10-16: sibling HS [#323693](https://secure.helpscout.net/conversation/3484874127/323693) (Tracy) — meditation just stops; commented on T-2308. Update 2026-10-16 4pm digest: T-2308 still Priorities, unassigned, no PR. Native release T-2320 has iOS targeted for Mon 10-19 (includes T-2249); still not confirmed to fix Tracy's quit, so no customer-facing fix claim.
 - **Linear ticket:** T-2308 (https://linear.app/happier/issue/T-2308)
 - **Help Scout:** #323564 Tracy Tynan (https://secure.helpscout.net/conversation/3482965660/323564); sibling #323693 (https://secure.helpscout.net/conversation/3484874127/323693)
 - **Date added:** 2026-10-14
@@ -486,4 +486,16 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Linear ticket:** T-2314 (https://linear.app/happier/issue/T-2314)
 - **Help Scout:** #323655 Ryley (https://secure.helpscout.net/conversation/3484400434/323655)
 - **Date added:** 2026-10-15
+- **Date resolved:** —
+
+## 37. iOS Won't Open Offline / Weak Connection; Downloads Won't Play Offline
+
+- **Status:** In progress. T-2256 (High) and T-2177 (Urgent) moved to Implementation 2026-10-16, assignee Petro Bishko. Fix PR HappierHybrid-iOS#294 ("recover offline playback and stalled launches") is open and in review/CI. Not merged, not released. Requires an iOS release; the defect is present in the v2026.10.16 tag, so the fix is later than the release targeted for Mon 10-19.
+- **Platforms:** iOS Native **2026.928 (54923307)** confirmed.
+- **Symptom:** With no signal, airplane mode, or a weak/foreign connection, the app sits on a black loading spinner and then shows "Error loading page — Happier couldn't finish loading. Retry" instead of falling through to Downloads. Downloaded meditations then can't be reached or played. Sentry shows this launch timeout for many users (264 distinct users in 24h as of Oct 16).
+- **What to tell the customer:** Our engineers are working on a fix for this now. Acknowledge that downloads should open and play without a connection. Tip: open Happier once while you still have signal and leave it open in the background. Do not say fixed. Do not tell them to update the app until engineering confirms the iOS release with this fix shipped. Do not promise a date. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Distinct from Entry 36 (T-2314 "bad URL" while online, VPN/filter). Related to Entry 24 (T-1891 / T-1905 downloaded lessons ignored when app thinks online) and Entry 4 (Android downloads, Fixed).
+- **Linear ticket:** T-2256 (https://linear.app/happier/issue/T-2256), T-2177 (https://linear.app/happier/issue/T-2177)
+- **Help Scout:** #322902 Cadia, #322879 Julia Davidson, #322987 Tom Nightingale (https://secure.helpscout.net/conversation/3476442124/322987; comped a free month Oct 16)
+- **Date added:** 2026-10-16
 - **Date resolved:** —
