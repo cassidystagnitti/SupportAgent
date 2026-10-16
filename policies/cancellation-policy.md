@@ -114,6 +114,33 @@ Standard retention save, no Cassidy review:
 3. Verify: sub `active`, `cancel_at_period_end` false, and `stripe.Invoice.create_preview(customer=…, subscription=…)` total = the discounted price ($59.99 on a $99.99 annual).
 4. Reply: "I'm so glad you're staying! I've set up the 40% discount and turned your renewal back on, so on <renewal date> your membership will renew for $59.99." Close.
 
+## Reactivate renewal + coupon + move billing date (taught 2026-10-16 — Wendy #322695)
+
+For a customer who already got cancel_at_period_end (CAPE) and then accepts a discount AND asks for a different billing date. Cassidy approved this case. Moving the billing date is not yet a solo action, so get Cassidy's OK, make the Stripe changes, let her review them in Stripe, then send.
+
+1. **Turn renewal back on (write key).** The default key used by `stripe_research._api_key()` is read-only and Stripe returns `PermissionError` on writes. Use `STRIPE_WRITE_API_KEY` from `/home/box/happier-support/.env`:
+   ```python
+   stripe.api_key = os.environ["STRIPE_WRITE_API_KEY"].strip()
+   stripe.Subscription.modify("<sub_…>", cancel_at_period_end=False)
+   ```
+   Log it to `/home/box/happier-support/stripe_action_log.jsonl` with action `reactivate_renewal` (customer, subscription, conversation_id, actor, approved_by). `stripe_apply_coupon.py` refuses a CAPE subscription, so do this first.
+2. **Apply the coupon.** Run the script once without `--apply` (dry run), then run it again with `--apply`:
+   ```bash
+   cd /workspace/SupportAgent; set -a; . /home/box/happier-support/.env; set +a
+   python3 scripts/stripe_apply_coupon.py <cus_…> --percent 50 --forever --coupon sYzBWBEn --conversation-id <hs_cid>          # dry run
+   python3 scripts/stripe_apply_coupon.py <cus_…> --percent 50 --forever --coupon sYzBWBEn --conversation-id <hs_cid> --apply
+   ```
+   (sYzBWBEn = "Support - 50% off (lifetime)". For 40% once, use 9UdSyyhB.) The script writes its own action log.
+3. **Move the billing date without charging or prorating.** Push `trial_end` to the new date, keeping the current period end's time of day (old `current_period_end` + N×86400):
+   ```python
+   stripe.Subscription.modify("<sub_…>", trial_end=<new_unix_ts>, proration_behavior="none",
+       metadata={"retention_extension": "billing date moved <old>-><new> per customer, Cassidy approved, HS <number>"})
+   ```
+   Log it with action `move_billing_date_trial_end` (trial_end, proration_behavior). The sub will show `status=trialing` until the new date, and the customer keeps full access.
+   **Expect a $0.00 invoice:** Stripe creates a $0.00 invoice marked "paid" at the moment of the change. Nothing is charged, so no action is needed. Mention it to Cassidy so it doesn't look like a charge.
+4. **Verify (read key is fine):** `cancel_at_period_end` false, `cancel_at` None, `trial_end` = `items[0].current_period_end` = new date, `discounts` contains the coupon, and `stripe.Invoice.create_preview(customer=…, subscription=…)` total = discounted price ($49.99 at 50%) with line period starting on the new date.
+5. Release the claim and `bert-working` tag without replying, and have Cassidy review in Stripe. Then send the confirmation (discount amount, "your next charge of $X will be on <new date>, then each <date> after that") and close.
+
 ## Google Play — already off (solo)
 If Maven/admin shows `source=Google` and `auto_renew_status=0`: send the already-off confirmation with the end date and close. No Console action, no Cassidy (Rene #322768).
 
