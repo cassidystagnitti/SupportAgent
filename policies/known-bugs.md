@@ -467,22 +467,22 @@ If we have the customer's account, don't ask them to look up or report their app
 ## 35. iOS App Quits / Crashes Mid Meditation
 
 - **Status:** Investigating. Priorities High. Filed T-2308 (no assignee yet). Related Sentry investigation T-2249 (AVKit player teardown crash on the same native build) — stack/journey not confirmed as the same.
-- **Platforms:** iOS Native **2026.928 (54923307)** confirmed (Tracy #323564). Distinct from Entry 13 (playback pausing/stopping when the screen goes dark) and Entry 1 (Android pausing, Fixed).
-- **Symptom:** App quits / closes mid meditation so playback cannot finish.
-- **What to tell the customer:** We are investigating this now. Acknowledge that the app should not quit mid meditation. Do not promise a ship date. Do not send them to an App Store update unless engineering says a native fix shipped. Meantime: force-quit Happier and reopen; if it still quits mid session, ask them to reply with whether it happens on Wi‑Fi and cellular, and roughly how far into the sit. Sign-off: Take care, / Happier Meditation Support Team.
-- **Notes / related:** Related to T-2249 (Sentry HYBRID-IOS-AE AVKit KVO teardown on 2026.928). Critical for digest (@ Cassidy when new reports land). Update 2026-10-15: T-2249 is Done (HappierHybrid-iOS#292, ships in the next iOS release). Not confirmed to be Tracy's crash, so T-2308 stays open; still no ship date to give customers.
+- **Platforms:** iOS Native **2026.928 (54923307)** confirmed (Tracy #323564 / #323693). Distinct from Entry 13 (playback pausing/stopping when the screen goes dark) and Entry 1 (Android pausing, Fixed).
+- **Symptom:** App quits / closes mid meditation so playback cannot finish. Follow-up reports also describe the meditation simply stopping mid-listen (without a clear quit).
+- **What to tell the customer:** We are investigating this now. Acknowledge that the app should not quit or stop mid meditation. Do not promise a ship date. Do not send them to an App Store update unless engineering says a native fix shipped. Meantime: force-quit Happier and reopen; if it still quits or stops mid session, ask them to reply with whether it happens on Wi‑Fi and cellular, and roughly how far into the sit. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Related to T-2249 (Sentry HYBRID-IOS-AE AVKit KVO teardown on 2026.928). Critical for digest (@ Cassidy when new reports land). Update 2026-10-15: T-2249 is Done (HappierHybrid-iOS#292, ships in the next iOS release). Not confirmed to be Tracy's crash, so T-2308 stays open; still no ship date to give customers. Update 2026-10-16: sibling HS [#323693](https://secure.helpscout.net/conversation/3484874127/323693) (Tracy) — meditation just stops; commented on T-2308.
 - **Linear ticket:** T-2308 (https://linear.app/happier/issue/T-2308)
-- **Help Scout:** #323564 Tracy Tynan (https://secure.helpscout.net/conversation/3482965660/323564)
+- **Help Scout:** #323564 Tracy Tynan (https://secure.helpscout.net/conversation/3482965660/323564); sibling #323693 (https://secure.helpscout.net/conversation/3484874127/323693)
 - **Date added:** 2026-10-14
 - **Date resolved:** —
 
 ## 36. iOS "Error loading page — bad URL" on Every Launch
 
-- **Status:** Investigating. Priorities High. Filed T-2314 (no assignee yet).
-- **Platforms:** iOS (customer on latest iOS; app build unknown, no support footer). Ryley #323655.
+- **Status:** Identified (device network). Priorities High. Filed T-2314. Petro investigated 2026-10-16: likely VPN / proxy / content filter / custom DNS on the device (`NSURLErrorBadURL` -1000 via Hotwire), not a malformed Happier URL and not account-tied. No code fix yet; optional friendly copy change only if confirmed.
+- **Platforms:** iOS (customer on latest iOS; app build unknown, no support footer). Ryley #323655 (closed after ack).
 - **Symptom:** Full-screen "Error loading page" with the line "bad URL" and a Retry button every time the app opens, while online. Persists after delete + reinstall, phone restart, and iOS update. Customer cannot use the app.
-- **What to tell the customer:** We are investigating this now. Acknowledge they've already tried reinstalling and restarting. Do not promise a ship date. Ask for the email on their account so we can check it. Sign-off: Take care, / Happier Meditation Support Team.
-- **Notes / related:** Distinct from T-2256 (offline / weak-connection launch, "couldn't finish loading"). Critical for digest (@ Cassidy when new reports land).
+- **What to tell the customer:** We have identified the issue. Acknowledge they've already tried reinstalling and restarting. Ask: (1) Do you use a VPN, ad-blocker, content filter, or custom DNS? (Settings → General → VPN & Device Management.) (2) Does the app open with that turned off, or on a different network (cellular vs Wi‑Fi)? (3) Which app version are you on? Do not promise a ship date. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Distinct from T-2256 (offline / weak-connection launch, "couldn't finish loading"). Sentry HYBRID-IOS-5 (-1000 slice): valid `my.meditatehappier.com` URLs failing on `utun` VPN + proxy before HTTP. Signed-out `/v2/home` returns 401 with no Location (rules out bad server redirect).
 - **Linear ticket:** T-2314 (https://linear.app/happier/issue/T-2314)
 - **Help Scout:** #323655 Ryley (https://secure.helpscout.net/conversation/3484400434/323655)
 - **Date added:** 2026-10-15
