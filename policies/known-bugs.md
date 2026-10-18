@@ -499,3 +499,15 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Help Scout:** #322902 Cadia, #322879 Julia Davidson, #322987 Tom Nightingale (https://secure.helpscout.net/conversation/3476442124/322987; comped a free month Oct 16)
 - **Date added:** 2026-10-16
 - **Date resolved:** —
+
+## 38. Android Downloads Won't Play Offline ("Audio couldn't load"); Offline Timer Sit Not Saved
+
+- **Status:** Filed 2026-10-18, Priorities, High, unassigned, no PR. Looks like a regression of Entry 4 (T-1575, fixed in 2026.07.21). Not the same as Entry 37, which is iOS-only.
+- **Platforms:** Android Native **2026.10.16 (56473914)** confirmed.
+- **Symptom:** In airplane mode, tapping a downloaded meditation shows "Audio couldn't load. Check your connection and try again." with a Try Again button, so downloads can't be played offline. An unguided timer sit done offline also didn't save to that day's streak.
+- **What to tell the customer:** Our engineers are looking into this now. Acknowledge that downloaded meditations should play without a connection. Hand-credit the missed day as an Unguided Timer in admin Mindful Sessions (check the day before and after too) and tell them it's restored. Do not say fixed. Do not tell them to update the app. Do not promise a date. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Related to T-1568 (Android sessions completed offline never appear in history), T-2192 (Android timer sit not recorded), T-1905 (iOS downloaded lessons ignored), Entry 4 (Android downloads, Fixed), Entry 37 (iOS offline, in progress).
+- **Linear ticket:** T-2332 (https://linear.app/happier/issue/T-2332)
+- **Help Scout:** #323832 Ronald Harvey (https://secure.helpscout.net/conversation/3486605009/323832)
+- **Date added:** 2026-10-18
+- **Date resolved:** —
