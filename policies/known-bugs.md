@@ -511,3 +511,15 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Help Scout:** #323832 Ronald Harvey (https://secure.helpscout.net/conversation/3486605009/323832)
 - **Date added:** 2026-10-18
 - **Date resolved:** —
+
+## 39. Life Transitions Challenge: "Getting Ready" Video Won't Play After Joining
+
+- **Status:** Investigating. Filed T-2594 2026-11-04 (Product Backlog, no priority, unassigned, no PR as of 9am ET digest). Not yet reproduced by support. If Getting Ready is intentionally locked until the Nov 9 start, the app should say so instead of showing an unavailable/frozen state.
+- **Platforms:** iOS **2026.1023 (57068138)** (Andrew #324971); Android, Samsung Galaxy A56 (Rick #324965).
+- **Symptom:** After joining Navigating Life Transitions (`life-transitions-2026`, join window opened Nov 4, challenge runs Nov 9–14), tapping the "Getting Ready" intro video (Valerie Brown, 9 min) fails. iOS says the content isn't available. On Android the play button does nothing and the app freezes on the challenge page (can't navigate out); reinstall doesn't help.
+- **What to tell the customer:** We are investigating this now. Confirm they are joined and that the challenge itself starts Nov 9, so they haven't missed anything. On Android, if the app freezes, swipe it closed from the recent apps screen. Do not promise a date. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** T-2304 (Rick's Lenovo tablet flashing) is separate.
+- **Linear ticket:** T-2594 (https://linear.app/happier/issue/T-2594)
+- **Help Scout:** #324971 Andrew Ousley (https://secure.helpscout.net/conversation/3504680930/324971); #324965 Rick Szur (https://secure.helpscout.net/conversation/3504446273/324965)
+- **Date added:** 2026-11-04
+- **Date resolved:** —
