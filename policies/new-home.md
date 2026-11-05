@@ -2,7 +2,7 @@
 
 # Summary
 
-As of **Thursday, Nov 5, 2026, 12:00 pm ET**, the redesigned Home tab is the default for **every app user**, including Apple and other organization members. Nothing was removed — the layout changed and a few things were added (Daily Dose for everyone, Playlists, a For you section). The option to switch back to the old Home is temporary while the team gathers feedback (team decides by Nov 30 whether to remove the switch). **Never promise users a date** for keeping the old Home. Tag every Home-related ticket `new-home`, capture what they couldn't find, and note whether they switched back. Sign-off is always **Take care,** / **Happier Meditation Support Team**.
+As of **Thursday, Nov 5, 2026, 12:00 pm ET**, the redesigned Home tab is the default for **every app user**, including Apple and other organization members. Nothing was removed — the layout changed and a few things were added (Daily Dose for everyone, Playlists, a For you section). The option to switch back to the old Home is temporary while the team gathers feedback (team decides by Nov 30 whether to remove the switch). **Never promise users a date** for keeping the old Home. Tag every Home-related ticket `new-home` (and `playlists` if needed), append a row to `/home/box/happier-support/data/new-home-feedback.csv`, reply with a specific thank-you (never generic), capture what they couldn't find, and note whether they switched back. Sign-off is always **Take care,** / **Happier Meditation Support Team**.
 
 # Trigger Conditions
 
@@ -16,8 +16,10 @@ As of **Thursday, Nov 5, 2026, 12:00 pm ET**, the redesigned Home tab is the def
 - [ ] Whether they want to switch back, already switched back, or only dislike the This Week card
 - [ ] Whether the complaint is broken Home (blank, missing sections, can't play) vs preference / "where did X go?"
 - [ ] For broken Home: whether they already closed/reopened and updated the app; if still broken: email, device, app version, screenshot
-- [ ] Tag the ticket `new-home`
+- [ ] Tag the ticket `new-home` (and `playlists` if the feedback is about Playlists)
 - [ ] Note whether they switched back
+- [ ] Append a row to `/home/box/happier-support/data/new-home-feedback.csv` (see Logging feedback)
+- [ ] Draft a **specific** thank-you that names what they said — never a generic thanks
 
 # Policy / Correct Response
 
@@ -49,8 +51,9 @@ Replies to the launch email land in support. Treat them as Home feedback for the
 1. Acknowledge the change warmly. Nothing was removed; the new Home arranges things differently and adds Daily Dose, Playlists, and For you.
 2. Answer the specific "where is X?" using the FAQ / tour below.
 3. Invite what they'd like changed; their note goes to the team.
-4. Tag `new-home`. Capture what they couldn't find. Note if they switched back.
-5. Sign-off: **Take care,** / **Happier Meditation Support Team**. Never Cass/Cassidy/first name. Never "Best wishes".
+4. Tag `new-home` (and `playlists` if needed). Append a CSV row. Capture what they couldn't find. Note if they switched back.
+5. Reply with a **specific** thank-you that addresses what they said (never a generic thanks). Answer any where-is-X / switch-back ask in the same reply.
+6. Sign-off: **Take care,** / **Happier Meditation Support Team**. Never Cass/Cassidy/first name. Never "Best wishes".
 
 ## If they want the old Home
 
@@ -122,12 +125,47 @@ Switching back is available for a limited time while we collect feedback. **Do n
 **"I use the app through my employer (Apple or another organization)."**  
 They get the new Home too, and can switch back the same way (Home → Profile → Settings → Manage → New Home off).
 
-## Logging feedback
+## Logging feedback (Cassidy process — Nov 5 2026)
 
-- Tag every Home-related ticket **`new-home`** so the team can count and read them.
-- Capture **what they were trying to do and couldn't find**, not just "they don't like it".
-- Note **whether they switched back**.
-- Launch-email replies are feedback for the Nov 30 decision.
+**Every Home or Playlists feedback ticket** (launch-email replies, in-app welcome feedback, "I don't like the new Home," Playlists comments, where-did-X-go that includes opinion/feedback, switch-back requests with reasons) must do all three:
+
+### 1. Append a row to the feedback CSV
+
+Path (on the support box Bert uses): `/home/box/happier-support/data/new-home-feedback.csv`
+
+The file already exists with a header only. **Append one row per ticket** (do not overwrite the header or other rows). Columns, in order:
+
+| Column | What to put |
+|---|---|
+| `ticket_number` | Help Scout conversation number |
+| `conversation_id` | Help Scout conversation id |
+| `received_at_et` | When the customer message arrived, America/New_York, e.g. `2026-11-05 2:15pm ET` |
+| `customer_name` | Customer display name |
+| `customer_email` | Customer email on the ticket |
+| `topic` | Short topic label, e.g. `switch-back`, `playlists`, `daily-dose`, `where-course`, `where-challenge`, `this-week`, `broken-home`, `general-feedback` |
+| `switched_back` | `yes` / `no` / `unknown` / `offered-not-yet` |
+| `summary` | One-line paraphrase of their feedback |
+| `verbatim_excerpt` | Short quote of their words (escape commas/quotes for CSV) |
+| `what_they_couldnt_find` | Specific missing thing, or empty if pure opinion |
+| `reply_sent_at_et` | When our reply went out (America/New_York), or empty if not yet sent |
+| `hs_url` | `https://secure.helpscout.net/conversation/<conversation_id>/<ticket_number>` |
+
+CSV hygiene: quote fields that contain commas or quotes; never delete prior rows; one ticket → one row (update the same row if you learn more later, rather than duplicating).
+
+### 2. Tag the ticket
+
+- Always tag **`new-home`**.
+- Also tag **`playlists`** when the feedback is about Playlists (creating, finding, sharing, or the Playlists section/email).
+
+### 3. Reply with a specific thank-you
+
+- Thank them for the **specific** thing they said (name the layout bit, missing item, or Playlists detail they mentioned).
+- **Never** send a generic "Thanks for the feedback!" with no substance.
+- If they asked where something went or how to switch back, answer that in the same reply (see FAQ / switch steps above).
+- Invite anything else they'd like changed; note it goes to the team for the Nov 30 decision.
+- Sign-off: **Take care,** / **Happier Meditation Support Team**.
+
+Launch-email replies are feedback for the Nov 30 decision — same three steps.
 
 ## Variations
 
@@ -147,7 +185,7 @@ They get the new Home too, and can switch back the same way (Home → Profile �
 ## No Action Required (reply only)
 
 - Where-did-X-go questions answered from the FAQ/tour
-- Preference feedback acknowledged and logged with tag `new-home`
+- Preference / Home / Playlists feedback: CSV row appended, tagged `new-home` (+ `playlists` if needed), specific thank-you reply
 - Switch-back instructions shared
 - Show weekly progress tip for progress-card-only complaints
 
@@ -169,7 +207,7 @@ They get the new Home too, and can switch back the same way (Home → Profile �
 
 # Confidence Notes
 
-- **High confidence areas:** Default timing (Nov 5 2026 12:00 pm ET) and audience (everyone, including org members); nothing removed; switch path; Show weekly progress vs layout switch; FAQ locations for course / challenge / Daily Dose / Playlists; tag `new-home` + capture specifics; sign-off Take care / Happier Meditation Support Team; never promise a keep-old-Home date.
+- **High confidence areas:** Default timing (Nov 5 2026 12:00 pm ET) and audience (everyone, including org members); nothing removed; switch path; Show weekly progress vs layout switch; FAQ locations for course / challenge / Daily Dose / Playlists; tag `new-home` (+ `playlists` if needed) + CSV row at `/home/box/happier-support/data/new-home-feedback.csv` + specific thank-you (never generic) + capture specifics; sign-off Take care / Happier Meditation Support Team; never promise a keep-old-Home date.
 - **Judgment call areas:** How strongly to encourage trying the new Home before switching back; when "I hate it" without specifics needs one more clarifying ask vs closing with the switch steps.
 - **Gaps:** No dedicated Help Scout saved reply for new-Home FAQ or switch-back yet (draft manually from this policy). Nov 30 decision may retire or keep the switch — update this doc when the team decides.
 
@@ -182,7 +220,7 @@ No dedicated saved reply exists for the redesigned Home tab as of 2026-11-05. Dr
 | Wants old Home | *(none — draft)* | Use suggested reply in this policy |
 | Where did my course / challenge go | *(none — draft)* | Use FAQ |
 | Broken Home after update | *(none — draft)* | Close/reopen + update; then collect diagnostics + escalate |
-| Launch-email feedback only | *(none — draft)* | Acknowledge + tag `new-home`; per *Feedback Policy* tone |
+| Launch-email / Home / Playlists feedback | *(none — draft)* | Specific thank-you + tag `new-home` (+ `playlists` if needed) + CSV row; per *Feedback Policy* tone |
 
 # Related Policies
 
