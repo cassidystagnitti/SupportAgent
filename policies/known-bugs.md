@@ -514,12 +514,12 @@ If we have the customer's account, don't ask them to look up or report their app
 
 ## 39. Life Transitions Challenge: "Getting Ready" Video Won't Play After Joining
 
-- **Status:** Investigating. Filed T-2594 2026-11-04 (Product Backlog, no priority, unassigned, no PR as of 9am ET digest). Not yet reproduced by support. If Getting Ready is intentionally locked until the Nov 9 start, the app should say so instead of showing an unavailable/frozen state.
+- **Status:** Fixed in admin 2026-11-04 ~2:06pm ET (no app update needed). Root cause: the Getting Ready card (5131, day -1) linked the Day 1 session "Welcoming", which is locked until Nov 9; the card was repointed to a released Getting Ready session. Julia confirmed it plays on iOS and Android; Amplitude shows ~99% of taps start the video since the fix. Draft PR changecollective.com#3982 (audit flag so this can't recur) is open, no reviewer yet. Linear T-2594 still Product Backlog (not closed). Open item before Nov 9: the challenge's day 0–12 cards still point at Befriending Grief sessions and need remapping by the content owner.
 - **Platforms:** iOS **2026.1023 (57068138)** (Andrew #324971); Android, Samsung Galaxy A56 (Rick #324965).
 - **Symptom:** After joining Navigating Life Transitions (`life-transitions-2026`, join window opened Nov 4, challenge runs Nov 9–14), tapping the "Getting Ready" intro video (Valerie Brown, 9 min) fails. iOS says the content isn't available. On Android the play button does nothing and the app freezes on the challenge page (can't navigate out); reinstall doesn't help.
-- **What to tell the customer:** We are investigating this now. Confirm they are joined and that the challenge itself starts Nov 9, so they haven't missed anything. On Android, if the app freezes, swipe it closed from the recent apps screen. Do not promise a date. Sign-off: Take care, / Happier Meditation Support Team.
+- **What to tell the customer:** It's fixed now. Ask them to update the app if an update is available, open the challenge (https://my.meditatehappier.com/link/content?challenge=life-transitions-2026) and tap Getting Ready; the daily sessions start Nov 9 on the same page. If it still won't open, ask for a screenshot. On Android, if the app froze earlier, swipe it closed from recent apps first. Sign-off: Take care, / Happier Meditation Support Team.
 - **Notes / related:** T-2304 (Rick's Lenovo tablet flashing) is separate.
 - **Linear ticket:** T-2594 (https://linear.app/happier/issue/T-2594)
-- **Help Scout:** #324971 Andrew Ousley (https://secure.helpscout.net/conversation/3504680930/324971); #324965 Rick Szur (https://secure.helpscout.net/conversation/3504446273/324965)
+- **Help Scout:** #324971 Andrew Ousley (https://secure.helpscout.net/conversation/3504680930/324971); #324965 Rick Szur (https://secure.helpscout.net/conversation/3504446273/324965); #325033 Jane Pike, Android 1023, sent fix steps Nov 5 (https://secure.helpscout.net/conversation/3505828397/325033)
 - **Date added:** 2026-11-04
 - **Date resolved:** —
