@@ -88,7 +88,7 @@ Some sections only appear when they apply (e.g. a challenge they joined or a cou
 1. **Top bar** — Profile (person icon, left), greeting, Search (magnifying glass, right). Settings, History, Downloads, Milestones, and Playlists are reached through Profile.
 2. **Daily Dose and featured slides** — Large swipeable card at the top. Daily Dose is one hand-picked practice the whole Happier community gets each day; tap Play now. Other slides can feature something picked for the person, a new course or sleep story, or an open challenge.
 3. **Check-in** — Monthly check-in still on Home; when due, a short prompt near the top.
-4. **For you** *(new)* — Short list for that person: challenge ("Upcoming challenge" / "Your challenge"), Recommended, Try tonight, Dive back in (course in progress).
+4. **For you** *(new)* — Short list for that person: challenge ("Upcoming challenge" / "Your challenge"), Recommended, Try tonight, Dive back in (course in progress). **See all** under For you opens the full recommendations list (the old Home's short suggested-meditations list still lives there).
 5. **Playlists** *(new)* — Their playlists, with See all.
 6. **Challenges** — Open challenge to join, plus My Challenges. See all lists every challenge.
 7. **This Week** — Weekly progress and streaks. Hide via Settings → Manage → Show weekly progress.
@@ -115,6 +115,9 @@ Top of For you ("Upcoming challenge" before it starts, "Your challenge" once run
 
 **"What's the Daily Dose?"**  
 A practice we hand-pick each day for the whole community, so everyone meditates with the same session that day.
+
+**"Where did the 5–6 suggested meditations / Home recommendations go?"** (taught 2026-11-05, Kia #325057)  
+Still there. On the new Home, under **For you**, tap **See all** — those recommendations should still exist. Nothing from the old Home is meant to be inaccessible; the layout changed. If they aren't seeing them, ask for more detail and a **screenshot of their Home tab** to rule out a technical issue.
 
 **"I switched back before, why did it change again?"**  
 On Nov 5 everyone moved to the new Home, including earlier switch-backs. If they turn New Home off again now, it stays off.
