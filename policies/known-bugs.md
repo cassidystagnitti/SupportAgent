@@ -514,7 +514,7 @@ If we have the customer's account, don't ask them to look up or report their app
 
 ## 39. Life Transitions Challenge: "Getting Ready" Video Won't Play After Joining
 
-- **Status:** Fixed in admin 2026-11-04 ~2:06pm ET (no app update needed). Root cause: the Getting Ready card (5131, day -1) linked the Day 1 session "Welcoming", which is locked until Nov 9; the card was repointed to a released Getting Ready session. Julia confirmed it plays on iOS and Android; Amplitude overnight was clean (~99% of taps start the video); Getting Ready monitoring was cancelled Nov 5 ~9:47am ET. Linear T-2594 marked **Done** 2026-11-05 ~10:08am ET. Draft PR changecollective.com#3982 (audit flag so this can't recur) is still OPEN draft, green CI, no reviewer. Follow-up for day 0–12 card remap: see #40 / T-2620 (needs owner before Nov 9).
+- **Status:** Fixed in admin 2026-11-04 ~2:06pm ET (no app update needed). Root cause: the Getting Ready card (5131, day -1) linked the Day 1 session "Welcoming", which is locked until Nov 9; the card was repointed to a released Getting Ready session. Julia confirmed it plays on iOS and Android; Amplitude overnight was clean (~99% of taps start the video); Getting Ready monitoring was cancelled Nov 5 ~9:47am ET. Linear T-2594 marked **Done** 2026-11-05 ~10:08am ET. Draft PR changecollective.com#3982 (audit flag so this can't recur) was **CLOSED unmerged** 2026-11-06 ~4:43am ET (morning digest). Follow-up for day 0–12 card remap: see #40 / T-2620 (needs owner before Nov 9).
 - **Platforms:** iOS **2026.1023 (57068138)** (Andrew #324971); Android, Samsung Galaxy A56 (Rick #324965).
 - **Symptom:** After joining Navigating Life Transitions (`life-transitions-2026`, join window opened Nov 4, challenge runs Nov 9–14), tapping the "Getting Ready" intro video (Valerie Brown, 9 min) fails. iOS says the content isn't available. On Android the play button does nothing and the app freezes on the challenge page (can't navigate out); reinstall doesn't help.
 - **What to tell the customer:** It's fixed now. Ask them to update the app if an update is available, open the challenge (https://my.meditatehappier.com/link/content?challenge=life-transitions-2026) and tap Getting Ready; the daily sessions start Nov 9 on the same page. If it still won't open, ask for a screenshot. On Android, if the app froze earlier, swipe it closed from recent apps first. Sign-off: Take care, / Happier Meditation Support Team.
@@ -526,7 +526,7 @@ If we have the customer's account, don't ask them to look up or report their app
 
 ## 40. Life Transitions Challenge: Day 0–12 Feed Cards Still Point at Befriending Grief
 
-- **Status:** Open. Product Backlog, no priority, unassigned (unchanged 2026-11-06 9am). Filed 2026-11-05 from the T-2594 investigation (Claude bot / Julia thread). Challenge 347 `life-transitions-2026` was duplicated from challenge 311 (Befriending Grief); as of the investigation its day 0–12 feed cards still link Befriending Grief sessions (incl. Crowdcast grief Q&A). None of the Life Transitions sessions 1460–1464 are linked. Needs content owner to remap in admin **before Nov 9**.
+- **Status:** Open. Product Backlog, no priority, unassigned (unchanged 2026-11-06 4pm). Filed 2026-11-05 from the T-2594 investigation (Claude bot / Julia thread). Challenge 347 `life-transitions-2026` was duplicated from challenge 311 (Befriending Grief); as of the investigation its day 0–12 feed cards still link Befriending Grief sessions (incl. Crowdcast grief Q&A). None of the Life Transitions sessions 1460–1464 are linked. Needs content owner to remap in admin **before Nov 9**.
 - **Platforms:** All (admin content; surfaces in app challenge feed).
 - **Symptom:** After joining Navigating Life Transitions, day cards may open Befriending Grief / grief Q&A content instead of Life Transitions sessions.
 - **What to tell the customer:** If they report wrong/grief content on Life Transitions days, note the ticket and escalate; do not promise a ship date. Sessions are meant to start Nov 9. Sign-off: Take care, / Happier Meditation Support Team.
@@ -557,5 +557,29 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Notes / related:** T-1799 (Done, same gap), T-2495/T-2496 (QA, Rails clone of app-link landers). The customer also reported a bounce for support@mail.meditatehappier.com (no MX for that domain), raised in the watcher.
 - **Linear ticket:** T-2639 (https://linear.app/happier/issue/T-2639)
 - **Help Scout:** #325079 (https://secure.helpscout.net/conversation/3506468699/325079)
+- **Date added:** 2026-11-06
+- **Date resolved:** —
+
+## 43. iOS 2026.1023: Guided Meditations Open to a Black Screen (Only 1-min Silent Bell Plays)
+
+- **Status:** Open. T-2654, Priorities, High, unassigned. Filed 2026-11-06 4pm digest from HS #325142 (Bettie; duplicate #325143). Critical playback.
+- **Platforms:** iOS native **2026.1023 (57068138)**, server v3663.
+- **Symptom:** After the new Home layout, selecting guided meditations opens a black screen and nothing plays (~10 tries, strong Wi‑Fi). The one-minute silent meditation bell still works.
+- **What to tell the customer:** Sorry — this is logged with engineering as a playback bug. Ask them to force-quit Happier, restart the device, and try a guided sit from Singles (not Home). Ask for device model, iOS version, a screenshot of the black screen, and whether they use a VPN/content filter. Do not promise a date. Do not say it's fixed. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Adjacent to T-2422 (3 dots forever / no load) but different UI; not T-2440 (black screen after leaving a challenge, Ready for Deploy). Related-to T-2422 on Linear.
+- **Linear ticket:** T-2654 (https://linear.app/happier/issue/T-2654)
+- **Help Scout:** #325142 (https://secure.helpscout.net/conversation/3507397222/325142); #325143 dup (https://secure.helpscout.net/conversation/3507400531/325143)
+- **Date added:** 2026-11-06
+- **Date resolved:** —
+
+## 44. iOS New Home: Meditation Challenge Pill Under Status Bar; Good Afternoon Low Contrast
+
+- **Status:** Open. T-2655, Product Backlog, Medium, unassigned. Filed 2026-11-06 4pm digest from HS #325137 (Jarryd). Screenshot viewed.
+- **Platforms:** iOS New Home (hero carousel showing Navigating Life Transitions).
+- **Symptom:** The MEDITATION CHALLENGE pill sits behind / under the iOS status icons. Black "Good Afternoon" text is hard to read on a dark hero photo.
+- **What to tell the customer:** Logged with the team. Temporary workaround: Home → Profile → Settings → Manage → turn off New Home, then close and reopen. Do not promise a date. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Not T-1288 (Done, card title overlap). Older contrast tickets T-1475/T-1247 are Done.
+- **Linear ticket:** T-2655 (https://linear.app/happier/issue/T-2655)
+- **Help Scout:** #325137 (https://secure.helpscout.net/conversation/3507306500/325137)
 - **Date added:** 2026-11-06
 - **Date resolved:** —
