@@ -526,7 +526,7 @@ If we have the customer's account, don't ask them to look up or report their app
 
 ## 40. Life Transitions Challenge: Day 0–12 Feed Cards Still Point at Befriending Grief
 
-- **Status:** Open. Product Backlog, no priority, unassigned. Filed 2026-11-05 from the T-2594 investigation (Claude bot / Julia thread). Challenge 347 `life-transitions-2026` was duplicated from challenge 311 (Befriending Grief); as of the investigation its day 0–12 feed cards still link Befriending Grief sessions (incl. Crowdcast grief Q&A). None of the Life Transitions sessions 1460–1464 are linked. Needs content owner to remap in admin **before Nov 9**.
+- **Status:** Open. Product Backlog, no priority, unassigned (unchanged 2026-11-06 9am). Filed 2026-11-05 from the T-2594 investigation (Claude bot / Julia thread). Challenge 347 `life-transitions-2026` was duplicated from challenge 311 (Befriending Grief); as of the investigation its day 0–12 feed cards still link Befriending Grief sessions (incl. Crowdcast grief Q&A). None of the Life Transitions sessions 1460–1464 are linked. Needs content owner to remap in admin **before Nov 9**.
 - **Platforms:** All (admin content; surfaces in app challenge feed).
 - **Symptom:** After joining Navigating Life Transitions, day cards may open Befriending Grief / grief Q&A content instead of Life Transitions sessions.
 - **What to tell the customer:** If they report wrong/grief content on Life Transitions days, note the ticket and escalate; do not promise a ship date. Sessions are meant to start Nov 9. Sign-off: Take care, / Happier Meditation Support Team.
@@ -534,4 +534,28 @@ If we have the customer's account, don't ask them to look up or report their app
 - **Linear ticket:** T-2620 (https://linear.app/happier/issue/T-2620)
 - **Help Scout:** —
 - **Date added:** 2026-11-05
+- **Date resolved:** —
+
+## 41. Android 2026.10.23: Taps Land on Wrong Screens (Support Button Opens a Sleep Meditation); Transition Video Renders Tiny
+
+- **Status:** Open. T-2638, Product Backlog, High, unassigned. Filed 2026-11-06 from HS #325105 (Heidi-Jane; sibling Cancel/Refund #325106 held for Cassidy). One report so far, no screenshots or device model.
+- **Platforms:** Android native 2026.10.23 (57069507), server v3646.
+- **Symptom:** "Every time I touch something it sends me to something completely different." The support button opens a sleep meditation. A "transition video" plays at about postage-stamp size. Customer can still play sessions intermittently.
+- **What to tell the customer:** We're sorry, this is logged with engineering and being looked at. Do not promise a date. Ask for device model and a screenshot or short screen recording if we need more. Do not say it's fixed. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** Possibly related to T-2594 (#39, Android play button/freeze), T-2591 (Android Settings navigation), T-2448 (Android Samsung layout). The #325106 refund ask (Stripe annual $49.99 paid Sep 21, past 30d, recent use) needs Cassidy.
+- **Linear ticket:** T-2638 (https://linear.app/happier/issue/T-2638)
+- **Help Scout:** #325105 (https://secure.helpscout.net/conversation/3506781550/325105)
+- **Date added:** 2026-11-06
+- **Date resolved:** —
+
+## 42. Life Transitions Join Link Is QR-Code-Only on Desktop
+
+- **Status:** Open. T-2639, Product Backlog, Medium, unassigned. Filed 2026-11-06 from HS #325079 (Nathan Marion). Challenge runs Nov 9–14.
+- **Platforms:** Web (desktop browser) at `my.meditatehappier.com/link/content?challenge=life-transitions-2026`.
+- **Symptom:** On a laptop the link from the Life Transitions "Join open" email shows only a QR code, with no way to register or join on web. Same pattern as T-1799 (Apple MMC link, Done).
+- **What to tell the customer:** Open the link on the phone that has the Happier app (or scan the QR with it), or download Happier first, then tap the link again. We've passed the desktop gap to the team. Do not promise a date. Sign-off: Take care, / Happier Meditation Support Team.
+- **Notes / related:** T-1799 (Done, same gap), T-2495/T-2496 (QA, Rails clone of app-link landers). The customer also reported a bounce for support@mail.meditatehappier.com (no MX for that domain), raised in the watcher.
+- **Linear ticket:** T-2639 (https://linear.app/happier/issue/T-2639)
+- **Help Scout:** #325079 (https://secure.helpscout.net/conversation/3506468699/325079)
+- **Date added:** 2026-11-06
 - **Date resolved:** —
